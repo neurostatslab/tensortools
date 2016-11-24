@@ -105,3 +105,59 @@ def kruskal_to_vec(factors):
         vectorised tensor
     """
     return tensor_to_vec(kruskal_to_tensor(factors))
+
+
+def plot_kruskal(factors):
+    pass
+    
+def standardize_kruskal(factors):
+    """Sorts factors by norm
+
+    Parameters
+    ----------
+    factors : ndarray list
+        list of matrices, all with the same number of columns
+        ie for all u in factor_matrices:
+        u[i] has shape (s_u_i, R), where R is fixed
+    mode: int
+        mode of the desired unfolding
+
+    Returns
+    -------
+    std_factors : ndarray list
+        standardized Kruskal tensor with unit length factors
+    lam : 1darray
+        norm of each factor
+    """
+
+    # dimensions
+    ndim = len(factors)
+    rank = factors[0].shape[1]
+
+    # factor norms
+    lam = np.ones(rank)
+
+    # allocate normalized factors
+    nrm_factors = [np.empty(fact.shape) for fact in factors]
+
+    # normalize factors to unit length
+    for fact, n_fact in zip(factors, nrm_factors):
+        
+        for r in range(self.rank):
+            # normalizing constant (prevent div-by-zero)
+            s = np.linalg.norm(fact[:,r])
+
+            # prevent div-by-zero
+            if s < 1e-20: s += 1e-20
+
+            # normalize to unit length
+            n_fact[:,r] = fact[:,r] / s
+            lam[r] *= s
+
+    # sort factors by their length/norm and return
+    prm = np.argsort(lam)[::-1]
+    return [n_fact[:,prm] for n_fact in nrm_factors], lam[prm]
+
+def align_kruskal(A, B):
+    pass
+
