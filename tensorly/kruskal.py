@@ -303,10 +303,9 @@ def redistribute_kruskal(factors, ratios=None):
         ratios = np.ones(ndim)
 
     # convert to numpy array
-    ratios = np.array(ratios)
     if len(ratios) != ndim:
         raise ValueError('list of scalings must match the number of tensor modes/dimensions')
-    elif np.any(ratios < 0):
+    elif np.min(ratios) < 0:
         raise ValueError('list of scalings must be nonnegative')
     else:
         ratios = np.array(ratios) / np.sum(ratios)
