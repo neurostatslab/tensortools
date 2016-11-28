@@ -111,7 +111,7 @@ def kruskal_to_vec(factors):
 
 def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
                  color='b', lw=2, sort_fctr=False, link_yaxis=False, label=None,
-                 gs=None, yticks=True, width_ratios=None):
+                 xlabels='', gs=None, yticks=True, width_ratios=None):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -218,6 +218,7 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
             # remove xticks on all but bottom row
             if r != R-1:
                 plt.xticks([])
+                plt.xlabel(xlabels[i])
 
             # allow user to suppress yticks
             if not yticks:
