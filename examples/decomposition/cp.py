@@ -34,6 +34,6 @@ plot_kruskal(align2, color='r', ax=ax)
 
 newmod1 = standardize_kruskal(align1, lam_ratios=[1,0,1])
 ax = plot_kruskal(align1, width_ratios=[1,2,1])
-plot_kruskal(newmod1, color='r', ax=ax)
+plot_kruskal(newmod1, color='r', ax=ax, suptitle='Supertitle', link_yaxis=True)
 
 plt.show()

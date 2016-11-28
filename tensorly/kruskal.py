@@ -225,43 +225,17 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
                 ax[r,i].set_yticks([])
 
 
-    # # backtrack and fix y-axes to have the same limits
-    # for i, link in enumerate(link_yaxis):
-    #     if link:
-    #         yl = [a.get_ylim() for a in ax[:,i]]
-    #         y0 = min([y[0] for y in yl])
-    #         y1 = max([y[1] for y in yl])
-    #         [a.set_ylim([y0,y1]) for a in ax[:,i]]
+    # backtrack and fix y-axes to have the same limits
+    for i in np.where(link_yaxis)[0]:
+        yl = [a.get_ylim() for a in ax[:,i]]
+        y0 = min([y[0] for y in yl])
+        y1 = max([y[1] for y in yl])
+        [a.set_ylim([y0,y1]) for a in ax[:,i]]
 
-            # y0, y1 = np.inf(), -np.inf()
-            # for ax in gs[:,i]:
-            #     plt.supblot(ax)
-            #     y0 = min(y0, plt.ylim()[0])
-            #     y1 = max(y1, plt.ylim()[1])
-            # for ax in gs[:,i]:
-            #     plt.supblot(ax)
-            #     plt.ylim
+    # super-title for the figure
+    if suptitle is not None:
+        plt.suptitle(suptitle)
 
-    # if any(link_yaxis):
-    #     # determine y limits
-    #     s = 1
-    #     yls = np.empty((R, ndim, 2))
-    #     for r, n in itr.product(range(R), range(ndim)):
-    #         plt.subplot(R, ndim, s)
-    #         yls[r,n,:] = plt.ylim()
-    #         s += 1
-    #     y0 = np.amin(yls[:,:,0],axis=0)
-    #     y1 = np.amax(yls[:,:,1],axis=0)
-
-    #     # set y limits
-    #     s = 1
-    #     for r, n in itr.product(range(R), range(ndim)):
-    #         if link_yaxis[n]:
-    #             plt.subplot(R, ndim, s)
-    #             plt.ylim([y0[n],y1[n]])
-    #         s += 1
-
-    plt.suptitle(suptitle)
     plt.tight_layout()
     return ax
 
