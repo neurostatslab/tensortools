@@ -25,18 +25,15 @@ for i,j,k,r in itr.product(range(N), range(N), range(N), range(R)):
 X1, info1 = parafac(data, R, init='random', tol=1e-7, verbose=1, n_iter_max=1000)
 X2, info2 = parafac(data, R, init='random', tol=1e-7, verbose=1, n_iter_max=1000)
 
-plt.figure()
-gs = plot_kruskal(X1, width_ratios=[1,2,1])
-plot_kruskal(X2, color='r', gs=gs)
+ax = plot_kruskal(X1, width_ratios=[1,2,1])
+plot_kruskal(X2, color='r', ax=ax)
 
 align1, align2, score = align_kruskal(X1, X2, greedy=False)
-plt.figure()
-gs = plot_kruskal(align1, width_ratios=[1,2,1])
-plot_kruskal(align2, color='r', gs=gs)
+ax = plot_kruskal(align1, width_ratios=[1,2,1])
+plot_kruskal(align2, color='r', ax=ax)
 
-newmod1 = standardize_kruskal(align1, ratios=[1,0,0])
-plt.figure()
-gs = plot_kruskal(align1, width_ratios=[1,2,1])
-plot_kruskal(newmod1, color='r', gs=gs)
+newmod1 = standardize_kruskal(align1, lam_ratios=[1,0,1])
+ax = plot_kruskal(align1, width_ratios=[1,2,1])
+plot_kruskal(newmod1, color='r', ax=ax)
 
 plt.show()

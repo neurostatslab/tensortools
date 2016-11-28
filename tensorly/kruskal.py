@@ -110,9 +110,9 @@ def kruskal_to_vec(factors):
     return tensor_to_vec(kruskal_to_tensor(factors))
 
 def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
-                 color='b', lw=2, sort_fctr=False, standardize=True,
-                 lam_ratios=None, link_yaxis=False, label=None, xlabels='',
-                 gs=None, yticks=True, width_ratios=None):
+                 color='b', lw=2, sort_fctr=False, link_yaxis=False, label=None,
+                 xlabels='', suptitle=None, ax=None, yticks=True,
+                 width_ratios=None):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -173,17 +173,13 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     link_yaxis = _broadcast_arg(link_yaxis, (int,float), 'link_yaxis')
 
-    # standardize kruskal tensor
-    if standardize:
-        factors = standardize_kruskal(factors, lam_ratios=lam_ratios)
-
     # parse plot widths, defaults to equal widths
     if width_ratios is None:
         width_ratios = [1 for _ in range(ndim)]
 
     # setup subplots (unless gridspec already specified)
-    if gs is None:
-        gs = gridspec.GridSpec(R, ndim, width_ratios=width_ratios)
+    if ax is None:
+        _, ax = plt.subplots(R, ndim, gridspec_kw=dict(width_ratios=width_ratios))
 
     # check label input
     if label is not None and not isinstance(label, str):
@@ -193,67 +189,81 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
     o = []
     for srt,f in zip(sort_fctr, factors):
         if srt:
-            o.append(np.argsort(f[:,0]))
+            o.append(np.argsort(f[:,0])[::-1])
         else:
             o.append(range(f.shape[0]))
 
     # main loop, plot each factor
-    s = 0   # subplot counter
     for r in range(R):
         for i, f in enumerate(factors):
-            plt.subplot(gs[s])
 
             # determine type of plot
             if plots[i] == 'bar':
-                plt.bar(range(f.shape[0]), f[o[i],r], label=label)
+                ax[r,i].bar(range(f.shape[0]), f[o[i],r], label=label)
             elif plots[i] == 'scatter':
-                plt.scatter(range(f.shape[0]), f[o[i],r], c=color[i], label=label)
+                ax[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], label=label)
             elif plots[i] == 'line':
-                plt.plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], label=label)
+                ax[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], label=label)
             else:
                 raise ValueError('invalid plot type')
 
             # format axes
-            plt.locator_params(nbins=4)
-            plt.xlim([0,f.shape[0]])
+            ax[r,i].locator_params(nbins=4)
+            ax[r,i].set_xlim([0,f.shape[0]])
 
             # put title on top row
             if r == 0:
-                plt.title(titles[i])
+                ax[r,i].set_title(titles[i])
 
             # remove xticks on all but bottom row
             if r != R-1:
-                plt.xticks([])
-                plt.xlabel(xlabels[i])
+                ax[r,i].set_xticks([])
+                ax[r,i].set_xlabel(xlabels[i])
 
             # allow user to suppress yticks
             if not yticks:
-                plt.yticks([])
+                ax[r,i].set_yticks([])
 
-            # move to next subplot
-            s += 1
 
-    # backtrack and fix y-axes to have the same limits
-    if any(link_yaxis):
-        # determine y limits
-        s = 1
-        yls = np.empty((R, ndim, 2))
-        for r, n in itr.product(range(R), range(ndim)):
-            plt.subplot(R, ndim, s)
-            yls[r,n,:] = plt.ylim()
-            s += 1
-        y0 = np.amin(yls[:,:,0],axis=0)
-        y1 = np.amax(yls[:,:,1],axis=0)
+    # # backtrack and fix y-axes to have the same limits
+    # for i, link in enumerate(link_yaxis):
+    #     if link:
+    #         yl = [a.get_ylim() for a in ax[:,i]]
+    #         y0 = min([y[0] for y in yl])
+    #         y1 = max([y[1] for y in yl])
+    #         [a.set_ylim([y0,y1]) for a in ax[:,i]]
 
-        # set y limits
-        s = 1
-        for r, n in itr.product(range(R), range(ndim)):
-            if link_yaxis[n]:
-                plt.subplot(R, ndim, s)
-                plt.ylim([y0[n],y1[n]])
-            s += 1
+            # y0, y1 = np.inf(), -np.inf()
+            # for ax in gs[:,i]:
+            #     plt.supblot(ax)
+            #     y0 = min(y0, plt.ylim()[0])
+            #     y1 = max(y1, plt.ylim()[1])
+            # for ax in gs[:,i]:
+            #     plt.supblot(ax)
+            #     plt.ylim
 
-    return gs
+    # if any(link_yaxis):
+    #     # determine y limits
+    #     s = 1
+    #     yls = np.empty((R, ndim, 2))
+    #     for r, n in itr.product(range(R), range(ndim)):
+    #         plt.subplot(R, ndim, s)
+    #         yls[r,n,:] = plt.ylim()
+    #         s += 1
+    #     y0 = np.amin(yls[:,:,0],axis=0)
+    #     y1 = np.amax(yls[:,:,1],axis=0)
+
+    #     # set y limits
+    #     s = 1
+    #     for r, n in itr.product(range(R), range(ndim)):
+    #         if link_yaxis[n]:
+    #             plt.subplot(R, ndim, s)
+    #             plt.ylim([y0[n],y1[n]])
+    #         s += 1
+
+    plt.suptitle(suptitle)
+    plt.tight_layout()
+    return ax
 
 def normalize_kruskal(factors):
     """Normalizes all factors to unit length
@@ -301,8 +311,9 @@ def standardize_kruskal(factors, lam_ratios=None):
     # default to equally sized factors
     if lam_ratios is None:
         lam_ratios = np.ones(len(factors))
-    # else, check input is valid
-    elif len(lam_ratios) != len(factors):
+    
+    # check input is valid
+    if len(lam_ratios) != len(factors):
         raise ValueError('list of scalings must match the number of tensor modes/dimensions')
     elif np.min(lam_ratios) < 0:
         raise ValueError('list of scalings must be nonnegative')
