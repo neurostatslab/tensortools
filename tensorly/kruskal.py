@@ -109,9 +109,9 @@ def kruskal_to_vec(factors):
     """
     return tensor_to_vec(kruskal_to_tensor(factors))
 
-def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
-                 color='b', lw=2, sort_fctr=False, link_yaxis=False, label=None,
-                 xlabels='', suptitle=None, ax=None, yticks=True,
+def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
+                 titles='', color='b', lw=2, sort_fctr=False, link_yaxis=False,
+                 label=None, xlabels='', suptitle=None, ax=None, yticks=True,
                  width_ratios=None):
     """Plots a KTensor.
 
@@ -179,7 +179,9 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
 
     # setup subplots (unless gridspec already specified)
     if ax is None:
-        _, ax = plt.subplots(R, ndim, gridspec_kw=dict(width_ratios=width_ratios))
+        _, ax = plt.subplots(R, ndim,
+                             figsize=figsize,
+                             gridspec_kw=dict(width_ratios=width_ratios))
 
     # check label input
     if label is not None and not isinstance(label, str):
