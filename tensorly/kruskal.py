@@ -233,11 +233,13 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
         y1 = max([y[1] for y in yl])
         [a.set_ylim([y0,y1]) for a in ax[:,i]]
 
+    plt.tight_layout()
+
     # super-title for the figure
     if suptitle is not None:
         plt.suptitle(suptitle)
+        plt.subplots_adjust(top=0.85)
 
-    plt.tight_layout()
     return ax
 
 def normalize_kruskal(factors):
