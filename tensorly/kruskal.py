@@ -200,6 +200,8 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
             # determine type of plot
             if plots[i] == 'bar':
                 plt.bar(range(f.shape[0]), f[o[i],r], label=label)
+            elif plots[i] == 'scatter':
+                plt.scatter(range(f.shape[0]), f[o[i],r], c=color[i], label=label)
             elif plots[i] == 'line':
                 plt.plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], label=label)
             else:
