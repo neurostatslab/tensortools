@@ -218,6 +218,7 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
             # remove xticks on all but bottom row
             if r != R-1:
                 ax[r,i].set_xticks([])
+            else:
                 ax[r,i].set_xlabel(xlabels[i])
 
             # allow user to suppress yticks
