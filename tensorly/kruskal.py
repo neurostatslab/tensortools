@@ -110,8 +110,9 @@ def kruskal_to_vec(factors):
     return tensor_to_vec(kruskal_to_tensor(factors))
 
 def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
-                 color='b', lw=2, sort_fctr=False, link_yaxis=False, label=None,
-                 xlabels='', gs=None, yticks=True, width_ratios=None):
+                 color='b', lw=2, sort_fctr=False, lam_ratios=None,
+                 link_yaxis=False, label=None, xlabels='', gs=None,
+                 yticks=True, width_ratios=None):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -165,6 +166,7 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
     # parse optional inputs
     plots = _broadcast_arg(plots, str, 'plots')
     titles = _broadcast_arg(titles, str, 'titles')
+    xlabels = _broadcast_arg(titles, str, 'xlabels')
     lspec = _broadcast_arg(lspec, str, 'lspec')
     color = _broadcast_arg(color, (str,tuple), 'color')
     lw = _broadcast_arg(lw, (int,float), 'lw')
@@ -248,8 +250,28 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
             s += 1
 
     return gs
-    
-def standardize_kruskal(factors):
+
+def normalize_kruskal(factors):
+    """Normalizes all factors to unit length
+    """
+    ndim, rank = _validate_kruskal(factors)
+
+    # factor norms
+    lam = np.ones(rank)
+
+    # destination for new ktensor
+    newfactors = []
+
+    # normalize columns of factor matrices
+    lam = np.ones(rank)
+    for fact in factors:
+        s = np.linalg.norm(fact, axis=0)
+        lam *= s
+        newfactors.append(fact/(s+1e-20))
+
+    return newfactors, lam
+
+def standardize_kruskal(factors, ratios=None):
     """Sorts factors by norm
 
     Parameters
@@ -269,66 +291,23 @@ def standardize_kruskal(factors):
         norm of each factor
     """
 
-    ndim, rank = _validate_kruskal(factors)
+    # normalize tensor
+    nrmfactors, lam = normalize_kruskal(factors)
 
-    # factor norms
-    lam = np.ones(rank)
-
-    # allocate normalized factors
-    nrm_factors = [np.empty(fact.shape) for fact in factors]
-
-    # normalize factors to unit length
-    for fact, n_fact in zip(factors, nrm_factors):
-        
-        for r in range(rank):
-            # normalizing constant (prevent div-by-zero)
-            s = np.linalg.norm(fact[:,r])
-
-            # prevent div-by-zero
-            if s < 1e-20: s += 1e-20
-
-            # normalize to unit length
-            n_fact[:,r] = fact[:,r] / s
-            lam[r] *= s
-
-    # sort factors by their length/norm and return
-    prm = np.argsort(lam)[::-1]
-    return [n_fact[:,prm] for n_fact in nrm_factors], lam[prm]
-
-def redistribute_kruskal(factors, ratios=None):
-    """Rescales factor matrices relative to ratios parameter
-    """
-
-    ndim, rank = _validate_kruskal(factors)
-
-    # check inputs
+    # default to equally sized factors
     if ratios is None:
-        ratios = np.ones(ndim)
-
-    # convert to numpy array
-    if len(ratios) != ndim:
+        ratios = np.ones(len(factors))
+    # else, check input is valid
+    elif len(ratios) != len(factors):
         raise ValueError('list of scalings must match the number of tensor modes/dimensions')
     elif np.min(ratios) < 0:
         raise ValueError('list of scalings must be nonnegative')
     else:
         ratios = np.array(ratios) / np.sum(ratios)
 
-    # destination for new ktensor
-    newfactors = []
-
-    # normalize columns of factor matrices
-    lam = np.ones(rank)
-    for fact in factors:
-        s = np.linalg.norm(fact, axis=0)
-        lam *= s
-        newfactors.append(fact/(s+1e-20))
-
-    # redistribute lambdas amongst factor matrices
-    for r, fact in zip(ratios, newfactors):
-        fact *= np.power(lam, r)
-
-    return newfactors
-
+    # sort factors by their length/norm and return
+    prm = np.argsort(lam)[::-1]
+    return [f[:,prm]*np.power(lam[prm], r) for f, r in zip(nrmfactors, ratios)]
 
 def align_kruskal(A, B, greedy=True, penalize_lam=True):
     """Align two kruskal tensors
@@ -367,8 +346,8 @@ def align_kruskal(A, B, greedy=True, penalize_lam=True):
     if ra < rb:
         raise ValueError('tensor A must have at least as many components as tensor B.')
 
-    A, lamA = standardize_kruskal(A)
-    B, lamB = standardize_kruskal(B)
+    A, lamA = normalize_kruskal(A)
+    B, lamB = normalize_kruskal(B)
 
     # compute dot product
     dprod = np.array([np.dot(a.T, b) for a, b in zip(A, B)])
@@ -419,22 +398,29 @@ def align_kruskal(A, B, greedy=True, penalize_lam=True):
         # sort from least to most similar
         dpsrt = np.argsort(dprod[:, i, j])
         dp = dprod[dpsrt, i, j]
+        print(dp)
 
         # flip factors
         #   - need to flip in pairs of two
         #   - stop flipping once dp is positive
         for z in range(0, ndim-1, 2):
             if dp[z] >= 0 or abs(dp[z]) < dp[z+1]:
-                break
+                print(dp[z])
+                print(dp[z+1])
+                print('-----')
+                #break
             else:
                 # flip signs
                 sgn[dpsrt[z], i] *= -1
                 sgn[dpsrt[z+1], i] *= -1
 
-    # flip and permute to align
-    aligned_A = [s*a[:,best_perm] for s, a in zip(sgn, A)]
+    # flip signs in A
+    print(sgn)
+    flipped_A = [s*a for s, a in zip(sgn, A)]
     aligned_B = [np.power(l, 1/ndim)*b for l, b in zip(lamB, B)]
 
+    # permute A to align with B
+    aligned_A = [a[:,best_perm] for a in flipped_A]
     return aligned_A, aligned_B, score
 
 def _validate_kruskal(factors):
