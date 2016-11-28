@@ -45,7 +45,8 @@ def parafac(tensor, rank, **kwargs):
     return _parafac_als(tensor, rank, **kwargs)
 
 def _parafac_als(tensor, rank, ls_method=np.linalg.solve, n_iter_max=100,
-                 init='svd', tol=10e-7, random_state=None, verbose=False):
+                 init='svd', tol=10e-7, random_state=None, verbose=False,
+                 print_every=1):
     """Fit CP decomposition by alternating least squares (ALS) or non-negative least squares (ANNLS)
 
     Parameters
@@ -110,9 +111,9 @@ def _parafac_als(tensor, rank, ls_method=np.linalg.solve, n_iter_max=100,
         rec_errors.append(rec_error)
 
         if iteration > 1:
-            if verbose:
-                print('reconsturction error={}, variation={}.'.format(
-                    rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
+            if verbose and (iteration%print_every) == 0:
+                print('iter={}, error={}, variation={}.'.format(
+                    iteration, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
 
             if tol and abs(rec_errors[-2] - rec_errors[-1]) < tol:
                 if verbose:
