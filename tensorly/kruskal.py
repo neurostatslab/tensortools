@@ -110,9 +110,9 @@ def kruskal_to_vec(factors):
     return tensor_to_vec(kruskal_to_tensor(factors))
 
 def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
-                 color='b', lw=2, sort_fctr=False, lam_ratios=None,
-                 link_yaxis=False, label=None, xlabels='', gs=None,
-                 yticks=True, width_ratios=None):
+                 color='b', lw=2, sort_fctr=False, standardize=True,
+                 lam_ratios=None, link_yaxis=False, label=None, xlabels='',
+                 gs=None, yticks=True, width_ratios=None):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -172,6 +172,10 @@ def plot_kruskal(factors, lspec='-', plot_n=None, plots='line', titles='',
     lw = _broadcast_arg(lw, (int,float), 'lw')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     link_yaxis = _broadcast_arg(link_yaxis, (int,float), 'link_yaxis')
+
+    # standardize kruskal tensor
+    if standardize:
+        factors = standardize_kruskal(factors, lam_ratios=lam_ratios)
 
     # parse plot widths, defaults to equal widths
     if width_ratios is None:
@@ -271,7 +275,7 @@ def normalize_kruskal(factors):
 
     return newfactors, lam
 
-def standardize_kruskal(factors, ratios=None):
+def standardize_kruskal(factors, lam_ratios=None):
     """Sorts factors by norm
 
     Parameters
@@ -295,19 +299,19 @@ def standardize_kruskal(factors, ratios=None):
     nrmfactors, lam = normalize_kruskal(factors)
 
     # default to equally sized factors
-    if ratios is None:
-        ratios = np.ones(len(factors))
+    if lam_ratios is None:
+        lam_ratios = np.ones(len(factors))
     # else, check input is valid
-    elif len(ratios) != len(factors):
+    elif len(lam_ratios) != len(factors):
         raise ValueError('list of scalings must match the number of tensor modes/dimensions')
-    elif np.min(ratios) < 0:
+    elif np.min(lam_ratios) < 0:
         raise ValueError('list of scalings must be nonnegative')
     else:
-        ratios = np.array(ratios) / np.sum(ratios)
+        lam_ratios = np.array(lam_ratios) / np.sum(lam_ratios)
 
     # sort factors by their length/norm and return
     prm = np.argsort(lam)[::-1]
-    return [f[:,prm]*np.power(lam[prm], r) for f, r in zip(nrmfactors, ratios)]
+    return [f[:,prm]*np.power(lam[prm], r) for f, r in zip(nrmfactors, lam_ratios)]
 
 def align_kruskal(A, B, greedy=True, penalize_lam=True):
     """Align two kruskal tensors
