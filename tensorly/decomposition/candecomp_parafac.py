@@ -111,16 +111,24 @@ def _parafac_als(tensor, rank, ls_method=np.linalg.solve, n_iter_max=100,
         rec_errors.append(rec_error)
 
         if iteration > 1:
+
+            # check convergence
+            converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
+
+            # display progress
             if verbose and (iteration%print_every) == 0:
                 print('iter={}, error={}, variation={}.'.format(
                     iteration, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
 
-            if tol and abs(rec_errors[-2] - rec_errors[-1]) < tol:
+            # break loop if converged
+            if tol and converged:
                 if verbose:
                     print('converged in {} iterations.'.format(iteration))
                 break
 
-    return factors
+    return factors, { 'rec_error' : rec_errors[-1],
+                      'converged' : converged,
+                      'iterations' : iteration }
 
 def non_negative_parafac(tensor, rank, method='annls', **kwargs):
     """Non-negative CP decomposition
@@ -226,7 +234,7 @@ def _nn_parafac_mu(tensor, rank, n_iter_max=100, init='svd', tol=10e-7,
                 print('converged in {} iterations.'.format(iteration))
             break
 
-    return nn_factors
+    return nn_factors, rec_errprs[-1]
 
 def _nn_parafac_annls(tensor, rank, nnls=lambda A, B: nnlsm_blockpivot(A, B)[0], **kwargs):
     """Non-negative CP decomposition via alternating nonneg least squares, see [3]_

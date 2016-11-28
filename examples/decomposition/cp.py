@@ -22,19 +22,19 @@ for i,j,k,r in itr.product(range(N), range(N), range(N), range(R)):
     data[i,j,k] += factors[0][i,r]*factors[1][j,r]*factors[2][k,r]
 
 # fit CP decomposition
-model1 = parafac(data, R, init='random', verbose=1)
-model2 = parafac(data, R, init='random', verbose=1)
+X1, info1 = parafac(data, R, init='random', verbose=1)
+X2, info2 = parafac(data, R, init='random', verbose=1)
 
 plt.figure()
-gs = plot_kruskal(model1, width_ratios=[1,2,1])
-plot_kruskal(model2, color='r', gs=gs)
+gs = plot_kruskal(X1, width_ratios=[1,2,1])
+plot_kruskal(X2, color='r', gs=gs)
 
-align1, align2, score = align_kruskal(model1, model2, greedy=False)
+align1, align2, score = align_kruskal(X1, X2, greedy=False)
 plt.figure()
 gs = plot_kruskal(align1, width_ratios=[1,2,1])
 plot_kruskal(align2, color='r', gs=gs)
 
-newmod1 = redistribute_kruskal(align1,ratios=[1,0,0])
+newmod1 = redistribute_kruskal(align1, ratios=[1,0,0])
 plt.figure()
 gs = plot_kruskal(align1, width_ratios=[1,2,1])
 plot_kruskal(newmod1, color='r', gs=gs)
