@@ -178,12 +178,21 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     if width_ratios is None:
         width_ratios = [1 for _ in range(ndim)]
 
-    # setup subplots (unless gridspec already specified)
+    # default scatterplot options
+    for sckw in scatter_kwargs:
+        if not "edgecolor" in sckw.keys():
+            sckw["edgecolor"] = "none"
+        if not "s" in sckw.keys():
+            sckw["s"] = 10
+        if not "c" in sckw.keys():
+            sckw["c"] = "k"
+
+    # setup subplots (unless already specified)
     if ax is None:
-        _, ax = plt.subplots(R, ndim,
-                             figsize=figsize,
-                             sharex='col',
-                             gridspec_kw=dict(width_ratios=width_ratios))
+        fig, ax = plt.subplots(R, ndim,
+                               figsize=figsize,
+                               sharex='col',
+                               gridspec_kw=dict(width_ratios=width_ratios))
 
     # check label input
     if label is not None and not isinstance(label, str):
@@ -239,12 +248,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
 
     plt.tight_layout()
 
-    # super-title for the figure
-    if suptitle is not None:
-        plt.suptitle(suptitle)
-        plt.subplots_adjust(top=0.85)
-
-    return ax
+    return fig, ax
 
 def normalize_kruskal(factors):
     """Normalizes all factors to unit length
