@@ -112,7 +112,7 @@ def kruskal_to_vec(factors):
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                  titles='', color='b', lw=2, sort_fctr=False, link_yaxis=False,
                  label=None, xlabels='', suptitle=None, ax=None, yticks=True,
-                 width_ratios=None):
+                 width_ratios=None, scatter_kwargs=dict()):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -172,6 +172,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     lw = _broadcast_arg(lw, (int,float), 'lw')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     link_yaxis = _broadcast_arg(link_yaxis, (int,float), 'link_yaxis')
+    scatter_kwargs = _broadcast_arg(scatter_kwargs, (dict), 'scatter_kwargs')
 
     # parse plot widths, defaults to equal widths
     if width_ratios is None:
@@ -203,7 +204,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
             if plots[i] == 'bar':
                 ax[r,i].bar(range(f.shape[0]), f[o[i],r], label=label)
             elif plots[i] == 'scatter':
-                ax[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], label=label)
+                ax[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], label=label, **scatter_kwargs[i])
             elif plots[i] == 'line':
                 ax[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], label=label)
             else:
