@@ -182,6 +182,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     if ax is None:
         _, ax = plt.subplots(R, ndim,
                              figsize=figsize,
+                             sharex='col',
                              gridspec_kw=dict(width_ratios=width_ratios))
 
     # check label input
