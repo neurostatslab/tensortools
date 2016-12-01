@@ -110,9 +110,9 @@ def kruskal_to_vec(factors):
     return tensor_to_vec(kruskal_to_tensor(factors))
 
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
-                 titles='', color='b', lw=2, sort_fctr=False, link_yaxis=False,
-                 label=None, xlabels='', suptitle=None, ax=None, yticks=True,
-                 width_ratios=None, scatter_kwargs=dict()):
+                 titles='', color='b', alpha=1.0, lw=2, sort_fctr=False,
+                 link_yaxis=False, label=None, xlabels='', suptitle=None, fig=None,
+                 axes=None, yticks=True, width_ratios=None, scatter_kwargs=dict()):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -169,6 +169,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     xlabels = _broadcast_arg(titles, str, 'xlabels')
     lspec = _broadcast_arg(lspec, str, 'lspec')
     color = _broadcast_arg(color, (str,tuple), 'color')
+    alpha = _broadcast_arg(alpha, (int,float), 'alpha')
     lw = _broadcast_arg(lw, (int,float), 'lw')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     link_yaxis = _broadcast_arg(link_yaxis, (int,float), 'link_yaxis')
@@ -188,11 +189,15 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
             sckw["c"] = "k"
 
     # setup subplots (unless already specified)
-    if ax is None:
-        fig, ax = plt.subplots(R, ndim,
+    if fig is None and axes is None:
+        fig, axes = plt.subplots(R, ndim,
                                figsize=figsize,
                                sharex='col',
                                gridspec_kw=dict(width_ratios=width_ratios))
+    elif fig is None:
+        fig = axes[0,0].get_figure()
+    else:
+        axes = np.array(fig.get_axes(), dtype=object).reshape(R, ndim)
 
     # check label input
     if label is not None and not isinstance(label, str):
@@ -212,43 +217,53 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
 
             # determine type of plot
             if plots[i] == 'bar':
-                ax[r,i].bar(range(f.shape[0]), f[o[i],r], label=label)
+                axes[r,i].bar(range(f.shape[0]), f[o[i],r], color=color[i], alpha=alpha[i], label=label)
             elif plots[i] == 'scatter':
-                ax[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], label=label, **scatter_kwargs[i])
+                axes[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], alpha=alpha[i], label=label, **scatter_kwargs[i])
             elif plots[i] == 'line':
-                ax[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], label=label)
+                axes[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], alpha=alpha[i], label=label)
             else:
                 raise ValueError('invalid plot type')
 
             # format axes
-            ax[r,i].locator_params(nbins=4)
-            ax[r,i].set_xlim([0,f.shape[0]])
+            axes[r,i].locator_params(nbins=4)
+            axes[r,i].set_xlim([0,f.shape[0]])
+            axes[r,i].spines['top'].set_visible(False)
+            axes[r,i].spines['right'].set_visible(False)
+            axes[r,i].xaxis.set_tick_params(direction='out')
+            axes[r,i].yaxis.set_tick_params(direction='out')
+            axes[r,i].yaxis.set_ticks_position('left')
+            axes[r,i].xaxis.set_ticks_position('bottom')
 
             # put title on top row
             if r == 0:
-                ax[r,i].set_title(titles[i])
+                axes[r,i].set_title(titles[i])
 
             # remove xticks on all but bottom row
             if r != R-1:
-                ax[r,i].set_xticks([])
+                plt.setp(axes[r,i].get_xticklabels(), visible=False)
             else:
-                ax[r,i].set_xlabel(xlabels[i])
+                axes[r,i].set_xlabel(xlabels[i])
 
             # allow user to suppress yticks
             if not yticks:
-                ax[r,i].set_yticks([])
-
+                axes[r,i].set_yticks([])
+            else:
+                # only two labels
+                yt = axes[r,i].get_yticks()
+                ylab = [str(yt[0]), *['' for _ in range(len(yt)-2)], str(yt[-1])]
+                axes[r,i].set_yticklabels(ylab)
 
     # backtrack and fix y-axes to have the same limits
     for i in np.where(link_yaxis)[0]:
-        yl = [a.get_ylim() for a in ax[:,i]]
+        yl = [a.get_ylim() for a in axes[:,i]]
         y0 = min([y[0] for y in yl])
         y1 = max([y[1] for y in yl])
-        [a.set_ylim([y0,y1]) for a in ax[:,i]]
+        [a.set_ylim([y0,y1]) for a in axes[:,i]]
 
     plt.tight_layout()
 
-    return fig, ax
+    return fig, axes
 
 def normalize_kruskal(factors):
     """Normalizes all factors to unit length
@@ -398,24 +413,19 @@ def align_kruskal(A, B, greedy=True, penalize_lam=True):
         # sort from least to most similar
         dpsrt = np.argsort(dprod[:, i, j])
         dp = dprod[dpsrt, i, j]
-        print(dp)
 
         # flip factors
         #   - need to flip in pairs of two
         #   - stop flipping once dp is positive
         for z in range(0, ndim-1, 2):
             if dp[z] >= 0 or abs(dp[z]) < dp[z+1]:
-                print(dp[z])
-                print(dp[z+1])
-                print('-----')
-                #break
+                break
             else:
                 # flip signs
                 sgn[dpsrt[z], i] *= -1
                 sgn[dpsrt[z+1], i] *= -1
 
     # flip signs in A
-    print(sgn)
     flipped_A = [s*a for s, a in zip(sgn, A)]
     aligned_B = [np.power(l, 1/ndim)*b for l, b in zip(lamB, B)]
 
