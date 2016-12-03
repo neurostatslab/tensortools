@@ -251,7 +251,9 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
             else:
                 # only two labels
                 yt = axes[r,i].get_yticks()
-                ylab = [str(yt[0]), *['' for _ in range(len(yt)-2)], str(yt[-1])]
+                y0 = np.min(yt[yt > axes[r,i].get_xlim()[0]])
+                y1 = np.max(yt[yt < axes[r,i].get_xlim()[1]])
+                ylab = [str(y0), *['' for _ in range(len(yt)-2)], str(y1)]
                 axes[r,i].set_yticklabels(ylab)
 
     # backtrack and fix y-axes to have the same limits
