@@ -250,10 +250,20 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                 axes[r,i].set_yticks([])
             else:
                 # only two labels
-                yt = axes[r,i].get_yticks()
-                y0 = np.min(yt[yt > axes[r,i].get_xlim()[0]])
-                y1 = np.max(yt[yt < axes[r,i].get_xlim()[1]])
-                ylab = [str(y0), *['' for _ in range(len(yt)-2)], str(y1)]
+                ymin, ymax = axes[r,i].get_ylim()
+
+                # reset tick marks
+                yt = np.linspace(ymin, ymax, n_yticks)
+
+                # remove decimals from labels
+                if ymin.is_integer():
+                    ymin = int(ymin)
+                if ymax.is_integer():
+                    ymax = int(ymax)
+
+                # update plot
+                ylab = [str(ymin), *['' for _ in range(len(yt)-2)], str(ymax)]
+                axes[r,i].set_yticks(yt)
                 axes[r,i].set_yticklabels(ylab)
 
     # backtrack and fix y-axes to have the same limits
