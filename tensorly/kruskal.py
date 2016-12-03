@@ -110,7 +110,7 @@ def kruskal_to_vec(factors):
     return tensor_to_vec(kruskal_to_tensor(factors))
 
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
-                 titles='', color='b', alpha=1.0, lw=2, sort_fctr=False,
+                 titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
                  link_yaxis=False, label=None, xlabels='', suptitle=None, fig=None,
                  axes=None, yticks=True, width_ratios=None, scatter_kwargs=dict()):
     """Plots a KTensor.
@@ -152,7 +152,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     def _broadcast_arg(arg, argtype, name):
         """Broadcasts plotting option `arg` to all factors
         """
-        if isinstance(arg, argtype):
+        if arg is None or isinstance(arg, argtype):
             return [arg for _ in range(ndim)]
         elif isinstance(arg, list):
             return arg
@@ -171,6 +171,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     color = _broadcast_arg(color, (str,tuple), 'color')
     alpha = _broadcast_arg(alpha, (int,float), 'alpha')
     lw = _broadcast_arg(lw, (int,float), 'lw')
+    dashes = _broadcast_arg(dashes, tuple, 'dashes')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     link_yaxis = _broadcast_arg(link_yaxis, (int,float), 'link_yaxis')
     scatter_kwargs = _broadcast_arg(scatter_kwargs, (dict), 'scatter_kwargs')
@@ -192,7 +193,6 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     if fig is None and axes is None:
         fig, axes = plt.subplots(R, ndim,
                                figsize=figsize,
-                               sharex='col',
                                gridspec_kw=dict(width_ratios=width_ratios))
     elif fig is None:
         fig = axes[0,0].get_figure()
@@ -221,7 +221,9 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
             elif plots[i] == 'scatter':
                 axes[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], alpha=alpha[i], label=label, **scatter_kwargs[i])
             elif plots[i] == 'line':
-                axes[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], alpha=alpha[i], label=label)
+                ln, = axes[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], alpha=alpha[i], label=label)
+                if dashes[i] is not None:
+                    ln.set_dashes(dashes[i])
             else:
                 raise ValueError('invalid plot type')
 
