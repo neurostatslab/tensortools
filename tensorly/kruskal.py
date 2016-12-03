@@ -186,8 +186,6 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
             sckw["edgecolor"] = "none"
         if not "s" in sckw.keys():
             sckw["s"] = 10
-        if not "c" in sckw.keys():
-            sckw["c"] = "k"
 
     # setup subplots (unless already specified)
     if fig is None and axes is None:
