@@ -173,7 +173,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     lw = _broadcast_arg(lw, (int,float), 'lw')
     dashes = _broadcast_arg(dashes, tuple, 'dashes')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
-    link_yaxis = _broadcast_arg(link_yaxis, (int,float), 'link_yaxis')
+    link_yaxis = _broadcast_arg(link_yaxis, (bool), 'link_yaxis')
     scatter_kwargs = _broadcast_arg(scatter_kwargs, (dict), 'scatter_kwargs')
 
     # parse plot widths, defaults to equal widths
@@ -245,7 +245,16 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
             else:
                 axes[r,i].set_xlabel(xlabels[i])
 
-            # allow user to suppress yticks
+    # link y-axes within columns
+    for i in np.where(link_yaxis)[0]:
+        yl = [a.get_ylim() for a in axes[:,i]]
+        y0 = min([y[0] for y in yl])
+        y1 = max([y[1] for y in yl])
+        [a.set_ylim([y0,y1]) for a in axes[:,i]]
+
+    # format y-ticks
+    for r in range(R):
+        for i in range(ndim):
             if not yticks:
                 axes[r,i].set_yticks([])
             else:
@@ -253,7 +262,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                 ymin, ymax = axes[r,i].get_ylim()
 
                 # reset tick marks
-                yt = np.linspace(ymin, ymax, n_yticks)
+                yt = np.linspace(ymin, ymax, 4)
 
                 # remove decimals from labels
                 if ymin.is_integer():
@@ -265,13 +274,6 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                 ylab = [str(ymin), *['' for _ in range(len(yt)-2)], str(ymax)]
                 axes[r,i].set_yticks(yt)
                 axes[r,i].set_yticklabels(ylab)
-
-    # backtrack and fix y-axes to have the same limits
-    for i in np.where(link_yaxis)[0]:
-        yl = [a.get_ylim() for a in axes[:,i]]
-        y0 = min([y[0] for y in yl])
-        y1 = max([y[1] for y in yl])
-        [a.set_ylim([y0,y1]) for a in axes[:,i]]
 
     plt.tight_layout()
 
