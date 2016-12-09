@@ -6,79 +6,21 @@ from ..tenalg import khatri_rao
 from ..tenalg._partial_svd import partial_svd
 from ..tenalg import norm
 
-# Author: Jean Kossaifi <jean.kossaifi+tensors@gmail.com>
+def parafac(tensor, rank, update_method=None, nonneg=False, exact=True,
+            sample_frac=0.5, init=None, init_factors=None, tol=10e-7,
+            n_iter_max=1000, verbose=False, print_every=1):
 
-# License: BSD 3 clause
+    # default initialization method
+    if init is None:
+        init = 'randn' if nonneg is False else 'rand'
 
-def parafac(tensor, rank, **kwargs):
-    """CANDECOMP/PARAFAC decomposition via alternating least squares (ALS)
-
-        Computes a rank-`rank` decomposition of `tensor` [1]_ such that:
-        ``tensor = [| factors[0], ..., factors[-1] |]``
-
-    Parameters
-    ----------
-    tensor : ndarray
-    rank  : int
-            number of components
-    n_iter_max : int
-                 maximum number of iteration
-    init : {'svd', 'random'}, optional
-    tol : float, optional
-          tolerance: the algorithm stops when the variation in
-          the reconstruction error is less than the tolerance
-    random_state : {None, int, np.random.RandomState}
-    verbose : int, optional
-        level of verbosity
-
-    Returns
-    -------
-    factors : ndarray list
-            list of factors of the CP decomposition
-            element `i` is of shape (tensor.shape[i], rank)
-
-    References
-    ----------
-    .. [1] T.G.Kolda and B.W.Bader, "Tensor Decompositions and Applications",
-       SIAM REVIEW, vol. 51, n. 3, pp. 455-500, 2009.
-    """
-    return _parafac_als(tensor, rank, **kwargs)
-
-def _parafac_als(tensor, rank, ls_method=np.linalg.solve, n_iter_max=100,
-                 init='svd', tol=10e-7, random_state=None, verbose=False,
-                 print_every=1):
-    """Fit CP decomposition by alternating least squares (ALS) or non-negative least squares (ANNLS)
-
-    Parameters
-    ----------
-    tensor : ndarray
-    rank  : int
-            number of components
-    n_iter_max : int
-                 maximum number of iteration
-    ls_method : function
-                specifies the least-squares solver called within each loop -
-                defaults to the standard numpy solver but can be changed to
-                randomized or non-negative least squares solvers
-    init : {'svd', 'random'}, optional
-    tol : float, optional
-          tolerance: the algorithm stops when the variation in
-          the reconstruction error is less than the tolerance
-    random_state : {None, int, np.random.RandomState}
-    verbose : int, optional
-        level of verbosity
-
-    Returns
-    -------
-    factors : ndarray list
-            list of factors of the CP decomposition
-            element `i` is of shape (tensor.shape[i], rank)
-    """
-    tensor = tensor.astype(np.float)
-    rng = check_random_state(random_state)
-    if init is 'random':
-        factors = [rng.random_sample((tensor.shape[i], rank)) for i in range(tensor.ndim)]
-
+    # intialize factor matrices
+    if init_factors is not None:
+        factors = init_factors.copy()
+    elif init is 'randn':
+        factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
+    elif init is 'rand':
+        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
     elif init is 'svd':
         factors = []
         for mode in range(tensor.ndim):
@@ -89,161 +31,95 @@ def _parafac_als(tensor, rank, ls_method=np.linalg.solve, n_iter_max=100,
                 new_columns = rng.random_sample((U.shape[0], rank - tensor.shape[mode]))
                 U = np.hstack((U, new_columns))
             factors.append(U[:, :rank])
-
     else:
-        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
+        raise ValueError('initialization method not recognized')
 
+    # determine optimization method
+    if update_method is None:
+        # nonneg vs vanilla least-squares
+        if nonneg is True:
+            ls_method = lambda A, B: nnlsm_blockpivot(A, B)[0]
+        else:
+            ls_method = np.linalg.solve
+
+        # exact vs randomized least-squares
+        if exact is False:
+            update_method = lambda t, f, m: _als_rand_update(t, f, m, ls_method=ls_method, frac=sample_frac)
+        else:
+            update_method = lambda t, f, m: _als_exact_update(t, f, m, ls_method=ls_method)
+
+    # setup optimization
     rec_errors = []
+    converged = False
     norm_tensor = norm(tensor, 2)
 
+    # main loop
     for iteration in range(n_iter_max):
-        for mode in range(tensor.ndim):
-            pseudo_inverse = np.ones((rank, rank))
-            for i, factor in enumerate(factors):
-                if i != mode:
-                    pseudo_inverse *= np.dot(factor.T, factor)
-            factor = np.dot(unfold(tensor, mode), khatri_rao(factors, skip_matrix=mode))
-            factor = ls_method(pseudo_inverse.T, factor.T).T
-            factors[mode] = factor
 
-        #if verbose or tol:
+        # alternating optimization over modes
+        for mode in range(tensor.ndim):
+            factors[mode] = update_method(tensor, factors, mode)
+
+        # store reconstruction errors
         rec_error = norm(tensor - kruskal_to_tensor(factors), 2) / norm_tensor
         rec_errors.append(rec_error)
 
+        # check covergence
         if iteration > 1:
 
-            # check convergence
-            converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
-
             # display progress
-            if verbose and (iteration%print_every) == 0:
+            if verbose and ((iteration+1)%print_every) == 0:
                 print('iter={}, error={}, variation={}.'.format(
-                    iteration, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
+                    iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
 
             # break loop if converged
+            converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
             if tol and converged:
                 if verbose:
-                    print('converged in {} iterations.'.format(iteration))
+                    print('converged in {} iterations.'.format(iteration+1))
                 break
 
-    return factors, { 'rec_error' : rec_errors[-1],
+        elif verbose and iteration==0:
+            print('iter={}, error={}.'.format(iteration+1, rec_errors[-1]))
+
+
+    # return optimized factors and info
+    return factors, { 'rec_errors' : rec_errors,
                       'converged' : converged,
-                      'iterations' : iteration }
+                      'iterations' : len(rec_errors) }
 
-def non_negative_parafac(tensor, rank, method='annls', **kwargs):
-    """Non-negative CP decomposition
+def _als_exact_update(tensor, factors, mode, ls_method=np.linalg.solve):
 
-        Fits a non-negative CP decomposition by user-specified method.
-        Currently implemented methods include alternating non-negative least
-        squares ('annls') and multiplicative updates ('mu').
+    # reduce grammians
+    rank = factors[0].shape[1]
+    pseudo_inverse = np.ones((rank, rank))
+    for i, factor in enumerate(factors):
+        if i != mode:
+            pseudo_inverse *= np.dot(factor.T, factor)
 
-    Parameters
-    ----------
-    tensor : ndarray
-    rank   : int
-            number of components
-    method : str, optional
-            specifies algorithm {'annls', 'mu'}, default is 'annls'
+    # solve least-squares
+    factor = np.dot(unfold(tensor, mode), khatri_rao(factors, skip_matrix=mode))
+    return ls_method(pseudo_inverse.T, factor.T).T
 
-    Returns
-    -------
-    factors : ndarray list
-            list of positive factors of the CP decomposition
-            element `i` is of shape ``(tensor.shape[i], rank)``
-    """
-    method_dict = {
-        'annls': _nn_parafac_annls,
-        'mu': _nn_parafac_mu
-    }
-    if method not in method_dict.keys():
-        raise ValueError('Optimization method not recognized. Choose from '+str(set(method_dict.keys())))
-    else:
-        return method_dict[method](tensor, rank, **kwargs)
 
-def _nn_parafac_mu(tensor, rank, n_iter_max=100, init='svd', tol=10e-7,
-                         random_state=None, verbose=0):
-    """Non-negative CP decomposition via multiplicative updates, see [2]_
+def _als_rand_update(tensor, factors, mode, ls_method=np.linalg.solve, frac=0.5):
 
-    Parameters
-    ----------
-    tensor : ndarray
-    rank   : int
-            number of components
-    n_iter_max : int
-                 maximum number of iteration
-    init : {'svd', 'random'}, optional
-    tol : float, optional
-          tolerance: the algorithm stops when the variation in
-          the reconstruction error is less than the tolerance
-    random_state : {None, int, np.random.RandomState}
-    verbose : int, optional
-        level of verbosity
+    # reduce grammians
+    rank = factors[0].shape[1]
+    pseudo_inverse = np.ones((rank, rank))
+    for i, factor in enumerate(factors):
+        if i != mode:
+            pseudo_inverse *= np.dot(factor.T, factor)
 
-    Returns
-    -------
-    factors : ndarray list
-            list of positive factors of the CP decomposition
-            element `i` is of shape ``(tensor.shape[i], rank)``
+    # unfold tensor
+    unf = unfold(tensor, mode)
 
-    References
-    ----------
-    .. [2] Amnon Shashua and Tamir Hazan,
-       "Non-negative tensor factorization with applications to statistics and computer vision",
-       In Proceedings of the International Conference on Machine Learning (ICML),
-       pp 792–799, ICML, 2005
-    """
-    epsilon = 10e-12
+    # sampled columns of unfolding
+    samp_idx = np.random.rand(unf.shape[1]) <= frac
 
-    # Initialisation
-    if init == 'svd':
-        factors = parafac(tensor, rank)
-        nn_factors = [np.abs(f) for f in factors]
-    else:
-        rng = check_random_state(random_state)
-        nn_factors = [np.abs(rng.random_sample((s, rank))) for s in tensor.shape]
+    # sub-sample
+    unf = unf[:, samp_idx]
+    kr = khatri_rao(factors, skip_matrix=mode)[samp_idx, :]
 
-    n_factors = len(nn_factors)
-    norm_tensor = norm(tensor, 2)
-    rec_errors = []
-
-    for iteration in range(n_iter_max):
-        for mode in range(tensor.ndim):
-            # khatri_rao(factors).T.dot(khatri_rao(factors))
-            # simplifies to multiplications
-            sub_indices = [i for i in range(n_factors) if i != mode]
-            for i, e in enumerate(sub_indices):
-                if i:
-                    accum *= nn_factors[e].T.dot(nn_factors[e])
-                else:
-                    accum = nn_factors[e].T.dot(nn_factors[e])
-
-            numerator = np.dot(unfold(tensor, mode), khatri_rao(nn_factors, skip_matrix=mode))
-            numerator = numerator.clip(min=epsilon)
-            denominator = np.dot(nn_factors[mode], accum)
-            denominator = denominator.clip(min=epsilon)
-            nn_factors[mode] *= numerator / denominator
-
-        rec_error = norm(tensor - kruskal_to_tensor(nn_factors), 2) / norm_tensor
-        rec_errors.append(rec_error)
-        if iteration > 1 and verbose:
-            print('reconstruction error={}, variation={}.'.format(
-                rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
-
-        if iteration > 1 and abs(rec_errors[-2] - rec_errors[-1]) < tol:
-            if verbose:
-                print('converged in {} iterations.'.format(iteration))
-            break
-
-    return nn_factors, rec_errprs[-1]
-
-def _nn_parafac_annls(tensor, rank, nnls=lambda A, B: nnlsm_blockpivot(A, B)[0], **kwargs):
-    """Non-negative CP decomposition via alternating nonneg least squares, see [3]_
-
-    References
-    ----------
-    .. [3] Jingu Kim, Yunlong He, and Haesun Park.
-       "Algorithms for Nonnegative Matrix and Tensor Factorizations: A Unified View Based
-       on Block Coordinate Descent Framework." Journal of Global Optimization,
-       58(2), pp. 285-319, 2014. http://dx.doi.org/10.1007/s10898-013-0035-4
-    """
-    return _parafac_als(tensor, rank, ls_method=nnls, **kwargs)
+    # compute factor
+    return ls_method(pseudo_inverse.T, np.dot(unf, kr).T).T

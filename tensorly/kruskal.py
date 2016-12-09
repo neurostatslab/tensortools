@@ -259,7 +259,8 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                 axes[r,i].set_yticks([])
             else:
                 # only two labels
-                ymin, ymax = axes[r,i].get_ylim()
+                ymin, ymax = np.round(axes[r,i].get_ylim(), 2)
+                axes[r,i].set_ylim((ymin, ymax))
 
                 # reset tick marks
                 yt = np.linspace(ymin, ymax, 4)
