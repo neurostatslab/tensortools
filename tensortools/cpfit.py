@@ -1,14 +1,12 @@
 import numpy as np
-from ..utils import check_random_state, nnlsm_blockpivot
-from ..base import unfold
-from ..kruskal import kruskal_to_tensor
-from ..tenalg import khatri_rao
-from ..tenalg._partial_svd import partial_svd
-from ..tenalg import norm
+from ._nnls import nnlsm_blockpivot
+from tensorly.base import unfold
+from tensorly.kruskal import kruskal_to_tensor
+from tensorly.tenalg import khatri_rao, norm
 
-def parafac(tensor, rank, update_method=None, nonneg=False, exact=True,
-            sample_frac=0.5, init=None, init_factors=None, tol=10e-7,
-            n_iter_max=1000, verbose=False, print_every=1):
+def cpfit(tensor, rank, update_method=None, nonneg=False, exact=True,
+          sample_frac=0.5, init=None, init_factors=None, tol=10e-7,
+          n_iter_max=1000, verbose=False, print_every=1):
 
     # default initialization method
     if init is None:
@@ -21,16 +19,6 @@ def parafac(tensor, rank, update_method=None, nonneg=False, exact=True,
         factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
     elif init is 'rand':
         factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    elif init is 'svd':
-        factors = []
-        for mode in range(tensor.ndim):
-            U, _, _ = partial_svd(unfold(tensor, mode), n_eigenvecs=rank)
-
-            if tensor.shape[mode] < rank:
-                # TODO: this is a hack but it seems to do the job for now
-                new_columns = rng.random_sample((U.shape[0], rank - tensor.shape[mode]))
-                U = np.hstack((U, new_columns))
-            factors.append(U[:, :rank])
     else:
         raise ValueError('initialization method not recognized')
 

@@ -1,7 +1,0 @@
-=================
-Development guide
-=================
-
-.. toctree::
-
-   documentation
