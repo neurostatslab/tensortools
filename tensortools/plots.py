@@ -5,7 +5,7 @@ Plotting options for tensor decompositions.
 import numpy as np
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
-
+from .kruskal import _validate_kruskal
 
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
