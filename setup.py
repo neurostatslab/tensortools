@@ -3,32 +3,25 @@ try:
 except ImportError:
     from distutils.core import setup, find_packages
 
-import tensorly
-version = tensorly.__version__
+import tensortools
+version = tensortools.__version__
 
 
 def readme():
-    with open('README.rst') as f:
+    with open('README.md') as f:
         return f.read()
 
 config = {
-    'name': 'tensorly',
+    'name': 'tensortools',
     'packages': find_packages(exclude=['doc']),
-    'description': 'Tensor learning in Python.',
+    'description': 'Tools for Tensor Decomposition.',
     'long_description': readme(),
-    'author': 'Jean Kossaifi',
-    'author_email': 'jean.kossaifi@gmail.com',
+    'author': 'Alex Williams',
+    'author_email': 'alex.h.willia@gmail.com',
     'version': version,
-    'url': 'https://github.com/tensorly/tensorly',
-    'download_url': 'https://github.com/tensorly/tensorly/tarball/' + version,
+    'url': 'https://github.com/ahwillia/tensortools',
     'install_requires': ['numpy', 'scipy'],
-    'license': 'Modified BSD',
-    'scripts': [],
-    'classifiers': [
-        'Topic :: Scientific/Engineering',
-        'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 3'
-    ],
+    'license': 'MIT'
 }
 
 setup(**config)
