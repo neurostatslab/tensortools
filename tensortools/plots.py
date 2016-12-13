@@ -6,6 +6,9 @@ import numpy as np
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
 from .kruskal import _validate_kruskal
+from tensorly.tenalg import norm
+from tensorly.kruskal import kruskal_to_tensor
+from jetpack import nospines, tickdir
 
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
@@ -177,3 +180,45 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     plt.tight_layout()
 
     return fig, axes
+
+def plot_scree(data, models, err=None, ax=None, jitter=0.1,
+               scatter_kwargs=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
+               plot_kwargs=dict(color='r', lw=3, zorder=1), **fig_kwargs):
+    """Plots relative reconstruction error as a function of model complexity
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    # compute model ranks
+    ranks = np.array([_validate_kruskal(model)[1] for model in models], dtype=int)
+
+    # if the user doesn't provide the reconstruction errors, recompute them
+    if err is None:
+        err = np.array([norm(data - kruskal_to_tensor(model), 2) / norm(data, 2) for model in models])
+
+    # add horizontal jitter 
+    n_models = len(models)
+    if jitter is not None:
+        jit = (np.random.rand(n_models)-0.5)*jitter
+    else:
+        jit = np.zeros(n_models)
+
+    # plot line connecting minimum reconstruction error for each rank
+    unique_ranks = list(set(ranks))
+    min_err = [np.min(err[ranks == rank]) for rank in unique_ranks]
+    ax.plot(unique_ranks, min_err, **plot_kwargs)
+
+    # plot all fits
+    ax.scatter(ranks+jit, err, **scatter_kwargs)
+
+    # format axes
+    x0,x1 = min(ranks),max(ranks)
+    ax.set_xticks(range(x0,x1+1))
+    ax.set_xlim([x0-0.5, x1+0.5])
+
+    nospines(ax=ax)
+    tickdir(ax=ax)
+
+    return ax
+

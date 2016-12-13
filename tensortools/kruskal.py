@@ -67,6 +67,8 @@ def standardize_kruskal(factors, lam_ratios=None):
 def align_kruskal(A, B, greedy=True, penalize_lam=True):
     """Align two kruskal tensors
 
+    Note:
+
     Parameters
     ----------
     factors : ndarray list
@@ -98,8 +100,10 @@ def align_kruskal(A, B, greedy=True, penalize_lam=True):
     ra = A[0].shape[1]
     rb = B[0].shape[1]
 
+    # function assumes rank(A) >= rank(B). Rather than raise an error, we make a recursive call.
     if ra < rb:
-        raise ValueError('tensor A must have at least as many components as tensor B.')
+        aligned_B, aligned_A, score = align_kruskal(B, A, greedy=greedy, penalize_lam=penalize_lam)
+        return aligned_A, aligned_B, score
 
     A, lamA = normalize_kruskal(A)
     B, lamB = normalize_kruskal(B)
