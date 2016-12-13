@@ -64,7 +64,7 @@ def standardize_kruskal(factors, lam_ratios=None):
     prm = np.argsort(lam)[::-1]
     return [f[:,prm]*np.power(lam[prm], r) for f, r in zip(nrmfactors, lam_ratios)]
 
-def align_kruskal(A, B, greedy=True, penalize_lam=True):
+def align_kruskal(A, B, greedy=False, penalize_lam=True):
     """Align two kruskal tensors
 
     Note:

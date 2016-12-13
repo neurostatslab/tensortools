@@ -5,10 +5,11 @@ Plotting options for tensor decompositions.
 import numpy as np
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
-from .kruskal import _validate_kruskal
+from .kruskal import align_kruskal, _validate_kruskal
 from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
 from jetpack import nospines, tickdir
+import itertools as itr
 
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
@@ -183,7 +184,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
 
 def plot_scree(data, models, err=None, ax=None, jitter=0.1,
                scatter_kwargs=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
-               plot_kwargs=dict(color='r', lw=3, zorder=1), **fig_kwargs):
+               plot_kwargs=dict(color='r', lw=3, zorder=1)):
     """Plots relative reconstruction error as a function of model complexity
     """
 
@@ -220,5 +221,53 @@ def plot_scree(data, models, err=None, ax=None, jitter=0.1,
     nospines(ax=ax)
     tickdir(ax=ax)
 
+    return ax
+
+
+def plot_fitvar(models, ax=None, jitter=0.1, labels=True, greedy=False,
+                scatter_kwargs=dict(edgecolor='none', color='k', alpha=0.7, zorder=2),
+                plot_kwargs=dict(color='r', lw=3, zorder=1)):
+    """Plots relative reconstruction error as a function of model complexity
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    # compute model ranks
+    ranks = np.array([_validate_kruskal(model)[1] for model in models], dtype=int)
+    unique_ranks = list(set(ranks))
+
+    # compute all pairwise scores as a function of rank
+    rx, scores = [], []
+    for rank in unique_ranks:
+        model_idx = np.where(ranks == rank)[0]
+        for c in itr.combinations(model_idx, 2):
+            scores.append(align_kruskal(models[c[0]], models[c[1]], greedy=greedy)[2])
+            rx.append(rank)
+
+    # add horizontal jitter 
+    if jitter is not None:
+        jit = (np.random.rand(len(rx))-0.5)*jitter
+    else:
+        jit = np.zeros(len(rx))
+
+    # plot all fits
+    ax.scatter(rx+jit, scores, **scatter_kwargs)
+
+    # format axes
+    x0,x1 = min(ranks),max(ranks)
+    ax.set_xticks(range(x0,x1+1))
+    ax.set_xlim([x0-0.5, x1+0.5])
+    ax.set_ylim([0,1.1])
+    ax.set_yticks([0,1])
+    nospines(ax=ax)
+    tickdir(ax=ax)
+    ax.spines['left'].set_bounds(0, 1)
+
+    # axis labels
+    if labels:
+        ax.set_xlabel('model rank')
+        ax.set_ylabel('model similarity')
+    
     return ax
 

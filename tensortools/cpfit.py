@@ -28,6 +28,8 @@ def cpfit(tensor, rank, update_method=None, nonneg=False, exact=True,
         # nonneg vs vanilla least-squares
         if nonneg is True:
             ls_method = lambda A, B: nnlsm_blockpivot(A, B)[0]
+        elif exact is False:
+            ls_method = lambda A, B: np.linalg.lstsq(A, B)[0]
         else:
             ls_method = np.linalg.solve
 
@@ -85,17 +87,20 @@ def _als_exact_update(tensor, factors, mode, gram, ls_method=np.linalg.solve):
 
     # reduce grammians
     rank = factors[0].shape[1]
-    pseudo_inverse = np.ones((rank, rank))
+    G = np.ones((rank, rank))
     for i, gram_matrix in enumerate(gram):
         if i != mode:
-            pseudo_inverse *= gram_matrix
+            G *= gram_matrix
 
-    # solve least-squares
-    factor = np.dot(unfold(tensor, mode), khatri_rao(factors, skip_matrix=mode))
-    return ls_method(pseudo_inverse.T, factor.T).T
+    # form unfolding and khatri-rao product
+    unf = unfold(tensor, mode)
+    kr = khatri_rao(factors, skip_matrix=mode)
+    
+    # solve least-squares to update factor
+    return ls_method(G.T, np.dot(unf, kr).T).T
 
 
-def _als_rand_update(tensor, factors, mode, gram, ls_method=np.linalg.solve, frac=0.5):
+def _als_rand_update(tensor, factors, mode, gram, ls_method=np.linalg.lstsq, frac=0.5):
 
     # reduce grammians
     rank = factors[0].shape[1]
@@ -115,7 +120,7 @@ def _als_rand_update(tensor, factors, mode, gram, ls_method=np.linalg.solve, fra
     kr = khatri_rao(factors, skip_matrix=mode)[samp_idx, :]
 
     # compute factor
-    return ls_method(G.T, np.dot(unf, kr).T).T
+    return ls_method(kr, unf.T).T
 
 def _fiber_sample_idx(n_samples, shape, mode):
     """Returns indices for sampling mode-n fibers of a tensor with specified shape.
