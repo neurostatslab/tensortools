@@ -1,3 +1,0 @@
-Tensor regression with tensorly
--------------------------------
-
