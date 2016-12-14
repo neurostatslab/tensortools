@@ -5,9 +5,9 @@ from tensorly.kruskal import kruskal_to_tensor
 from tensorly.tenalg import khatri_rao, norm
 from numpy.random import randint
 
-def cpfit(tensor, rank, update_method=None, nonneg=False, exact=True,
-          sample_frac=0.5, init=None, init_factors=None, tol=10e-7,
-          n_iter_max=1000, verbose=False, print_every=1):
+def cpfit(tensor, rank,  nonneg=False, exact_update=True, n_samples=None,
+          init=None, init_factors=None, tol=10e-7, n_iter_max=1000,
+          verbose=False, print_every=1):
 
     # default initialization method
     if init is None:
@@ -23,21 +23,21 @@ def cpfit(tensor, rank, update_method=None, nonneg=False, exact=True,
     else:
         raise ValueError('initialization method not recognized')
 
-    # determine optimization method
-    if update_method is None:
-        # nonneg vs vanilla least-squares
-        if nonneg is True:
-            ls_method = lambda A, B: nnlsm_blockpivot(A, B)[0]
-        elif exact is False:
-            ls_method = lambda A, B: np.linalg.lstsq(A, B)[0]
-        else:
-            ls_method = np.linalg.solve
+    # use non-negative least squares for nncp
+    if nonneg is True:
+        ls_method = lambda A, B: nnlsm_blockpivot(A, B)[0]
+    elif exact_update is False:
+        ls_method = lambda A, B: np.linalg.lstsq(A, B)[0]
+    else:
+        ls_method = np.linalg.solve
 
-        # exact vs randomized least-squares
-        if exact is False:
-            update_method = lambda *args: _als_rand_update(*args, ls_method=ls_method, frac=sample_frac)
-        else:
-            update_method = lambda *args: _als_exact_update(*args, ls_method=ls_method)
+    # exact vs randomized least-squares
+    if exact_update is False:
+        if n_samples is None:
+            n_samples = int(4 * rank * np.log(rank))
+        update_method = lambda *args: _als_rand_update(*args, n_samples, ls_method=ls_method)
+    else:
+        update_method = lambda *args: _als_exact_update(*args, ls_method=ls_method)
 
     # setup optimization
     rec_errors = []
@@ -50,10 +50,7 @@ def cpfit(tensor, rank, update_method=None, nonneg=False, exact=True,
 
         # alternating optimization over modes
         for mode in range(tensor.ndim):
-            # update factor
-            factors[mode] = update_method(tensor, factors, mode, gram)
-            # update grammian
-            gram[mode] = np.dot(factors[mode].T, factors[mode])
+            factors[mode] = update_method(tensor, factors, mode)
 
         # store reconstruction errors
         rec_error = norm(tensor - kruskal_to_tensor(factors), 2) / norm_tensor
@@ -83,14 +80,14 @@ def cpfit(tensor, rank, update_method=None, nonneg=False, exact=True,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def _als_exact_update(tensor, factors, mode, gram, ls_method=np.linalg.solve):
+def _als_exact_update(tensor, factors, mode, ls_method=np.linalg.solve):
 
     # reduce grammians
     rank = factors[0].shape[1]
     G = np.ones((rank, rank))
-    for i, gram_matrix in enumerate(gram):
+    for i, f in enumerate(factors):
         if i != mode:
-            G *= gram_matrix
+            G *= np.dot(f.T, f)
 
     # form unfolding and khatri-rao product
     unf = unfold(tensor, mode)
@@ -100,30 +97,24 @@ def _als_exact_update(tensor, factors, mode, gram, ls_method=np.linalg.solve):
     return ls_method(G.T, np.dot(unf, kr).T).T
 
 
-def _als_rand_update(tensor, factors, mode, gram, ls_method=np.linalg.lstsq, frac=0.5):
+def _als_rand_update(tensor, factors, mode, n_samples, ls_method=np.linalg.lstsq):
 
-    # reduce grammians
+    # sample mode-n fibers uniformly with replacement
+    idx = [tuple(randint(0, D, n_samples)) if n != mode else slice(None) for n, D in enumerate(tensor.shape)]
+
+    # unfold sampled tensor
+    if mode == 0:
+        unf = tensor[idx]
+    else:
+        unf = tensor[idx].T
+
+    # sub-sampled khatri-rao
     rank = factors[0].shape[1]
-    G = np.ones((rank, rank))
-    for i, gram_matrix in enumerate(gram):
+    kr = np.ones((n_samples, rank))
+    for i, f in enumerate(factors):
         if i != mode:
-            G *= gram_matrix
-
-    # unfold tensor
-    unf = unfold(tensor, mode)
-
-    # sampled columns of unfolding
-    samp_idx = np.random.rand(unf.shape[1]) <= frac
-
-    # sub-sample
-    unf = unf[:, samp_idx]
-    kr = khatri_rao(factors, skip_matrix=mode)[samp_idx, :]
+            kr *= f[idx[i], :]
 
     # compute factor
     return ls_method(kr, unf.T).T
-
-def _fiber_sample_idx(n_samples, shape, mode):
-    """Returns indices for sampling mode-n fibers of a tensor with specified shape.
-    """
-    return [tuple(randint(0, D, n_samples)) if n != mode else slice(None) for n, D in enumerate(shape)]
 
