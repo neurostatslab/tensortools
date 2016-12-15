@@ -182,10 +182,10 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
 
     return fig, axes
 
-def plot_scree(data, models, err=None, ax=None, jitter=0.1,
+def plot_scree(data, models, yvals=None, plot_aic=False, ax=None, jitter=0.1, labels=True,
                scatter_kwargs=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
                plot_kwargs=dict(color='r', lw=3, zorder=1)):
-    """Plots relative reconstruction error as a function of model complexity
+    """Plots relative reconstruction error or AIC as a function of model complexity
     """
 
     if ax is None:
@@ -195,8 +195,10 @@ def plot_scree(data, models, err=None, ax=None, jitter=0.1,
     ranks = np.array([_validate_kruskal(model)[1] for model in models], dtype=int)
 
     # if the user doesn't provide the reconstruction errors, recompute them
-    if err is None:
-        err = np.array([norm(data - kruskal_to_tensor(model), 2) / norm(data, 2) for model in models])
+    if yvals is None and plot_aic is False:
+        yvals = np.array([norm(data - kruskal_to_tensor(model), 2) / norm(data, 2) for model in models])
+    elif yvals is None and plot_aic is True:
+        yvals = np.array([_calc_aic(data, model) for model in models])
 
     # add horizontal jitter 
     n_models = len(models)
@@ -207,16 +209,23 @@ def plot_scree(data, models, err=None, ax=None, jitter=0.1,
 
     # plot line connecting minimum reconstruction error for each rank
     unique_ranks = list(set(ranks))
-    min_err = [np.min(err[ranks == rank]) for rank in unique_ranks]
-    ax.plot(unique_ranks, min_err, **plot_kwargs)
+    min_y = [np.min(yvals[ranks == rank]) for rank in unique_ranks]
+    ax.plot(unique_ranks, min_y, **plot_kwargs)
 
     # plot all fits
-    ax.scatter(ranks+jit, err, **scatter_kwargs)
+    ax.scatter(ranks+jit, yvals, **scatter_kwargs)
 
     # format axes
     x0,x1 = min(ranks),max(ranks)
     ax.set_xticks(range(x0,x1+1))
     ax.set_xlim([x0-0.5, x1+0.5])
+
+    if labels:
+        ax.set_xlabel('model rank')
+        if plot_aic:
+            ax.set_ylabel('AIC')
+        else:
+            ax.set_ylabel('Norm of resids / Norm of data')
 
     nospines(ax=ax)
     tickdir(ax=ax)
@@ -245,11 +254,18 @@ def plot_fitvar(models, ax=None, jitter=0.1, labels=True, greedy=False,
             scores.append(align_kruskal(models[c[0]], models[c[1]], greedy=greedy)[2])
             rx.append(rank)
 
+    # convert to numpy arrays for indexing
+    scores, rx = np.array(scores), np.array(rx)
+
     # add horizontal jitter 
     if jitter is not None:
         jit = (np.random.rand(len(rx))-0.5)*jitter
     else:
         jit = np.zeros(len(rx))
+
+    # plot line connecting mean variation for each rank
+    mean_var = [np.mean(scores[rx == rank]) for rank in unique_ranks]
+    ax.plot(unique_ranks, mean_var, **plot_kwargs)
 
     # plot all fits
     ax.scatter(rx+jit, scores, **scatter_kwargs)
@@ -271,3 +287,7 @@ def plot_fitvar(models, ax=None, jitter=0.1, labels=True, greedy=False,
     
     return ax
 
+def _calc_aic(tensor, factors):
+    nll = np.sum((tensor - kruskal_to_tensor(factors))**2)
+    num_params = np.sum([len(f.ravel()) for f in factors])
+    return 2*num_params + 2*nll

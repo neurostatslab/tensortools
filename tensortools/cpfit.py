@@ -187,41 +187,5 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=372, nonneg=False, init
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-# def _als_exact_update(tensor, factors, mode, ls_method=np.linalg.solve):
 
-#     # reduce grammians
-#     rank = factors[0].shape[1]
-#     G = np.ones((rank, rank))
-#     for i, f in enumerate(factors):
-#         if i != mode:
-#             G *= np.dot(f.T, f)
-
-#     # form unfolding and khatri-rao product
-#     unf = unfold(tensor, mode)
-#     kr = khatri_rao(factors, skip_matrix=mode)
-    
-#     # solve least-squares to update factor
-#     return ls_method(G.T, np.dot(unf, kr).T).T
-
-
-# def _als_rand_update(tensor, factors, mode, n_samples, ls_method=np.linalg.lstsq):
-
-#     # sample mode-n fibers uniformly with replacement
-#     idx = [tuple(randint(0, D, n_samples)) if n != mode else slice(None) for n, D in enumerate(tensor.shape)]
-
-#     # unfold sampled tensor
-#     if mode == 0:
-#         unf = tensor[idx]
-#     else:
-#         unf = tensor[idx].T
-
-#     # sub-sampled khatri-rao
-#     rank = factors[0].shape[1]
-#     kr = np.ones((n_samples, rank))
-#     for i, f in enumerate(factors):
-#         if i != mode:
-#             kr *= f[idx[i], :]
-
-#     # compute factor
-#     return ls_method(kr, unf.T).T
 

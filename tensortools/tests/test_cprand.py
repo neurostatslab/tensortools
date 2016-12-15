@@ -1,14 +1,18 @@
+from tensorly import kruskal_to_tensor
 import tensortools as tt
 import numpy as np
 
 # make factors
-N, R, ndim = 50, 2, 3
+N, R, ndim = 200, 5, 3
 true_factors = [np.random.randn(N,R) for _ in range(ndim)]
 
-# simulate data
-data = np.einsum('ir,jr,kr->ijk', *true_factors)
+# make data
+data = kruskal_to_tensor(true_factors)
 
-est_factors, info = tt.cpfit(data, R, exact_update=False, n_samples=20, verbose=True, print_every=10)
+# fit model
+est_factors, info = tt.cp_rand(data, R)
 
 score = tt.align_kruskal(true_factors, est_factors)[2]
-print(score)
+
+# if score < 0.98:
+#     raise Exception('cp rand did not converge to correct solution')
