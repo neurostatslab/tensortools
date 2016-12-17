@@ -2,9 +2,11 @@ import numpy as np
 from ._nnls import nnlsm_blockpivot
 from tensorly.base import unfold
 from tensorly.kruskal import kruskal_to_tensor
-from tensorly.tenalg import khatri_rao, norm
+from tensorly.tenalg import khatri_rao, norm, mode_dot
 from numpy.random import randint
 from time import time
+from scipy.fftpack import dct, idct
+from .kruskal import standardize_kruskal
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
            n_iter_max=1000, verbose=False, print_every=1):
@@ -49,9 +51,9 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
         for mode in range(tensor.ndim):
             # reduce grammians
             G = np.ones((rank, rank))
-            for i, g in enumerate(gram):
+            for i, f in enumerate(factors):
                 if i != mode:
-                    G *= g
+                    G *= np.dot(f.T, f)
 
             # form unfolding and khatri-rao product
             unf = unfold(tensor, mode)
@@ -59,10 +61,10 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
 
             # update factor
             factors[mode] = ls_method(G.T, np.dot(unf, kr).T).T
-
-            # update gramian
-            gram[mode] = np.dot(factors[mode].T, factors[mode])
         
+        # renormalize factors
+        factors = standardize_kruskal(factors, sort_factors=False)
+
         # check convergence
         rec_error = norm(tensor - kruskal_to_tensor(factors), 2) / norm_tensor
         rec_errors.append(rec_error)
@@ -86,7 +88,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def cp_rand(tensor, rank, iter_samples=None, fit_samples=372, nonneg=False, init=None,
+def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, nonneg=False, init=None,
             init_factors=None, tol=10e-7, n_iter_max=1000, verbose=False, print_every=1):
 
     # If iter_samples not specified, use heuristic
@@ -158,6 +160,9 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=372, nonneg=False, init
             # update factor
             factors[mode] = ls_method(kr, unf.T).T
         
+        # renormalize factors to prevent singularities
+        factors = standardize_kruskal(factors, sort_factors=False)
+
         # estimate randomized subset of full tensor
         est_sample = np.ones((fit_samples, rank))
         for i, f in enumerate(factors):
@@ -187,5 +192,26 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=372, nonneg=False, init
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
+def cp_mixrand(tensor, rank, **kwargs):
+    """
+    Performs mixing to decrease coherence amongst factors before applying randomized
+    alternating-least squares to fit CP decomposition. Unmixes the factors before
+    returning.
+    """
+    ndim = tensor.ndim
 
+    # random orthogonal matrices for each tensor
+    U = [np.linalg.qr(np.random.randn(s,s))[0] for s in tensor.shape]
 
+    # mix tensor
+    tensor_mix = tensor.copy()
+    for mode, u in enumerate(U):
+        tensor_mix = mode_dot(tensor_mix, u, mode)
+
+    # call cp_rand as a subroutine
+    factors_mix, info = cp_rand(tensor_mix, rank, **kwargs)
+
+    # demix factors by inverting orthogonal matrices
+    factors = [np.dot(u.T, fact) for u, fact in zip(U, factors_mix)]
+
+    return factors, info

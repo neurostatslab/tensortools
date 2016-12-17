@@ -10,6 +10,14 @@ from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
 from jetpack import nospines, tickdir
 import itertools as itr
+from sklearn.linear_model import LogisticRegression
+
+
+def _calc_aic(tensor, factors):
+    nll = np.sum((tensor - kruskal_to_tensor(factors))**2)
+    num_params = np.sum([len(f.ravel()) for f in factors])
+    return 2*num_params + 2*nll
+
 
 def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
@@ -287,7 +295,32 @@ def plot_fitvar(models, ax=None, jitter=0.1, labels=True, greedy=False,
     
     return ax
 
-def _calc_aic(tensor, factors):
-    nll = np.sum((tensor - kruskal_to_tensor(factors))**2)
-    num_params = np.sum([len(f.ravel()) for f in factors])
-    return 2*num_params + 2*nll
+
+def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegression, **kwargs):
+    """Plot decoding accruacy of metadata for a series of models
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    # extract model ranks
+    ranks = np.array([X.shape[1] for X in factors])
+
+    # fit decoders for each set of factors, save accuracy
+    scores = []
+    for X in factors:
+        scores.append(Decoder(**kwargs).fit(X, y).score(X, y))
+    scores = np.array(scores)
+
+    # mean accuracy for each rank
+    unique_ranks = np.unique(ranks)
+    mean_scores = [np.mean(scores[ranks == rank]) for rank in unique_ranks]
+
+    # make plots
+    ln, = ax.plot(unique_ranks, mean_scores, lw=lw, label=label)
+    dt = ax.scatter(ranks, scores, edgecolor='none', color=ln.get_c(), alpha=0.5)
+
+    nospines(ax=ax)
+    tickdir(ax=ax)
+
+    return ln, dt

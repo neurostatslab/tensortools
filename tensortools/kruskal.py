@@ -25,7 +25,7 @@ def normalize_kruskal(factors):
 
     return newfactors, lam
 
-def standardize_kruskal(factors, lam_ratios=None):
+def standardize_kruskal(factors, lam_ratios=None, sort_factors=True):
     """Sorts factors by norm
 
     Parameters
@@ -60,9 +60,13 @@ def standardize_kruskal(factors, lam_ratios=None):
     else:
         lam_ratios = np.array(lam_ratios) / np.sum(lam_ratios)
 
-    # sort factors by their length/norm and return
-    prm = np.argsort(lam)[::-1]
-    return [f[:,prm]*np.power(lam[prm], r) for f, r in zip(nrmfactors, lam_ratios)]
+    # sort factors by norm
+    if sort_factors:
+        prm = np.argsort(lam)[::-1]
+        return [f[:,prm]*np.power(lam[prm], r) for f, r in zip(nrmfactors, lam_ratios)]
+    else:
+        return [f*np.power(lam, r) for f, r in zip(nrmfactors, lam_ratios)]
+
 
 def align_kruskal(A, B, greedy=False, penalize_lam=True):
     """Align two kruskal tensors
