@@ -140,16 +140,16 @@ def align_kruskal(A, B, greedy=False, penalize_lam=True):
         # search all permutations
         score = 0
         for comb in itr.combinations(range(ra), rb):
-            for perm in itr.permutations(comb):
-                sc = sum([ sim[i,j] for j, i in enumerate(perm)])
+            perm = -np.ones(ra, dtype='int')
+            unset = list(set(range(ra)) - set(comb))
+            perm[unset] = np.arange(rb, ra)
+            for p in itr.permutations(comb):
+                perm[list(comb)] = list(p)
+                sc = sum([ sim[i,j] for j, i in enumerate(p)])
                 if sc > score:
-                    best_perm = np.array(perm)
+                    best_perm = perm.copy()
                     score = sc
         score /= rb
-
-    # if ra > rb, fill in permutation with remaining factors
-    unset = list(set(range(ra)) - set(best_perm))
-    best_perm[unset] = range(rb, ra)
 
     # Flip signs of ktensor factors for better alignment
     sgn = np.tile(np.power(lamA, 1/ndim), (ndim,1))
@@ -180,6 +180,7 @@ def align_kruskal(A, B, greedy=False, penalize_lam=True):
     # permute A to align with B
     aligned_A = [a[:,best_perm] for a in flipped_A]
     return aligned_A, aligned_B, score
+
 
 def _validate_kruskal(factors):
     """Checks that input is a valid kruskal tensor

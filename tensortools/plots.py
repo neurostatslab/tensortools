@@ -304,7 +304,7 @@ def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegressio
         ax = plt.gca()
 
     # extract model ranks
-    ranks = np.array([X.shape[1] for X in factors])
+    ranks = np.array([X.shape[1] for X in factors], dtype=int)
 
     # fit decoders for each set of factors, save accuracy
     scores = []
@@ -324,3 +324,46 @@ def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegressio
     tickdir(ax=ax)
 
     return ln, dt
+
+def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alpha=0.5), **kwargs):
+    """Plot the persistence score for each factor across all fits.
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    # list of ranks for all models
+    model_ranks = [_validate_kruskal(model)[1] for model in models]
+
+    # list of ranks for each factor
+    factor_ranks = []
+    factor_scores = []
+
+    for m in range(len(models)):
+
+        # all models, except model m
+        other_models = models.copy()
+        other_ranks = model_ranks.copy()
+
+        # inspect model m
+        model = other_models.pop(m)
+        rank = other_ranks.pop(m)
+
+        if rank != ref_rank:
+            continue
+        print('.')
+        sc = np.array([align_kruskal(om, model, **kwargs)[2] for om in other_models])
+
+        other_ranks = np.array(other_ranks)
+        ln, = ax.plot(other_ranks, sc, 'o', alpha=0.3)
+
+        unique_r = np.unique(other_ranks)
+        mean_sc = np.array([np.mean(sc[other_ranks == r]) for r in unique_r])
+        ax.plot(unique_r, mean_sc, '-', color=ln.get_color(), lw=2)
+
+    ax.set_xlim(np.min(model_ranks)-0.5, np.max(model_ranks)+0.5)
+    ax.set_xticks(np.unique(model_ranks))
+    nospines(ax=ax)
+    tickdir(ax=ax)
+
+    return ax
