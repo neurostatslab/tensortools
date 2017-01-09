@@ -2,6 +2,8 @@
 Functions tailored to multi-trial neural data.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
 from ipywidgets import interact
 from tensortools.kruskal import _validate_kruskal
 from jetpack import breathe
