@@ -61,6 +61,10 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
 
             # update factor
             factors[mode] = ls_method(G.T, np.dot(unf, kr).T).T
+
+            for r in range(rank):
+                if np.allclose(factors[mode][:,r], 0):
+                    factors[mode][:,r] = np.random.rand(tensor.shape[mode])
         
         # renormalize factors
         factors = standardize_kruskal(factors, sort_factors=False)

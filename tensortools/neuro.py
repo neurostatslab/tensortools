@@ -16,10 +16,10 @@ def interact_reconstruction(data, model):
 
     N, T, K = data.shape
 
-    def _f(n, k, legend_on):
-        plt.plot(data[n, :, k], '-k', lw=3, label='data')
-        plt.plot(model[0][n]*model[1]*model[2][k], '-k', lw=3, 'model')
-        if legend_on:
+    def _f(neuron, trial, legend):
+        plt.plot(data[neuron, :, trial], '-k', lw=3, label='data')
+        plt.plot(model[0][neuron]*model[1]*model[2][trial], '-k', lw=3, label='model')
+        if legend:
             plt.legend(loc='best')
 
     return interact(_f, neuron=(0, N-1), trial=(0, K-1), legend=(True, False))

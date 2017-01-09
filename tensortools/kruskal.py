@@ -84,10 +84,12 @@ def align_kruskal(A, B, greedy=False, penalize_lam=True):
 
     Returns
     -------
-    std_factors : ndarray list
-        standardized Kruskal tensor with unit length factors
-    lam : 1darray
-        norm of each factor
+    aligned_A : kruskal tensor
+        aligned version of A
+    aligned_B : kruskal tensor
+        aligned version of B
+    score : float
+        similarity score
     """
 
     # check tensor order matches
