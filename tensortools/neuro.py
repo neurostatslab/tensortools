@@ -7,7 +7,7 @@ import numpy as np
 from ipywidgets import interact
 from tensortools.kruskal import _validate_kruskal
 from tensorly import kruskal_to_tensor   
-from jetpack import breathe
+from jetpack import breathe, bars
 
 DEFAULT_COLOR_CYCLE = [(0.4470588235294118, 0.6196078431372549, 0.807843137254902),
                        (1.0, 0.6196078431372549, 0.2901960784313726),
