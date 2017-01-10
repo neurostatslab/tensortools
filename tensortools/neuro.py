@@ -59,7 +59,7 @@ def interact_reconstruction(data, model, avg_trial=False, condition=None, color_
         axes[0,1].set_xticks(range(1,rank+1))
         axes[0,1].set_title('neuron loadings')
 
-        bars(np.array(Cavg), ax=axes[1,1], colors=color_cycle)
+        bars(np.array(Cavg).T, ax=axes[1,1], colors=color_cycle)
         axes[1,1].set_title('trial loadings')
         axes[1,1].axhline(0, color='k', lw=1)
 
