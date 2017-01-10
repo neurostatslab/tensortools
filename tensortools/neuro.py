@@ -39,7 +39,8 @@ def interact_reconstruction(data, model, avg_trial=False, condition=None, color_
         Cavg = [np.mean(model[2][condition == c], axis=0) for c in np.unique(condition)]
         Xavg = [np.mean(data[:, :, condition == c], axis=2) for c in np.unique(condition)]
         Xavg_est = [np.mean(Xest[:, :, condition == c], axis=2) for c in np.unique(condition)]
-
+        neuron_factor_lim = (np.min(model[0]), np.max(model[0]))
+        trial_factor_lim = (min([np.min(c) for c in Cavg]), max([np.max(c) for c in Cavg]))
 
     # plotting function with trial averaging
     def _yes_trial_avg(neuron):
@@ -55,13 +56,15 @@ def interact_reconstruction(data, model, avg_trial=False, condition=None, color_
         
         axes[0,1].bar(range(1,rank+1), model[0][neuron], align='center', color=(0.5,0.5,0.5))
         axes[0,1].axhline(0, color='k', lw=1)
-        axes[0,1].set_xlim([0,rank+1])
+        axes[0,1].set_xlim([0, rank+1])
         axes[0,1].set_xticks(range(1,rank+1))
         axes[0,1].set_title('neuron loadings')
+        axes[0,1].set_ylim(neuron_factor_lim)
 
         bars(np.array(Cavg).T, ax=axes[1,1], colors=color_cycle)
         axes[1,1].set_title('trial loadings')
         axes[1,1].axhline(0, color='k', lw=1)
+        axes[1,1].set_ylim(trial_factor_lim)
 
         plt.tight_layout()
         [breathe(ax=ax) for ax in axes.ravel()]
