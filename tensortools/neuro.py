@@ -40,17 +40,18 @@ def interact_reconstruction(data, model, avg_trial=False, condition=None, color_
         Xavg = [np.mean(data[:, :, condition == c], axis=2) for c in np.unique(condition)]
         Xavg_est = [np.mean(Xest[:, :, condition == c], axis=2) for c in np.unique(condition)]
 
+
     # plotting function with trial averaging
     def _yes_trial_avg(neuron):
         fig, axes = plt.subplots(2, 2, gridspec_kw=dict(width_ratios=[3,1]), **kwargs)
 
         [axes[0,0].plot(tax, x[neuron], '-', color=c, lw=3, alpha=0.3) for x, c in zip(Xavg, color_cycle)]
         [axes[0,0].plot(tax, x[neuron], '--', color=c, lw=3) for x, c in zip(Xavg_est, color_cycle)]
+        axes[0,0].set_ylim((0, max([np.max(x) for x in Xavg])))
 
-        [axes[1,0].plot(tax, model[1]*cavg, '-', lw=3, color='c', alpha=0.5) for cavg, c in zip(Cavg, color_cycle)]
-        axes[1,0].set_ylim(axes[0,0].get_ylim())
-        # axes[1,0].set_title('latent factors', y=0.8)
-        # axes[1,0].set_xlabel('time (s)')
+        [axes[1,0].plot(tax, model[0][neuron]*model[1]*cavg, '-', lw=3, color=c, alpha=0.5) for cavg, c in zip(Cavg, color_cycle)]
+        axes[1,0].set_title('latent factors', y=1)
+        axes[1,0].set_xlabel('time (s)')
         
         axes[0,1].bar(range(1,rank+1), model[0][neuron], align='center', color=(0.5,0.5,0.5))
         axes[0,1].axhline(0, color='k', lw=1)
