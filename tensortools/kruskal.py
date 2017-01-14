@@ -68,19 +68,21 @@ def standardize_kruskal(factors, lam_ratios=None, sort_factors=True):
         return [f*np.power(lam, r) for f, r in zip(nrmfactors, lam_ratios)]
 
 
-def align_kruskal(A, B, greedy=False, penalize_lam=True):
+def align_kruskal(A, B, greedy=None, penalize_lam=True):
     """Align two kruskal tensors
 
-    Note:
+    aligned_A, aligned_B, score = align_kruskal(A, B, **kwargs)
 
-    Parameters
-    ----------
-    factors : ndarray list
-        list of matrices, all with the same number of columns
-        ie for all u in factor_matrices:
-        u[i] has shape (s_u_i, R), where R is fixed
-    mode: int
-        mode of the desired unfolding
+    Arguments
+    ---------
+    A : kruskal tensor
+    B : kruskal tensor
+    greedy : bool
+        Whether to use a gredy algorithm to attempt alignment,
+        or do an exhaustive search over all permutations.
+        Defaults to True if rank >= 10, else defaults to False.
+    penalize_lam : bool (default=True)
+        whether or not to penalize factor magnitudes
 
     Returns
     -------
@@ -89,7 +91,7 @@ def align_kruskal(A, B, greedy=False, penalize_lam=True):
     aligned_B : kruskal tensor
         aligned version of B
     score : float
-        similarity score
+        similarity score between zero and one
     """
 
     # check tensor order matches
@@ -110,6 +112,10 @@ def align_kruskal(A, B, greedy=False, penalize_lam=True):
     if ra < rb:
         aligned_B, aligned_A, score = align_kruskal(B, A, greedy=greedy, penalize_lam=penalize_lam)
         return aligned_A, aligned_B, score
+
+    # decide whether to use greedy method or exhaustive search
+    if greedy is None:
+        greedy = True if min(ra,rb) >= 10 else False
 
     A, lamA = normalize_kruskal(A)
     B, lamB = normalize_kruskal(B)

@@ -1,8 +1,9 @@
 import numpy as np
 from ._nnls import nnlsm_blockpivot
+import tensorly
 from tensorly.base import unfold
 from tensorly.kruskal import kruskal_to_tensor
-from tensorly.tenalg import khatri_rao, norm, mode_dot
+from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
 from scipy.fftpack import dct, idct
@@ -10,20 +11,43 @@ from .kruskal import standardize_kruskal
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
            n_iter_max=1000, verbose=False, print_every=1):
+    """ Fit CP decomposition by alternating least-squares.
+
+    Args
+    ----
+    tensor : ndarray
+        data to be approximated by CP decomposition
+    rank : int
+        number of components in the CP decomposition model
+
+    Keyword Args
+    ------------
+    nonneg : bool
+        (default = False)
+        if True, use alternating non-negative least squares to fit tensor
+    init : str
+        specified initialization procedure for factor matrices
+        {'randn','rand','svd'}
+    init_factors : ktensor (list of ndarray)
+        initial factor matrices (overrides "init" keyword arg)
+    tol : float
+        convergence criterion
+    n_iter_max : int
+        maximum number of optimizations iterations before aborting
+        (default = 1000)
+    verbose : bool
+        if True, print progress
+        (default = false)
+    print_every : int
+        how often to print optimization progress.
+    """
 
     # default initialization method
     if init is None:
         init = 'randn' if nonneg is False else 'rand'
 
     # intialize factor matrices
-    if init_factors is not None:
-        factors = init_factors.copy()
-    elif init is 'randn':
-        factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    elif init is 'rand':
-        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    else:
-        raise ValueError('initialization method not recognized')
+    factors = _cp_initialize(tensor, rank, init, init_factors)
 
     # use non-negative least squares for nncp
     if nonneg is True:
@@ -34,10 +58,10 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
 
     # setup optimization
     converged = False
-    norm_tensor = norm(tensor, 2)
+    norm_tensor = tensorly.tenalg.norm(tensor, 2)
     gram = [np.dot(f.T, f) for f in factors]
     t_elapsed = [0]
-    rec_errors = [norm(tensor - kruskal_to_tensor(factors), 2) / norm_tensor]
+    rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
 
     # initial print statement
     if verbose:
@@ -70,8 +94,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
         factors = standardize_kruskal(factors, sort_factors=False)
 
         # check convergence
-        rec_error = norm(tensor - kruskal_to_tensor(factors), 2) / norm_tensor
-        rec_errors.append(rec_error)
+        rec_errors.append(_compute_squared_recon_error(tensor, factors, norm_tensor))
         t_elapsed.append(time() - t0)
 
         # break loop if converged
@@ -104,14 +127,7 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, nonneg=False, in
         init = 'randn' if nonneg is False else 'rand'
 
     # intialize factor matrices
-    if init_factors is not None:
-        factors = init_factors.copy()
-    elif init is 'randn':
-        factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    elif init is 'rand':
-        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    else:
-        raise ValueError('initialization method not recognized')
+    factors = _cp_initialize(tensor, rank, init, init_factors)
 
     # use non-negative least squares for nncp
     if nonneg is True:
@@ -219,3 +235,44 @@ def cp_mixrand(tensor, rank, **kwargs):
     factors = [np.dot(u.T, fact) for u, fact in zip(U, factors_mix)]
 
     return factors, info
+
+def _cp_initialize(tensor, rank, init, init_factors):
+    """ Parameter initialization methods for CP decomposition
+    """
+    if init_factors is not None:
+        factors = init_factors.copy()
+    elif init is 'randn':
+        factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
+    elif init is 'rand':
+        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
+    elif init is 'svd':
+        factors = []
+        for mode in range(tensor.ndim):
+            u, s, _ = np.linalg.svd(unfold(tensor, mode), full_matrices=False)
+            factors.append(u[:, :rank]*np.sqrt(s[:rank]))
+    else:
+        raise ValueError('initialization method not recognized')
+
+    return factors
+
+
+# TODO: optimize this computation
+def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
+    """ Computes norm of residuals divided by norm of data.
+    """
+    return tensorly.tenalg.norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
+
+# def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
+#     """Prototype for more efficient reconstruction of squared recon error.
+#     """
+#     # e.g. 'abc' for a third-order tensor
+#     tnsr_idx = ''.join(chr(ord('a') + i) for i in range(len(kruskal_factors)))
+#     # e.g. 'az,bz,cz' for a third-order tensor
+#     kruskal_idx = ','.join(idx+'z' for idx in tnsr_idx)
+#     # compute reconstruction error using einsum
+#     innerprod = np.einsum(tnsr_idx+','+kruskal_idx+'->', tensor, *kruskal_factors)
+#     G = np.ones((len(kruskal_factors), len(kruskal_factors)))
+#     for g in [np.dot(f.T, f) for f in kruskal_factors]:
+#         G *= g
+#     factors_sqnorm = np.sum(G)
+#     return np.sqrt(norm_tensor**2 + factors_sqnorm - innerprod) / norm_tensor
