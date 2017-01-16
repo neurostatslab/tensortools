@@ -122,6 +122,9 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, nonneg=False, in
     if iter_samples is None:
         iter_samples = int(4 * rank * np.log(rank))
 
+    if fit_samples >= len(tensor.ravel()):
+        fit_samples = len(tensor.ravel())
+
     # default initialization method
     if init is None:
         init = 'randn' if nonneg is False else 'rand'
@@ -265,14 +268,15 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 # def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 #     """Prototype for more efficient reconstruction of squared recon error.
 #     """
+#     rank = kruskal_factors[0].shape[1]
 #     # e.g. 'abc' for a third-order tensor
 #     tnsr_idx = ''.join(chr(ord('a') + i) for i in range(len(kruskal_factors)))
 #     # e.g. 'az,bz,cz' for a third-order tensor
 #     kruskal_idx = ','.join(idx+'z' for idx in tnsr_idx)
 #     # compute reconstruction error using einsum
 #     innerprod = np.einsum(tnsr_idx+','+kruskal_idx+'->', tensor, *kruskal_factors)
-#     G = np.ones((len(kruskal_factors), len(kruskal_factors)))
+#     G = np.ones((rank, rank))
 #     for g in [np.dot(f.T, f) for f in kruskal_factors]:
 #         G *= g
 #     factors_sqnorm = np.sum(G)
-#     return np.sqrt(norm_tensor**2 + factors_sqnorm - innerprod) / norm_tensor
+#     return np.sqrt(norm_tensor**2 + factors_sqnorm - 2*innerprod) / norm_tensor
