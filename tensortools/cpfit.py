@@ -9,7 +9,7 @@ from time import time
 from scipy.fftpack import dct, idct
 from .kruskal import standardize_kruskal
 
-def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
+def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            n_iter_max=1000, verbose=False, print_every=1):
     """ Fit CP decomposition by alternating least-squares.
 
@@ -115,14 +115,15 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=10e-7,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, nonneg=False, init=None,
-            init_factors=None, tol=10e-7, n_iter_max=1000, verbose=False, print_every=1):
+def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_window=10, nonneg=False,
+            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, verbose=False, print_every=1):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
         iter_samples = int(4 * rank * np.log(rank))
 
     if fit_samples >= len(tensor.ravel()):
+        # TODO: warning here.
         fit_samples = len(tensor.ravel())
 
     # default initialization method
@@ -198,7 +199,11 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, nonneg=False, in
         t_elapsed.append(time() - t0)
 
         # check convergence, break loop if converged
-        converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
+        if iteration > convergence_window:
+            converged = abs(np.mean(np.diff(rec_errors[-convergence_window:]))) < tol
+        else:
+            converged = False
+
         if tol and converged:
             if verbose:
                 print('converged in {} iterations.'.format(iteration+1))
