@@ -76,7 +76,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     # parse optional inputs
     plots = _broadcast_arg(plots, str, 'plots')
     titles = _broadcast_arg(titles, str, 'titles')
-    xlabels = _broadcast_arg(titles, str, 'xlabels')
+    xlabels = _broadcast_arg(xlabels, str, 'xlabels')
     lspec = _broadcast_arg(lspec, str, 'lspec')
     color = _broadcast_arg(color, (str,tuple), 'color')
     alpha = _broadcast_arg(alpha, (int,float), 'alpha')
