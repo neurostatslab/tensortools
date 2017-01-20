@@ -271,11 +271,11 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 
 def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
-    results = dict(solutions=[], rec_errors=[], t_elapsed=[],
-                   converged=[], iterations=[])
+    results = dict(solutions=[], ranks=[], rec_errors=[],
+                   t_elapsed=[], converged=[], iterations=[])
 
     for rank in ranks:
-        for replicate in replicates:
+        for replicate in range(replicates):
             solution, info = method(tensor, rank, **kwargs)
 
             results['solutions'].append(solution)
