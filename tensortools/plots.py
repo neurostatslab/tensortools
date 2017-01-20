@@ -56,7 +56,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
         Default is True.
     """
 
-    ndim, rank = _validate_kruskal(factors)
+    factors, ndim, rank = _validate_kruskal(factors)
 
     # helper function for parsing plot options
     def _broadcast_arg(arg, argtype, name):
@@ -102,6 +102,7 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
         fig, axes = plt.subplots(R, ndim,
                                figsize=figsize,
                                gridspec_kw=dict(width_ratios=width_ratios))
+        if R == 1: axes = axes[None, :]
     elif fig is None:
         fig = axes[0,0].get_figure()
     else:
@@ -200,7 +201,7 @@ def plot_scree(data, models, yvals=None, plot_aic=False, ax=None, jitter=0.1, la
         ax = plt.gca()
 
     # compute model ranks
-    ranks = np.array([_validate_kruskal(model)[1] for model in models], dtype=int)
+    ranks = np.array([_validate_kruskal(model)[2] for model in models], dtype=int)
 
     # if the user doesn't provide the reconstruction errors, recompute them
     if yvals is None and plot_aic is False:
@@ -251,7 +252,7 @@ def plot_fitvar(models, ax=None, jitter=0.1, labels=True, greedy=False,
         ax = plt.gca()
 
     # compute model ranks
-    ranks = np.array([_validate_kruskal(model)[1] for model in models], dtype=int)
+    ranks = np.array([_validate_kruskal(model)[2] for model in models], dtype=int)
     unique_ranks = list(set(ranks))
 
     # compute all pairwise scores as a function of rank
@@ -333,7 +334,7 @@ def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alp
         ax = plt.gca()
 
     # list of ranks for all models
-    model_ranks = [_validate_kruskal(model)[1] for model in models]
+    model_ranks = [_validate_kruskal(model)[2] for model in models]
 
     # list of ranks for each factor
     factor_ranks = []

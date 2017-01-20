@@ -8,7 +8,7 @@ import itertools as itr
 def normalize_kruskal(factors):
     """Normalizes all factors to unit length
     """
-    ndim, rank = _validate_kruskal(factors)
+    factors, ndim, rank = _validate_kruskal(factors)
 
     # factor norms
     lam = np.ones(rank)
@@ -201,10 +201,17 @@ def _validate_kruskal(factors):
         number of factors
     """
     ndim = len(factors)
-    rank = factors[0].shape[1]
 
+    # if necessary, add an axis to factor matrices
+    for i, f in enumerate(factors):
+        if f.ndim == 1:
+            factors[i] = f[:, np.newaxis]
+
+    # check rank consistency
+    rank = factors[0].shape[1]
     for f in factors:
         if f.shape[1] != rank:
             raise ValueError('KTensor has inconsistent rank along modes.')
 
-    return ndim, rank
+    # return factors and info
+    return factors, ndim, rank

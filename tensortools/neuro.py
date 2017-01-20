@@ -24,7 +24,7 @@ def interact_reconstruction(data, model, avg_trial=False, condition=None, color_
     """Returns a function for interacive plotting of model reconstruction error
     """
 
-    ndim, rank = _validate_kruskal(model)
+    model, ndim, rank = _validate_kruskal(model)
 
     if ndim != 3 or data.ndim != 3:
         raise ValueError('Data and model must be a 3rd-order tensor.')
