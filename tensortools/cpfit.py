@@ -263,12 +263,28 @@ def _cp_initialize(tensor, rank, init, init_factors):
 
     return factors
 
-
 # TODO: optimize this computation
 def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
     """ Computes norm of residuals divided by norm of data.
     """
     return tensorly.tenalg.norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
+
+def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
+
+    results = dict(solutions=[], rec_errors=[], t_elapsed=[],
+                   converged=[], iterations=[])
+
+    for rank in ranks:
+        for replicate in replicates:
+            solution, info = method(tensor, rank, **kwargs)
+
+            results['solutions'].append(solution)
+            results['ranks'].append(rank)
+            for k in info.keys():
+                results[k].append(info[k])
+
+    return results
+
 
 # def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 #     """Prototype for more efficient reconstruction of squared recon error.
