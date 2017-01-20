@@ -35,7 +35,7 @@ def coarse_grain_1d(tensor, factor, axis=0, reducer=np.sum,
     assert pad_width >= 0
     
     # coarse-grain
-    return reducer(tensor.reshape(*new_shape), axis=axis)
+    return reducer(tensor.reshape(*new_shape), axis=axis+1)
 
 def coarse_grain(tensor, factors, **kwargs):
     """Coarse grains a large tensor along all modes by specified factors
