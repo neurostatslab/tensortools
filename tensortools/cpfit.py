@@ -10,7 +10,7 @@ from scipy.fftpack import dct, idct
 from .kruskal import standardize_kruskal
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
-           n_iter_max=1000, verbose=False, print_every=1):
+           n_iter_max=1000, print_every=-1, prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -35,11 +35,9 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     n_iter_max : int
         maximum number of optimizations iterations before aborting
         (default = 1000)
-    verbose : bool
-        if True, print progress
-        (default = false)
-    print_every : int
-        how often to print optimization progress.
+    print_every : float
+        how often (in seconds) to print progress. If <= 0 then don't print anything.
+        (default = -1)
     """
 
     # default initialization method
@@ -55,7 +53,6 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     else:
         ls_method = np.linalg.solve
 
-
     # setup optimization
     converged = False
     norm_tensor = tensorly.tenalg.norm(tensor, 2)
@@ -64,8 +61,10 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
 
     # initial print statement
+    verbose = print_every > 0
+    print_counter = 0 # time to print next progress
     if verbose:
-        print('iter=0, error={}'.format(rec_errors[-1]))
+        print(prepend_print+'iter=0, error={}'.format(rec_errors[-1]), end=append_print)
 
     # main loop
     t0 = time()
@@ -99,24 +98,30 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
 
         # break loop if converged
         converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
-        if tol and converged:
-            if verbose:
-                print('converged in {} iterations.'.format(iteration+1))
+        if converged and verbose:
+            print(prepend_print+'converged in {} iterations.'.format(iteration+1))
+        if converged:
             break
 
         # display progress
-        if verbose and ((iteration+1)%print_every) == 0 and len(rec_errors) > 1:
-            print('iter={}, error={}, variation={}'.format(
-                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
+        if verbose and (time()-t0)/print_every > print_counter:
+            print_str = 'iter={}, error={}, variation={}'.format(
+                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
+            print(prepend_print+print_str, end=append_print)
+            print_counter += print_every
+
+    if not converged and verbose:
+        print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0))
 
     # return optimized factors and info
-    return factors, { 'rec_errors' : rec_errors,
-                      't_elapsed' : t_elapsed,
+    return factors, { 'err_hist' : rec_errors,
+                      't_hist' : t_elapsed,
+                      'err_final' : rec_errors[-1],
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
 def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_window=10, nonneg=False,
-            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, verbose=False, print_every=1):
+            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
@@ -215,8 +220,9 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
                 iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
 
     # return optimized factors and info
-    return factors, { 'rec_errors' : rec_errors,
-                      't_elapsed' : t_elapsed,
+    return factors, { 'err_hist' : rec_errors,
+                      't_hist' : t_elapsed,
+                      'err_final' : rec_errors[-1],
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
@@ -271,11 +277,18 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 
 def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
-    results = dict(solutions=[], ranks=[], rec_errors=[],
-                   t_elapsed=[], converged=[], iterations=[])
-
+    results = dict(solutions=[], ranks=[], err_hist=[], err_final=[],
+                   t_hist=[], converged=[], iterations=[])
+                      
     for rank in ranks:
-        for replicate in range(replicates):
+
+        if 'print_every' in kwargs.keys() and kwargs['print_every'] > 0:
+            print('Optimizing rank-{} models.'.format(rank))
+
+        for s in range(replicates):
+
+            replicate_info = '\r\tfitting replicate: {}/{}    '.format(s+1, replicates)
+
             solution, info = method(tensor, rank, **kwargs)
 
             results['solutions'].append(solution)
