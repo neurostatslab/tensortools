@@ -8,7 +8,6 @@ from numpy.random import randint
 from time import time
 from scipy.fftpack import dct, idct
 from .kruskal import standardize_kruskal
-from .utils import delete_last_lines
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            n_iter_max=1000, print_every=-1, prepend_print='\r', append_print=''):
@@ -65,7 +64,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     verbose = print_every > 0
     print_counter = 0 # time to print next progress
     if verbose:
-        print(prepend_print+'iter=0, error={}'.format(rec_errors[-1]), end=append_print)
+        print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
 
     # main loop
     t0 = time()
@@ -100,19 +99,19 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
         # break loop if converged
         converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
         if converged and verbose:
-            print(prepend_print+'converged in {} iterations.'.format(iteration+1))
+            print(prepend_print+'converged in {} iterations.'.format(iteration+1), end=append_print)
         if converged:
             break
 
         # display progress
         if verbose and (time()-t0)/print_every > print_counter:
-            print_str = 'iter={}, error={}, variation={}'.format(
+            print_str = 'iter={0:d}, error={0:.4f}, variation={0:.4f}'.format(
                 iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
             print(prepend_print+print_str, end=append_print)
             print_counter += print_every
 
     if not converged and verbose:
-        print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0))
+        print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0), end=append_print)
 
     # return optimized factors and info
     return factors, { 'err_hist' : rec_errors,
@@ -288,8 +287,9 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
         for s in range(replicates):
             # fit cpd
-            replicate_info = '\r\tfitting replicate: {}/{}    '.format(s+1, replicates)
+            kwargs['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
             solution, info = method(tensor, rank, **kwargs)
+            print('\r', end='')
 
             # store results
             results['solutions'].append(solution)
@@ -299,8 +299,7 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
 
         # clean up printing for this batch
-        delete_last_lines(replicates)
-        summary = 'Done. {}/{} converged, min error = {}, max error = {}, mean error = {}'
+        summary = '   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}'
         n_converged = np.sum(results['converged'][-replicates:])
         min_err = np.min(results['err_final'][-replicates:])
         max_err = np.max(results['err_final'][-replicates:])
@@ -310,7 +309,7 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
     # sort results by final reconstruction error
     idx = np.argsort(results['err_final'])
     for k in results.keys():
-        results[k] = results[k][idx]
+        results[k] = [results[k][i] for i in idx]
 
     return results
 
