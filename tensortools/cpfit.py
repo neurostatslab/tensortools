@@ -286,15 +286,20 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
             print('Optimizing rank-{} models.'.format(rank))
 
         for s in range(replicates):
-
+            # fit cpd
             replicate_info = '\r\tfitting replicate: {}/{}    '.format(s+1, replicates)
-
             solution, info = method(tensor, rank, **kwargs)
 
+            # store results
             results['solutions'].append(solution)
             results['ranks'].append(rank)
             for k in info.keys():
                 results[k].append(info[k])
+
+    # sort results by final reconstruction error
+    idx = np.argsort([err[-1] for err in results['rec_errors']])
+    for k in results.keys():
+        results[k] = results[k][idx]
 
     return results
 
