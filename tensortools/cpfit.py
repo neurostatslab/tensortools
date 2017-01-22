@@ -8,6 +8,7 @@ from numpy.random import randint
 from time import time
 from scipy.fftpack import dct, idct
 from .kruskal import standardize_kruskal
+from .utils import delete_last_lines
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            n_iter_max=1000, print_every=-1, prepend_print='\r', append_print=''):
@@ -296,8 +297,18 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
             for k in info.keys():
                 results[k].append(info[k])
 
+
+        # clean up printing for this batch
+        delete_last_lines(replicates)
+        summary = 'Done. {}/{} converged, min error = {}, max error = {}, mean error = {}'
+        n_converged = np.sum(results['converged'][-replicates:])
+        min_err = np.min(results['err_final'][-replicates:])
+        max_err = np.max(results['err_final'][-replicates:])
+        mean_err = np.mean(results['err_final'][-replicates:])
+        print(summary.format(n_converged, replicates, min_err, max_err, mean_err))
+
     # sort results by final reconstruction error
-    idx = np.argsort([err[-1] for err in results['rec_errors']])
+    idx = np.argsort(results['err_final'])
     for k in results.keys():
         results[k] = results[k][idx]
 
