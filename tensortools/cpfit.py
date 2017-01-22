@@ -7,7 +7,7 @@ from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
 from scipy.fftpack import dct, idct
-from .kruskal import standardize_kruskal
+from .kruskal import standardize_kruskal, align_kruskal
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            n_iter_max=1000, print_every=-1, prepend_print='\r', append_print=''):
@@ -311,6 +311,12 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
         idx = np.argsort(results[r]['err_final'])
         for k in results[r].keys():
             results[r][k] = [results[r][k][i] for i in idx]
+
+        # calculate similarity score of each model to the best fitting model
+        best_model = results[r]['factors'][0]
+        results[r]['similarity'] = [1.0]
+        for model in results[r]['factors'][1:]:
+            results[r]['similarity'].append(align_kruskal(model, best_model)[2])
 
     return results
 
