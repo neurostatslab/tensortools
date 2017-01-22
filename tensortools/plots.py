@@ -19,7 +19,7 @@ def _calc_aic(tensor, factors):
     return 2*num_params + 2*nll
 
 
-def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
+def plot_kruskal(factors, figsize=None, lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
                  link_yaxis=False, label=None, xlabels='', suptitle=None, fig=None,
                  axes=None, yticks=True, width_ratios=None, scatter_kwargs=dict()):
@@ -57,6 +57,9 @@ def plot_kruskal(factors, figsize=(5,10), lspec='-', plot_n=None, plots='line',
     """
 
     factors, ndim, rank = _validate_kruskal(factors)
+
+    if figsize is None:
+        figsize = (8, rank)
 
     # helper function for parsing plot options
     def _broadcast_arg(arg, argtype, name):

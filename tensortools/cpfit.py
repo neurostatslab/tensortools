@@ -105,7 +105,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
 
         # display progress
         if verbose and (time()-t0)/print_every > print_counter:
-            print_str = 'iter={0:d}, error={0:.4f}, variation={0:.4f}'.format(
+            print_str = 'iter={0:d}, error={1:.4f}, variation={2:.4f}'.format(
                 iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
             print(prepend_print+print_str, end=append_print)
             print_counter += print_every
