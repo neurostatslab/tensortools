@@ -277,39 +277,40 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 
 def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
-    results = dict(solutions=[], ranks=[], err_hist=[], err_final=[],
-                   t_hist=[], converged=[], iterations=[])
+    results = dict()
                       
-    for rank in ranks:
+    for r in ranks:
+
+        results[r] = dict(factors=[], ranks=[], err_hist=[], err_final=[],
+                             t_hist=[], converged=[], iterations=[])
 
         if 'print_every' in kwargs.keys() and kwargs['print_every'] > 0:
-            print('Optimizing rank-{} models.'.format(rank))
+            print('Optimizing rank-{} models.'.format(r))
 
         for s in range(replicates):
             # fit cpd
             kwargs['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
-            solution, info = method(tensor, rank, **kwargs)
+            factors, info = method(tensor, r, **kwargs)
             print('\r', end='')
 
             # store results
-            results['solutions'].append(solution)
-            results['ranks'].append(rank)
+            results[r]['factors'].append(factors)
+            results[r]['ranks'].append(r)
             for k in info.keys():
-                results[k].append(info[k])
-
+                results[r][k].append(info[k])
 
         # clean up printing for this batch
         summary = '   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}'
-        n_converged = np.sum(results['converged'][-replicates:])
-        min_err = np.min(results['err_final'][-replicates:])
-        max_err = np.max(results['err_final'][-replicates:])
-        mean_err = np.mean(results['err_final'][-replicates:])
+        n_converged = np.sum(results[r]['converged'])
+        min_err = np.min(results[r]['err_final'])
+        max_err = np.max(results[r]['err_final'])
+        mean_err = np.mean(results[r]['err_final'])
         print(summary.format(n_converged, replicates, min_err, max_err, mean_err))
 
-    # sort results by final reconstruction error
-    idx = np.argsort(results['err_final'])
-    for k in results.keys():
-        results[k] = [results[k][i] for i in idx]
+        # sort results by final reconstruction error
+        idx = np.argsort(results[r]['err_final'])
+        for k in results[r].keys():
+            results[r][k] = [results[r][k][i] for i in idx]
 
     return results
 
