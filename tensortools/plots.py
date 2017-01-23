@@ -19,7 +19,7 @@ def _calc_aic(tensor, factors):
     return 2*num_params + 2*nll
 
 
-def plot_kruskal(factors, figsize=None, lspec='-', plot_n=None, plots='line',
+def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
                  link_yaxis=False, label=None, xlabels='', suptitle=None, fig=None,
                  axes=None, yticks=True, width_ratios=None, scatter_kwargs=dict()):
@@ -194,111 +194,68 @@ def plot_kruskal(factors, figsize=None, lspec='-', plot_n=None, plots='line',
 
     return fig, axes
 
-def plot_scree(data, models, yvals=None, plot_aic=False, ax=None, jitter=0.1, labels=True,
-               scatter_kwargs=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
-               plot_kwargs=dict(color='r', lw=3, zorder=1)):
-    """Plots relative reconstruction error or AIC as a function of model complexity
+def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0.1, labels=True,
+               greedy=None,
+               scatter_kw=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
+               line_kw=dict(color='r', lw=3, zorder=1)):
+    """Plots reconstruction error and model similarity
     """
 
-    if ax is None:
-        ax = plt.gca()
+    # setup figure and axes
+    if fig is None and axes is None:
+        fig, axes = plt.subplots(1, 2, figsize=figsize)
+    elif fig is None or axes is None:
+        raise ValueError('If either fig or axes are given as keyword arguments, both must be specifed.')
 
-    # compute model ranks
-    ranks = np.array([_validate_kruskal(model)[2] for model in models], dtype=int)
+    # compile statistics for plotting
+    ranks, err, sim, min_err = [], [], [], []
+    for r in results.keys():
+        # reconstruction errors for rank-r models
+        e = list(results[r]['err_final'])
+        err += e
+        min_err.append(min(e))
+        ranks.append([r for _ in range(len(e))])
 
-    # if the user doesn't provide the reconstruction errors, recompute them
-    if yvals is None and plot_aic is False:
-        yvals = np.array([norm(data - kruskal_to_tensor(model), 2) / norm(data, 2) for model in models])
-    elif yvals is None and plot_aic is True:
-        yvals = np.array([_calc_aic(data, model) for model in models])
+        # similarity of fitted models
+        sim += list(results[r]['similarity'][1:])
 
     # add horizontal jitter 
-    n_models = len(models)
+    ranks = np.array(ranks)
     if jitter is not None:
-        jit = (np.random.rand(n_models)-0.5)*jitter
-    else:
-        jit = np.zeros(n_models)
+        ranks_jit = ranks + (np.random.rand(*ranks.shape)-0.5)*jitter
 
-    # plot line connecting minimum reconstruction error for each rank
-    unique_ranks = list(set(ranks))
-    min_y = [np.min(yvals[ranks == rank]) for rank in unique_ranks]
-    ax.plot(unique_ranks, min_y, **plot_kwargs)
+    # Scree plot
+    axes[0].plot(ranks[:, 0], min_err, **line_kw)
+    axes[0].scatter(ranks_jit.ravel(), err, **scatter_kw)
 
-    # plot all fits
-    ax.scatter(ranks+jit, yvals, **scatter_kwargs)
-
-    # format axes
-    x0,x1 = min(ranks),max(ranks)
-    ax.set_xticks(range(x0,x1+1))
-    ax.set_xlim([x0-0.5, x1+0.5])
+    x0, x1 = np.min(ranks), np.max(ranks)
+    axes[0].set_xticks(range(x0, x1+1))
+    axes[0].set_xlim([x0-0.5, x1+0.5])
 
     if labels:
-        ax.set_xlabel('model rank')
-        if plot_aic:
-            ax.set_ylabel('AIC')
-        else:
-            ax.set_ylabel('Norm of resids / Norm of data')
+        axes[0].set_xlabel('model rank')
+        axes[0].set_ylabel('Norm of resids / Norm of data')
 
-    nospines(ax=ax)
-    tickdir(ax=ax)
+    nospines(ax=axes[0])
+    tickdir(ax=axes[0])
 
-    return ax
+    # Similarity plot
+    axes[1].scatter(ranks_jit[:, 1:].ravel(), sim, **scatter_kw)
 
-
-def plot_fitvar(models, ax=None, jitter=0.1, labels=True, greedy=False,
-                scatter_kwargs=dict(edgecolor='none', color='k', alpha=0.7, zorder=2),
-                plot_kwargs=dict(color='r', lw=3, zorder=1)):
-    """Plots relative reconstruction error as a function of model complexity
-    """
-
-    if ax is None:
-        ax = plt.gca()
-
-    # compute model ranks
-    ranks = np.array([_validate_kruskal(model)[2] for model in models], dtype=int)
-    unique_ranks = list(set(ranks))
-
-    # compute all pairwise scores as a function of rank
-    rx, scores = [], []
-    for rank in unique_ranks:
-        model_idx = np.where(ranks == rank)[0]
-        for c in itr.combinations(model_idx, 2):
-            scores.append(align_kruskal(models[c[0]], models[c[1]], greedy=greedy)[2])
-            rx.append(rank)
-
-    # convert to numpy arrays for indexing
-    scores, rx = np.array(scores), np.array(rx)
-
-    # add horizontal jitter 
-    if jitter is not None:
-        jit = (np.random.rand(len(rx))-0.5)*jitter
-    else:
-        jit = np.zeros(len(rx))
-
-    # plot line connecting mean variation for each rank
-    mean_var = [np.mean(scores[rx == rank]) for rank in unique_ranks]
-    ax.plot(unique_ranks, mean_var, **plot_kwargs)
-
-    # plot all fits
-    ax.scatter(rx+jit, scores, **scatter_kwargs)
-
-    # format axes
-    x0,x1 = min(ranks),max(ranks)
-    ax.set_xticks(range(x0,x1+1))
-    ax.set_xlim([x0-0.5, x1+0.5])
-    ax.set_ylim([0,1.1])
-    ax.set_yticks([0,1])
-    nospines(ax=ax)
-    tickdir(ax=ax)
-    ax.spines['left'].set_bounds(0, 1)
+    axes[1].set_xticks(range(x0, x1+1))
+    axes[1].set_xlim([x0-0.5, x1+0.5])
+    axes[1].set_ylim([0, 1.1])
+    axes[1].set_yticks([0, 1])
+    nospines(ax=axes[1])
+    tickdir(ax=axes[1])
+    axes[1].spines['left'].set_bounds(0, 1)
 
     # axis labels
     if labels:
-        ax.set_xlabel('model rank')
-        ax.set_ylabel('model similarity')
+        axes[1].set_xlabel('model rank')
+        axes[1].set_ylabel('model similarity')
     
-    return ax
-
+    return fig, axes
 
 def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegression, **kwargs):
     """Plot decoding accruacy of metadata for a series of models
@@ -371,3 +328,4 @@ def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alp
     tickdir(ax=ax)
 
     return ax
+

@@ -10,7 +10,7 @@ from scipy.fftpack import dct, idct
 from .kruskal import standardize_kruskal, align_kruskal
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
-           n_iter_max=1000, print_every=-1, prepend_print='\r', append_print=''):
+           n_iter_max=1000, print_every=0.3, prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -278,20 +278,22 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
     results = dict()
-                      
+
+    # if true, print progress
+    verbose = 'print_every' not in kwargs.keys() or kwargs['print_every'] > 0
+
     for r in ranks:
 
         results[r] = dict(factors=[], ranks=[], err_hist=[], err_final=[],
                              t_hist=[], converged=[], iterations=[])
 
-        if 'print_every' in kwargs.keys() and kwargs['print_every'] > 0:
+        if verbose:
             print('Optimizing rank-{} models.'.format(r))
 
         for s in range(replicates):
             # fit cpd
             kwargs['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
             factors, info = method(tensor, r, **kwargs)
-            print('\r', end='')
 
             # store results
             results[r]['factors'].append(factors)
@@ -299,13 +301,14 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
             for k in info.keys():
                 results[r][k].append(info[k])
 
-        # clean up printing for this batch
-        summary = '   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}'
-        n_converged = np.sum(results[r]['converged'])
-        min_err = np.min(results[r]['err_final'])
-        max_err = np.max(results[r]['err_final'])
-        mean_err = np.mean(results[r]['err_final'])
-        print(summary.format(n_converged, replicates, min_err, max_err, mean_err))
+        # summarize the fits for rank-r models
+        if verbose:
+            summary = '\r   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}'
+            n_converged = np.sum(results[r]['converged'])
+            min_err = np.min(results[r]['err_final'])
+            max_err = np.max(results[r]['err_final'])
+            mean_err = np.mean(results[r]['err_final'])
+            print(summary.format(n_converged, replicates, min_err, max_err, mean_err))
 
         # sort results by final reconstruction error
         idx = np.argsort(results[r]['err_final'])
