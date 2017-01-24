@@ -7,7 +7,7 @@ from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
 from scipy.fftpack import dct, idct
-from .kruskal import standardize_kruskal, align_kruskal
+from .kruskal import standardize_factors, align_factors
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            n_iter_max=1000, print_every=0.3, prepend_print='\r', append_print=''):
@@ -90,7 +90,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                     factors[mode][:,r] = np.random.rand(tensor.shape[mode])
         
         # renormalize factors
-        factors = standardize_kruskal(factors, sort_factors=False)
+        factors = standardize_factors(factors, sort_factors=False)
 
         # check convergence
         rec_errors.append(_compute_squared_recon_error(tensor, factors, norm_tensor))
@@ -121,7 +121,8 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                       'iterations' : len(rec_errors) }
 
 def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_window=10, nonneg=False,
-            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0):
+            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0.3,
+            prepend_print='\r', append_print=''):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
@@ -161,8 +162,10 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
     t_elapsed = [0.0]
 
     # initial print statement
+    verbose = print_every > 0
+    print_counter = 0 # time to print next progress
     if verbose:
-        print('iter=0, error={}'.format(rec_errors[-1]))
+        print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
 
     # main loop
     t0 = time()
@@ -190,7 +193,7 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
             factors[mode] = ls_method(kr, unf.T).T
         
         # renormalize factors to prevent singularities
-        factors = standardize_kruskal(factors, sort_factors=False)
+        factors = standardize_factors(factors, sort_factors=False)
 
         # estimate randomized subset of full tensor
         est_sample = np.ones((fit_samples, rank))
@@ -215,9 +218,11 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
             break
             
         # display progress
-        if verbose and ((iteration+1)%print_every) == 0 and len(rec_errors) > 1:
-            print('iter={}, error={}, variation={}'.format(
-                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1]))
+        if verbose and (time()-t0)/print_every > print_counter:
+            print_str = 'iter={0:d}, error={1:.4f}, variation={2:.4f}'.format(
+                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
+            print(prepend_print+print_str, end=append_print)
+            print_counter += print_every
 
     # return optimized factors and info
     return factors, { 'err_hist' : rec_errors,
@@ -277,15 +282,18 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
 
 def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
-    results = dict()
+    # if rank is input as a single int, wrap it in a list
+    if isinstance(ranks, int):
+        ranks = [ranks]
+
+    # compile optimization results into dict indexed by model rank
+    keys = ['factors', 'ranks', 'err_hist', 'err_final', 't_hist', 'converged', 'iterations']
+    results = {r: {k: [] for k in keys} for r in ranks}
 
     # if true, print progress
-    verbose = 'print_every' not in kwargs.keys() or kwargs['print_every'] > 0
+    verbose = 'print_every' not in kwargs.keys() or kwargs['print_every'] >= 0
 
     for r in ranks:
-
-        results[r] = dict(factors=[], ranks=[], err_hist=[], err_final=[],
-                             t_hist=[], converged=[], iterations=[])
 
         if verbose:
             print('Optimizing rank-{} models.'.format(r))
@@ -319,7 +327,7 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
         best_model = results[r]['factors'][0]
         results[r]['similarity'] = [1.0]
         for model in results[r]['factors'][1:]:
-            results[r]['similarity'].append(align_kruskal(model, best_model)[2])
+            results[r]['similarity'].append(align_factors(model, best_model)[2])
 
     return results
 

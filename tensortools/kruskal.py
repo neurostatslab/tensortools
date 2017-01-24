@@ -5,10 +5,10 @@ Core operations to align and score Kruskal tensors.
 import numpy as np
 import itertools as itr
 
-def normalize_kruskal(factors):
+def normalize_factors(factors):
     """Normalizes all factors to unit length
     """
-    factors, ndim, rank = _validate_kruskal(factors)
+    factors, ndim, rank = _validate_factors(factors)
 
     # factor norms
     lam = np.ones(rank)
@@ -25,7 +25,7 @@ def normalize_kruskal(factors):
 
     return newfactors, lam
 
-def standardize_kruskal(factors, lam_ratios=None, sort_factors=True):
+def standardize_factors(factors, lam_ratios=None, sort_factors=True):
     """Sorts factors by norm
 
     Parameters
@@ -46,7 +46,7 @@ def standardize_kruskal(factors, lam_ratios=None, sort_factors=True):
     """
 
     # normalize tensor
-    nrmfactors, lam = normalize_kruskal(factors)
+    nrmfactors, lam = normalize_factors(factors)
 
     # default to equally sized factors
     if lam_ratios is None:
@@ -68,10 +68,10 @@ def standardize_kruskal(factors, lam_ratios=None, sort_factors=True):
         return [f*np.power(lam, r) for f, r in zip(nrmfactors, lam_ratios)]
 
 
-def align_kruskal(A, B, greedy=None, penalize_lam=True):
+def align_factors(A, B, greedy=None, penalize_lam=True):
     """Align two kruskal tensors
 
-    aligned_A, aligned_B, score = align_kruskal(A, B, **kwargs)
+    aligned_A, aligned_B, score = align_factors(A, B, **kwargs)
 
     Arguments
     ---------
@@ -110,15 +110,15 @@ def align_kruskal(A, B, greedy=None, penalize_lam=True):
 
     # function assumes rank(A) >= rank(B). Rather than raise an error, we make a recursive call.
     if ra < rb:
-        aligned_B, aligned_A, score = align_kruskal(B, A, greedy=greedy, penalize_lam=penalize_lam)
+        aligned_B, aligned_A, score = align_factors(B, A, greedy=greedy, penalize_lam=penalize_lam)
         return aligned_A, aligned_B, score
 
     # decide whether to use greedy method or exhaustive search
     if greedy is None:
         greedy = True if min(ra,rb) >= 10 else False
 
-    A, lamA = normalize_kruskal(A)
-    B, lamB = normalize_kruskal(B)
+    A, lamA = normalize_factors(A)
+    B, lamB = normalize_factors(B)
 
     # compute dot product
     dprod = np.array([np.dot(a.T, b) for a, b in zip(A, B)])
@@ -190,7 +190,7 @@ def align_kruskal(A, B, greedy=None, penalize_lam=True):
     return aligned_A, aligned_B, score
 
 
-def _validate_kruskal(factors):
+def _validate_factors(factors):
     """Checks that input is a valid kruskal tensor
 
     Returns

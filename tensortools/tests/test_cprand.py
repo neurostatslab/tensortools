@@ -14,7 +14,7 @@ data = kruskal_to_tensor(true_factors)
 # fit model
 def check_score(method):
     est_factors, info = method(data, R)
-    return tt.align_kruskal(true_factors, est_factors)[2]
+    return tt.align_factors(true_factors, est_factors)[2]
 
 print('CP-RAND')
 print('-'*30)

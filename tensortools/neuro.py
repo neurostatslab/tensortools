@@ -5,7 +5,7 @@ Functions tailored to multi-trial neural data.
 import matplotlib.pyplot as plt
 import numpy as np
 from ipywidgets import interact
-from tensortools.kruskal import _validate_kruskal
+from tensortools.kruskal import _validate_factors
 from tensorly import kruskal_to_tensor   
 from jetpack import breathe, bars
 
@@ -24,7 +24,7 @@ def interact_reconstruction(data, model, avg_trial=False, condition=None, color_
     """Returns a function for interacive plotting of model reconstruction error
     """
 
-    model, ndim, rank = _validate_kruskal(model)
+    model, ndim, rank = _validate_factors(model)
 
     if ndim != 3 or data.ndim != 3:
         raise ValueError('Data and model must be a 3rd-order tensor.')

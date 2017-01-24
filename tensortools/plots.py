@@ -5,7 +5,7 @@ Plotting options for tensor decompositions.
 import numpy as np
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
-from .kruskal import align_kruskal, _validate_kruskal
+from .kruskal import align_factors, _validate_factors
 from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
 from jetpack import nospines, tickdir
@@ -56,7 +56,7 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
         Default is True.
     """
 
-    factors, ndim, rank = _validate_kruskal(factors)
+    factors, ndim, rank = _validate_factors(factors)
 
     if figsize is None:
         figsize = (8, rank)
@@ -294,7 +294,7 @@ def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alp
         ax = plt.gca()
 
     # list of ranks for all models
-    model_ranks = [_validate_kruskal(model)[2] for model in models]
+    model_ranks = [_validate_factors(model)[2] for model in models]
 
     # list of ranks for each factor
     factor_ranks = []
@@ -313,7 +313,7 @@ def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alp
         if rank != ref_rank:
             continue
         print('.')
-        sc = np.array([align_kruskal(om, model, **kwargs)[2] for om in other_models])
+        sc = np.array([align_factors(om, model, **kwargs)[2] for om in other_models])
 
         other_ranks = np.array(other_ranks)
         ln, = ax.plot(other_ranks, sc, 'o', alpha=0.3)
