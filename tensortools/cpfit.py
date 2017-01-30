@@ -10,7 +10,8 @@ from scipy.fftpack import dct, idct
 from .kruskal import standardize_factors, align_factors
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
-           n_iter_max=1000, print_every=0.3, prepend_print='\r', append_print=''):
+           min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
+           prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -98,9 +99,8 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
 
         # break loop if converged
         converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
-        if converged and verbose:
-            print(prepend_print+'converged in {} iterations.'.format(iteration+1), end=append_print)
-        if converged:
+        if converged and (time()-t0)>min_time:
+            if verbose: print(prepend_print+'converged in {} iterations.'.format(iteration+1), end=append_print)
             break
 
         # display progress
@@ -109,6 +109,10 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                 iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
             print(prepend_print+print_str, end=append_print)
             print_counter += print_every
+
+        # stop early if over time
+        if (time()-t0)>max_time:
+            break
 
     if not converged and verbose:
         print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0), end=append_print)
