@@ -325,9 +325,11 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
         # calculate similarity score of each model to the best fitting model
         best_model = results[r]['factors'][0]
-        results[r]['similarity'] = [1.0]
-        for model in results[r]['factors'][1:]:
-            results[r]['similarity'].append(align_factors(model, best_model)[2])
+        results[r]['similarity'] = [1.0] + (replicates-1)*[None]
+        for s in range(1, replicates):
+            aligned_factors, _, score = align_factors(results[r]['factors'][s], best_model)
+            results[r]['similarity'][s] = score
+            results[r]['factors'][s] = aligned_factors
 
     return results
 

@@ -8,10 +8,9 @@ import matplotlib.pyplot as plt
 from .kruskal import align_factors, _validate_factors
 from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
-from jetpack import nospines, tickdir
+from jetpack import nospines, tickdir, breathe, minlabels
 import itertools as itr
 from sklearn.linear_model import LogisticRegression
-
 
 def _calc_aic(tensor, factors):
     nll = np.sum((tensor - kruskal_to_tensor(factors))**2)
@@ -257,6 +256,49 @@ def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0
     
     return fig, axes
 
+
+def plot_similarity(results, axes=None, fig=None, figsize=None, labels=True, sharex=True,
+                    sharey=True, format_axes=True, scatter_kw=dict(edgecolor='none', color='k')):
+    """Plots reconstruction error vs model similarity
+    """
+
+    # setup figure and axes
+    if fig is None and axes is None:
+        m, n = _choose_subplots(len(results))
+        if figsize is None:
+            figsize = (2*n, 2*m)
+        fig, axes = plt.subplots(m, n, figsize=figsize, sharex=sharex, sharey=sharey)
+    elif fig is None or axes is None:
+        raise ValueError('If either fig or axes are given as keyword arguments, both must be specifed.')
+
+    # compile statistics for plotting
+    ranks = np.sort(list(results.keys()))
+    for r, ax in zip(ranks, axes.ravel()):
+        err_diff = results[r]['err_final'][1:] - results[r]['err_final'][0]
+        ax.scatter(err_diff, results[r]['similarity'][1:], **scatter_kw)
+
+    if format_axes:
+        for ax in axes.ravel():
+            nospines(ax=ax)
+            tickdir(ax=ax)
+            ax.set_ylim(0,1)
+
+        xl = [0, axes.ravel()[0].get_xlim()[1]]
+        breathe(ax=axes.ravel()[0])
+
+        for ax in axes.ravel():
+            ax.spines['left'].set_bounds(0,1)
+            ax.spines['bottom'].set_bounds(*xl)
+        for ax in axes[:,0]:
+            ax.set_ylabel('similarity')
+        for ax in axes[-1,:]:
+            ax.set_xlabel('$\Delta$ error')
+        for ax in axes.ravel():
+            ax.set_xticks(np.linspace(*xl, 4))
+            ax.set_xticklabels([xl[0], '', '', xl[1]])
+
+    return fig, axes
+
 def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegression, **kwargs):
     """Plot decoding accruacy of metadata for a series of models
     """
@@ -329,3 +371,49 @@ def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alp
 
     return ax
 
+def _primes(n):
+    """Computes the prime factorization for an integer
+    """
+    pfac = [] # prime factors
+    d = 2
+    while d*d <= n:
+        while (n % d) == 0:
+            pfac.append(d)
+            n //= d
+        d += 1
+    if n > 1:
+       pfac.append(n)
+    return pfac
+
+def _isprime(n):
+    """Returns whether an integer is prime or not.
+    """
+    return all([ n % d != 0 for d in range(2, n//2+1)])
+
+def _choose_subplots(n, tol=2.5):
+    """Calculate roughly square layout for subplots
+    """
+    
+    while _isprime(n) and n > 4:
+        n = n+1
+
+    p = _primes(n)
+
+    # single row of plots
+    if len(p) == 1:
+        return 1, p[0]
+
+    while len(p) > 2:
+        if len(p) >= 4:
+            p[1] = p[1]*p.pop()
+            p[0] = p[0]*p.pop()
+        else:
+            # len(p) == 3
+            p[0] = p[0]*p[1]
+            p.pop(1)
+        p = np.sort(p)
+
+    if p[1]/p[0] > tol:
+        return _choose_subplots(n+1, tol=tol)
+    else:
+        return p[0], p[1]
