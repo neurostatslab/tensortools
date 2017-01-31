@@ -7,11 +7,13 @@ from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
 from scipy.fftpack import dct, idct
+from scipy.optimize import least_squares
 from .kruskal import standardize_factors, align_factors
+from ._robust import irls
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
-           min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
-           prepend_print='\r', append_print=''):
+           min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3, robust=False,
+           huber_delta=0.1, prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -48,12 +50,6 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     # intialize factor matrices
     factors = _cp_initialize(tensor, rank, init, init_factors)
 
-    # use non-negative least squares for nncp
-    if nonneg is True:
-        ls_method = lambda A, B: nnlsm_blockpivot(A, B)[0]
-    else:
-        ls_method = np.linalg.solve
-
     # setup optimization
     converged = False
     norm_tensor = tensorly.tenalg.norm(tensor, 2)
@@ -84,7 +80,19 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
             kr = khatri_rao(factors, skip_matrix=mode)
 
             # update factor
-            factors[mode] = ls_method(G.T, np.dot(unf, kr).T).T
+            A = G.T
+            B = np.dot(unf, kr).T
+            if nonneg and robust:
+                raise NotImplementedError()
+            elif nonneg is True:
+                factors[mode] = nnlsm_blockpivot(A, B).T
+            elif robust is True:
+                A = kr
+                X = factors[mode]
+                B = unf
+                factors[mode] = irls(A, B.T, x=X.T).T
+            else:
+                factors[mode] = np.linalg.solve(G.T, np.dot(unf, kr).T).T
 
             for r in range(rank):
                 if np.allclose(factors[mode][:,r], 0):

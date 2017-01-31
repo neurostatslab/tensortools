@@ -283,7 +283,9 @@ def plot_similarity(results, axes=None, fig=None, figsize=None, labels=True, sha
             tickdir(ax=ax)
             ax.set_ylim(0,1)
 
-        xl = [0, axes.ravel()[0].get_xlim()[1]]
+        ax = axes.ravel()[0]
+        xl = [0, ax.get_xlim()[1]]
+        ax.set_xlim(xl)
         breathe(ax=axes.ravel()[0])
 
         for ax in axes.ravel():
