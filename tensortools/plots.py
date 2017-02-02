@@ -20,7 +20,7 @@ def _calc_aic(tensor, factors):
 
 def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
                  titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
-                 link_yaxis=False, label=None, xlabels='', suptitle=None, fig=None,
+                 ylim='link', label=None, xlabels='', suptitle=None, fig=None,
                  axes=None, yticks=True, width_ratios=None, scatter_kwargs=dict()):
     """Plots a KTensor.
 
@@ -50,9 +50,14 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
         If true, sorts each factor before plotting. This is useful for
         modes of the tensor that have no natural ordering. Default is
         False.
-    link_yaxis : bool or list
-        If True, set ylim to the same extent for each set of factors.
-        Default is True.
+    ylim : str, y-axis limits or list
+        Specifies how to set the y-axis limits for each mode of the
+        decomposition. For a third-order, rank-2 model, setting
+        ylim=['link', (0,1), ((0,1), (-1,1))] specifies that the
+        first pair of factors have the same y-axis limits (chosen
+        automatically), the second pair of factors both have y-limits
+        (0,1), and the third pair of factors have y-limits (0,1) and
+        (-1,1).
     """
 
     factors, ndim, rank = _validate_factors(factors)
@@ -85,7 +90,7 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
     lw = _broadcast_arg(lw, (int,float), 'lw')
     dashes = _broadcast_arg(dashes, tuple, 'dashes')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
-    link_yaxis = _broadcast_arg(link_yaxis, (bool), 'link_yaxis')
+    ylim = _broadcast_arg(ylim, (tuple, str), 'ylim')
     scatter_kwargs = _broadcast_arg(scatter_kwargs, (dict), 'scatter_kwargs')
 
     # parse plot widths, defaults to equal widths
@@ -159,11 +164,19 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
                 axes[r,i].set_xlabel(xlabels[i])
 
     # link y-axes within columns
-    for i in np.where(link_yaxis)[0]:
-        yl = [a.get_ylim() for a in axes[:,i]]
-        y0 = min([y[0] for y in yl])
-        y1 = max([y[1] for y in yl])
-        [a.set_ylim([y0,y1]) for a in axes[:,i]]
+    for i, yl in enumerate(ylim):
+        if yl is None:
+            continue
+        elif yl == 'link':
+            yl = [a.get_ylim() for a in axes[:,i]]
+            y0, y1 = min([y[0] for y in yl]), max([y[1] for y in yl])
+            [a.set_ylim((y0, y1)) for a in axes[:,i]]
+        elif isinstance(yl[0], (int, float)) and len(yl) == 2:
+            [a.set_ylim(yl) for a in axes[:,i]]
+        elif isinstance(yl[0], (tuple, list)) and len(yl) == rank:
+            [a.set_ylim(lims) for a, lims in zip(axes[:,i], yl)]
+        else:
+            raise ValueError('ylimits not properly specified')
 
     # format y-ticks
     for r in range(R):
