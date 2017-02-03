@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
-def tensor_raster(data, axes=None, title=None, column=0, ncols=1, palette=None, background='white', interpolation='none', **subplots_kw):
+def tensor_raster(data, axes=None, column=0, ncols=1, palette=None, title=None, background='dark', interpolation='none', **subplots_kw):
     """
     Generates spike rasters with each neuron stacked on top of one another
 
@@ -40,6 +40,7 @@ def tensor_raster(data, axes=None, title=None, column=0, ncols=1, palette=None, 
         _, axes = plt.subplots(nrows=n_neuron, ncols=ncols, gridspec_kw=gridspec_kw, **subplots_kw)
 
     axcolumn = axes if axes.ndim == 1 else axes[:, column]
+    images = []
 
     for i, neuron, ax in zip(range(n_neuron), data, axcolumn):
         
@@ -52,14 +53,16 @@ def tensor_raster(data, axes=None, title=None, column=0, ncols=1, palette=None, 
             raise ValueError('Background argument misspecified.')
         
         # plot neuron raster
-        ax.imshow(np.nan_to_num(data[i].T), cmap=cm, interpolation=interpolation, aspect='auto')
+        img = ax.imshow(np.nan_to_num(data[i].T), cmap=cm, interpolation=interpolation, aspect='auto')
+        images.append(img)
+
         ax.axis('tight')
         ax.axis('off')
 
     if title is not None:
         axcolumn[0].set_title(title)
 
-    return axes
+    return axes, images
 
 def _light_colormap(col):
     r,g,b = col
