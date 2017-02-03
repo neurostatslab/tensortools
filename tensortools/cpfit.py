@@ -85,7 +85,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
             if nonneg and robust:
                 raise NotImplementedError()
             elif nonneg is True:
-                factors[mode] = nnlsm_blockpivot(A, B).T
+                factors[mode] = nnlsm_blockpivot(A, B)[0].T
             elif robust is True:
                 A = kr
                 X = factors[mode]
