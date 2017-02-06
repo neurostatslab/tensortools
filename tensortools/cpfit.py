@@ -132,9 +132,9 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_window=10, nonneg=False,
-            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0.3,
-            prepend_print='\r', append_print=''):
+def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=2**14, sample_increase=1.1,
+            convergence_window=10, nonneg=False, init=None, init_factors=None, tol=1e-5, n_iter_max=1000,
+            print_every=0.3, prepend_print='\r', append_print=''):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
@@ -163,6 +163,8 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
     fit_sub = np.array([list(np.unravel_index(i, tensor.shape)) for i in fit_ind])
     tensor_sample = tensor.ravel()[fit_ind]
     tensor_sample_norm = np.linalg.norm(tensor_sample)
+    min_error = np.inf
+    convergence_counter = 0
 
     # initial calculation of error
     est_sample = np.ones((fit_samples, rank))
@@ -179,9 +181,21 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
     if verbose:
         print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
 
+    # set threshold for calling cp-als
+    if max_iter_samples is None:
+        num_fibers = []
+        for mode in range(tensor.ndim):
+            mode_shape = [s for m,s in enumerate(tensor.shape) if m != mode]
+            num_fibers.append(np.prod(mode_shape))
+        max_iter_samples = np.max(num_fibers)
+
     # main loop
     t0 = time()
     for iteration in range(n_iter_max):
+
+        if iter_samples > max_iter_samples:
+            print('punting to cpals')
+            return cp_als(tensor, rank, init_factors=best_factors, print_every=-1, nonneg=nonneg)
 
         # alternating optimization over modes
         for mode in range(tensor.ndim):
@@ -203,6 +217,10 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
 
             # update factor
             factors[mode] = ls_method(kr, unf.T).T
+
+            for r in range(rank):
+                if np.allclose(factors[mode][:,r], 0):
+                    factors[mode][:,r] = np.random.rand(tensor.shape[mode])
         
         # renormalize factors to prevent singularities
         factors = standardize_factors(factors, sort_factors=False)
@@ -218,30 +236,41 @@ def cp_rand(tensor, rank, iter_samples=None, fit_samples=2**14, convergence_wind
         rec_errors.append(rec_error)
         t_elapsed.append(time() - t0)
 
-        # check convergence, break loop if converged
+        # check if error went down
+        if rec_error < min_error:
+            min_error = rec_error
+            best_factors = [fctr.copy() for fctr in factors]
+        else:
+            # TODO - CONSIDER:
+            #   factors = [fctr.copy() for fctr in best_factors]
+            #   rec_errors[-1] = min_error
+            iter_samples = int(iter_samples*sample_increase)
+
+        # check convergence
         if iteration > convergence_window:
             converged = abs(np.mean(np.diff(rec_errors[-convergence_window:]))) < tol
         else:
             converged = False
 
-        if tol and converged:
-            if verbose:
-                print('converged in {} iterations.'.format(iteration+1))
+        # print convergence and break loop
+        if converged and verbose:
+            print('{}converged in {} iterations.'.format(prepend_print, iteration+1))
+        if converged:
             break
             
         # display progress
         if verbose and (time()-t0)/print_every > print_counter:
             print_str = 'iter={0:d}, error={1:.4f}, variation={2:.4f}'.format(
-                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
+                iteration+1, min_error, rec_errors[-2] - rec_errors[-1])
             print(prepend_print+print_str, end=append_print)
             print_counter += print_every
 
     # return optimized factors and info
-    return factors, { 'err_hist' : rec_errors,
-                      't_hist' : t_elapsed,
-                      'err_final' : rec_errors[-1],
-                      'converged' : converged,
-                      'iterations' : len(rec_errors) }
+    return best_factors, { 'err_hist' : rec_errors,
+                          't_hist' : t_elapsed,
+                          'err_final' : rec_errors[-1],
+                          'converged' : converged,
+                          'iterations' : len(rec_errors) }
 
 def cp_mixrand(tensor, rank, **kwargs):
     """

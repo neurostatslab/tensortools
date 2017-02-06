@@ -12,16 +12,9 @@ from jetpack import nospines, tickdir, breathe, minlabels
 import itertools as itr
 from sklearn.linear_model import LogisticRegression
 
-def _calc_aic(tensor, factors):
-    nll = np.sum((tensor - kruskal_to_tensor(factors))**2)
-    num_params = np.sum([len(f.ravel()) for f in factors])
-    return 2*num_params + 2*nll
-
-
-def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
-                 titles='', color='b', alpha=1.0, lw=2, dashes=None, sort_fctr=False,
-                 ylim='link', label=None, xlabels='', suptitle=None, fig=None,
-                 axes=None, yticks=True, width_ratios=None, scatter_kwargs=dict()):
+def plot_factors(factors, figsize=None, plots='line', linedashes=None,
+                 sort_fctr=False, ylim='link', fig=None, axes=None, yticks=True,
+                 width_ratios=None, scatter_kw=dict(), line_kw=dict(), bar_kw=dict()):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -33,15 +26,9 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
 
     Parameters
     ----------
-    lspec : str or list
-        Matplotlib linespec (e.g. '-' or '--'). Default is '-'.
-    plot_n : int or list
-        Number of factors to plot. The default is to plot all factors.
     plots : str or list
         One of {'bar','line'} to specify the type of plot for each factor.
         The default is 'line'.
-    titles : str or list
-        Plot title for each set of factors
     color : matplotlib color or list
         Color for plots associated with each set of factors
     lw : int or list
@@ -77,28 +64,21 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
             raise ValueError('Parameter %s must be a %s or a list'
                              'of %s' % (name, argtype, argtype))
 
-    # dimensionality of tensor and number of factors to plot
-    R = rank if plot_n is None else plot_n
-
     # parse optional inputs
     plots = _broadcast_arg(plots, str, 'plots')
-    titles = _broadcast_arg(titles, str, 'titles')
-    xlabels = _broadcast_arg(xlabels, str, 'xlabels')
-    lspec = _broadcast_arg(lspec, str, 'lspec')
-    color = _broadcast_arg(color, (str,tuple), 'color')
-    alpha = _broadcast_arg(alpha, (int,float), 'alpha')
-    lw = _broadcast_arg(lw, (int,float), 'lw')
-    dashes = _broadcast_arg(dashes, tuple, 'dashes')
+    linedashes = _broadcast_arg(linedashes, tuple, 'linedashes')
     sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     ylim = _broadcast_arg(ylim, (tuple, str), 'ylim')
-    scatter_kwargs = _broadcast_arg(scatter_kwargs, (dict), 'scatter_kwargs')
+    bar_kw = _broadcast_arg(bar_kw, dict, 'bar_kw')
+    line_kw = _broadcast_arg(line_kw, dict, 'line_kw')
+    scatter_kw = _broadcast_arg(scatter_kw, dict, 'scatter_kw')
 
     # parse plot widths, defaults to equal widths
     if width_ratios is None:
         width_ratios = [1 for _ in range(ndim)]
 
     # default scatterplot options
-    for sckw in scatter_kwargs:
+    for sckw in scatter_kw:
         if not "edgecolor" in sckw.keys():
             sckw["edgecolor"] = "none"
         if not "s" in sckw.keys():
@@ -106,18 +86,14 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
 
     # setup subplots (unless already specified)
     if fig is None and axes is None:
-        fig, axes = plt.subplots(R, ndim,
+        fig, axes = plt.subplots(rank, ndim,
                                figsize=figsize,
                                gridspec_kw=dict(width_ratios=width_ratios))
-        if R == 1: axes = axes[None, :]
+        if rank == 1: axes = axes[None, :]
     elif fig is None:
         fig = axes[0,0].get_figure()
     else:
-        axes = np.array(fig.get_axes(), dtype=object).reshape(R, ndim)
-
-    # check label input
-    if label is not None and not isinstance(label, str):
-        raise ValueError('label must be None or string')
+        axes = np.array(fig.get_axes(), dtype=object).reshape(rank, ndim)
 
     # order to plot loadings for each factor
     o = []
@@ -128,18 +104,18 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
             o.append(range(f.shape[0]))
 
     # main loop, plot each factor
-    for r in range(R):
+    for r in range(rank):
         for i, f in enumerate(factors):
 
             # determine type of plot
             if plots[i] == 'bar':
-                axes[r,i].bar(range(f.shape[0]), f[o[i],r], color=color[i], alpha=alpha[i], label=label)
+                axes[r,i].bar(range(f.shape[0]), f[o[i],r], **bar_kw[i])
             elif plots[i] == 'scatter':
-                axes[r,i].scatter(range(f.shape[0]), f[o[i],r], c=color[i], alpha=alpha[i], label=label, **scatter_kwargs[i])
+                axes[r,i].scatter(range(f.shape[0]), f[o[i],r], **scatter_kw[i])
             elif plots[i] == 'line':
-                ln, = axes[r,i].plot(f[o[i],r], lspec[i], color=color[i], lw=lw[i], alpha=alpha[i], label=label)
-                if dashes[i] is not None:
-                    ln.set_dashes(dashes[i])
+                ln, = axes[r,i].plot(f[o[i],r], '-', **line_kw[i])
+                if linedashes[i] is not None:
+                    ln.set_dashes(linedashes[i])
             else:
                 raise ValueError('invalid plot type')
 
@@ -153,15 +129,9 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
             axes[r,i].yaxis.set_ticks_position('left')
             axes[r,i].xaxis.set_ticks_position('bottom')
 
-            # put title on top row
-            if r == 0:
-                axes[r,i].set_title(titles[i])
-
             # remove xticks on all but bottom row
-            if r != R-1:
+            if r != rank-1:
                 plt.setp(axes[r,i].get_xticklabels(), visible=False)
-            else:
-                axes[r,i].set_xlabel(xlabels[i])
 
     # link y-axes within columns
     for i, yl in enumerate(ylim):
@@ -179,7 +149,7 @@ def plot_factors(factors, figsize=None, lspec='-', plot_n=None, plots='line',
             raise ValueError('ylimits not properly specified')
 
     # format y-ticks
-    for r in range(R):
+    for r in range(rank):
         for i in range(ndim):
             if not yticks:
                 axes[r,i].set_yticks([])
