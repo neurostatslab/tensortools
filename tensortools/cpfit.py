@@ -1,41 +1,16 @@
 import numpy as np
-from ._nnls import nnlsm_blockpivot
 import tensorly
 from tensorly.base import unfold
 from tensorly.kruskal import kruskal_to_tensor
 from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
-from scipy.fftpack import dct, idct
-from scipy.optimize import least_squares
 from .kruskal import standardize_factors, align_factors
-from ._robust import irls
-from sklearn.linear_model import Lasso
-
-# def cp_sparse_als(tensor, rank, nonneg=False, penalties=None, **lasso_kw):
-
-#     # default sparsity penalties
-#     if penalties is None:
-#         penalties = [1.0 for _ in range(tensor.ndim)]
-#     elif len(penalties) != tensor.ndim:
-#         raise ValueError('Regularization penalties must be specified for each tensor mode')
-
-#     # rename positive to nonneg
-#     if 'positive' not in lasso_kw.keys():
-#         lasso_kw
-#         raise ValueError('nonneg kw')
-
-#     models = [Lasso(alpha=a, **lasso_kw) if a is not None for a in penalties]
-
-#     factors = 
-
-#     return factors, {'penalties': penalties}
-
-#     sklearn.linear_model.Lasso(alpha=1.0, fit_intercept=True, normalize=False, precompute=False, copy_X=True, max_iter=1000, tol=0.0001, warm_start=False, positive=False, random_state=None, selection='cyclic')
+from .factor_solvers import _get_factor_solvers
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3, robust=False,
-           huber_delta=0.1, prepend_print='\r', append_print=''):
+           sparsity_penalty = None, lasso_kw=dict(), prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -79,6 +54,17 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     t_elapsed = [0]
     rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
 
+    # setup alternating solvers
+    solver_args = {'nonneg': nonneg,
+                   'robust': robust,
+                   'sparsity_penalty': sparsity_penalty,
+                   'lasso_kw': lasso_kw}
+    for k,v in zip(solver_args.keys(), solver_args.values()):
+        if not isinstance(v, (tuple, list)):
+            solver_args[k] = [v for _ in range(tensor.ndim)]
+
+    solvers = _get_factor_solvers(tensor.ndim, **solver_args)
+
     # initial print statement
     verbose = print_every > 0
     print_counter = 0 # time to print next progress
@@ -103,18 +89,8 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
             kr = khatri_rao(factors, skip_matrix=mode)
 
             # update factor
-            if nonneg and robust:
-                raise NotImplementedError()
-            elif nonneg is True:
-                factors[mode] = nnlsm_blockpivot(G.T, np.dot(unf, kr).T)[0].T
-            elif robust is True:
-                factors[mode] = irls(G.T, np.dot(unf, kr).T, x=factors[mode].T).T
-            else:
-                factors[mode] = np.linalg.solve(G.T, np.dot(unf, kr).T).T
-
-            for r in range(rank):
-                if np.allclose(factors[mode][:,r], 0):
-                    factors[mode][:,r] = np.random.rand(tensor.shape[mode])
+            A, B = G.T, np.dot(unf, kr).T
+            factors[mode] = solvers[mode](A, B, warm_start=factors[mode].T)
         
         # renormalize factors
         factors = standardize_factors(factors, sort_factors=False)

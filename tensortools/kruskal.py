@@ -146,7 +146,8 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
 
     else:
         # search all permutations
-        score = 0
+        score = -1
+        best_perm = np.arange(ra)
         for comb in itr.combinations(range(ra), rb):
             perm = -np.ones(ra, dtype='int')
             unset = list(set(range(ra)) - set(comb))
