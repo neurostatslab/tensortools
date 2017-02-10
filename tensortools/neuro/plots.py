@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, colorConverter
 import numpy as np
 
 def tensor_raster(data, axes=None, column=0, ncols=1, palette=None, title=None, background='dark', interpolation='none', **subplots_kw):
@@ -65,7 +65,7 @@ def tensor_raster(data, axes=None, column=0, ncols=1, palette=None, title=None, 
     return axes, images
 
 def _light_colormap(c):
-    r,g,b = matplotlib.colors.to_rgb(c)
+    r,g,b = colorConverter.to_rgb(c)
     cdict = {'red':   ((0.0, 1.0, 1.0),
                        (1.0,   r,   r)),
              'green': ((0.0, 1.0, 1.0),
@@ -76,7 +76,7 @@ def _light_colormap(c):
     return LinearSegmentedColormap('_', cdict)
 
 def _dark_colormap(c):
-    r,g,b = matplotlib.colors.to_rgb(c)
+    r,g,b = colorConverter.to_rgb(c)
     cdict = {'red':   ((0.0, 0.0, 0.0),
                        (1.0,   r,   r)),
              'green': ((0.0, 0.0, 0.0),

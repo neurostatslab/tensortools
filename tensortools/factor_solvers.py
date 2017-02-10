@@ -47,7 +47,7 @@ def _get_solver(nonneg, robust, sparsity_penalty, lasso_kw):
 
     # classic least squares solver (not nonneg, robust, or sparse)
     else:
-        return lambda A, B, warm_start=None: np.linalg.solve(A, B).T       
+        return lambda A, B, warm_start=None: np.linalg.lstsq(A, B)[0].T
 
 
 def _nnls_solver(A, B, warm_start=None):

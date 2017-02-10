@@ -12,9 +12,8 @@ from jetpack import nospines, tickdir, breathe, minlabels
 import itertools as itr
 from sklearn.linear_model import LogisticRegression
 
-def plot_factors(factors, figsize=None, plots='line', linedashes=None,
-                 sort_fctr=False, ylim='link', fig=None, axes=None, yticks=True,
-                 width_ratios=None, scatter_kw=dict(), line_kw=dict(), bar_kw=dict()):
+def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axes=None,
+                 yticks=True, width_ratios=None, scatter_kw=dict(), line_kw=dict(), bar_kw=dict()):
     """Plots a KTensor.
 
     Each parameter can be passed as a list if different formatting is
@@ -33,10 +32,6 @@ def plot_factors(factors, figsize=None, plots='line', linedashes=None,
         Color for plots associated with each set of factors
     lw : int or list
         Specifies line width on plots. Default is 2
-    sort_fctr : bool or list
-        If true, sorts each factor before plotting. This is useful for
-        modes of the tensor that have no natural ordering. Default is
-        False.
     ylim : str, y-axis limits or list
         Specifies how to set the y-axis limits for each mode of the
         decomposition. For a third-order, rank-2 model, setting
@@ -66,8 +61,6 @@ def plot_factors(factors, figsize=None, plots='line', linedashes=None,
 
     # parse optional inputs
     plots = _broadcast_arg(plots, str, 'plots')
-    linedashes = _broadcast_arg(linedashes, tuple, 'linedashes')
-    sort_fctr = _broadcast_arg(sort_fctr, (int,float), 'sort_fctr')
     ylim = _broadcast_arg(ylim, (tuple, str), 'ylim')
     bar_kw = _broadcast_arg(bar_kw, dict, 'bar_kw')
     line_kw = _broadcast_arg(line_kw, dict, 'line_kw')
@@ -95,27 +88,18 @@ def plot_factors(factors, figsize=None, plots='line', linedashes=None,
     else:
         axes = np.array(fig.get_axes(), dtype=object).reshape(rank, ndim)
 
-    # order to plot loadings for each factor
-    o = []
-    for srt,f in zip(sort_fctr, factors):
-        if srt:
-            o.append(np.argsort(f[:,0])[::-1])
-        else:
-            o.append(range(f.shape[0]))
-
     # main loop, plot each factor
+    plot_obj = np.empty((rank, ndim), dtype=object)
     for r in range(rank):
         for i, f in enumerate(factors):
 
             # determine type of plot
             if plots[i] == 'bar':
-                axes[r,i].bar(range(f.shape[0]), f[o[i],r], **bar_kw[i])
+                plot_obj[r,i] = axes[r,i].bar(range(f.shape[0]), f[:,r], **bar_kw[i])
             elif plots[i] == 'scatter':
-                axes[r,i].scatter(range(f.shape[0]), f[o[i],r], **scatter_kw[i])
+                plot_obj[r,i] = axes[r,i].scatter(range(f.shape[0]), f[:,r], **scatter_kw[i])
             elif plots[i] == 'line':
-                ln, = axes[r,i].plot(f[o[i],r], '-', **line_kw[i])
-                if linedashes[i] is not None:
-                    ln.set_dashes(linedashes[i])
+                plot_obj[r,i] = axes[r,i].plot(f[:,r], '-', **line_kw[i])
             else:
                 raise ValueError('invalid plot type')
 
@@ -141,6 +125,8 @@ def plot_factors(factors, figsize=None, plots='line', linedashes=None,
             yl = [a.get_ylim() for a in axes[:,i]]
             y0, y1 = min([y[0] for y in yl]), max([y[1] for y in yl])
             [a.set_ylim((y0, y1)) for a in axes[:,i]]
+        elif yl == 'tight':
+            [a.set_ylim(np.min(factors[i][:,r]), np.max(factors[i][:,r]))  for r, a in enumerate(axes[:,i])]
         elif isinstance(yl[0], (int, float)) and len(yl) == 2:
             [a.set_ylim(yl) for a in axes[:,i]]
         elif isinstance(yl[0], (tuple, list)) and len(yl) == rank:
@@ -174,7 +160,7 @@ def plot_factors(factors, figsize=None, plots='line', linedashes=None,
 
     plt.tight_layout()
 
-    return fig, axes
+    return fig, axes, plot_obj
 
 def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0.1, labels=True,
                greedy=None,

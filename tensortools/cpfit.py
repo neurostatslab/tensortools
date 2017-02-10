@@ -10,7 +10,7 @@ from .factor_solvers import _get_factor_solvers
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
            min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3, robust=False,
-           sparsity_penalty = None, lasso_kw=dict(), prepend_print='\r', append_print=''):
+           sparsity_penalty=None, lasso_kw=dict(), prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -127,8 +127,9 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                       'iterations' : len(rec_errors) }
 
 def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=2**14, sample_increase=1.1,
-            convergence_window=10, nonneg=False, init=None, init_factors=None, tol=1e-5, n_iter_max=1000,
-            print_every=0.3, prepend_print='\r', append_print=''):
+            convergence_window=10, nonneg=False,  robust=False, sparsity_penalty=None, lasso_kw=dict(),
+            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0.3, prepend_print='\r',
+            append_print=''):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
@@ -153,7 +154,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
 
     # setup convergence checking
     converged = False
-    fit_ind = np.random.choice(range(len(tensor.ravel())), size=fit_samples, replace=False)
+    fit_ind = np.random.randint(0, np.prod(tensor.shape), size=fit_samples)
     fit_sub = np.array([list(np.unravel_index(i, tensor.shape)) for i in fit_ind])
     tensor_sample = tensor.ravel()[fit_ind]
     tensor_sample_norm = np.linalg.norm(tensor_sample)
@@ -168,6 +169,17 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
     rec_error = np.linalg.norm(tensor_sample - est_sample) / tensor_sample_norm
     rec_errors = [rec_error]
     t_elapsed = [0.0]
+
+    # setup alternating solvers
+    solver_args = {'nonneg': nonneg,
+                   'robust': robust,
+                   'sparsity_penalty': sparsity_penalty,
+                   'lasso_kw': lasso_kw}
+    for k,v in zip(solver_args.keys(), solver_args.values()):
+        if not isinstance(v, (tuple, list)):
+            solver_args[k] = [v for _ in range(tensor.ndim)]
+
+    solvers = _get_factor_solvers(tensor.ndim, **solver_args)
 
     # initial print statement
     verbose = print_every > 0
@@ -210,12 +222,8 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
                     kr *= f[idx[i], :]
 
             # update factor
-            factors[mode] = ls_method(kr, unf.T).T
+            factors[mode] = solvers[mode](kr, unf.T, warm_start=factors[mode].T)
 
-            for r in range(rank):
-                if np.allclose(factors[mode][:,r], 0):
-                    factors[mode][:,r] = np.random.rand(tensor.shape[mode])
-        
         # renormalize factors to prevent singularities
         factors = standardize_factors(factors, sort_factors=False)
 
