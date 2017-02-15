@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 import numpy as np
 
-def tensor_raster(data, axes=None, column=0, ncols=1, palette=None, title=None, background='dark', interpolation='none', **subplots_kw):
+def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, background='dark', interpolation='none', **subplots_kw):
     """
     Generates spike rasters with each neuron stacked on top of one another
 
@@ -15,14 +15,14 @@ def tensor_raster(data, axes=None, column=0, ncols=1, palette=None, title=None, 
     ----------
         data: array of the form [n_neuron, n_time, n_trial]
         grid_spec: matplotlib.GridSpec (default: GridSpec(n_neuron, 1))
-        palette: fixed colormap to use for all neurons (default: hand-picked by Alex)
+        colors: fixed colormap to use for all neurons (default: hand-picked by Alex)
         n_colors: number of colormap colors (default: 9)
         background: colormap specified by string (default: 'dark')
         interpolation: inteprolation argument to imshow (default: None)
     """
-    if palette is None and background in ['white', 'light']:
+    if colors is None and background in ['white', 'light']:
         colors = [(0, 0, 0), (0, 0, 0.7), (0.7, 0, 0), (0, 0.8, 0), (0.7, 0, 0.7), (0.9, 0.4, 0)]
-    elif palette is None and background  in ['black', 'dark']:
+    elif colors is None and background  in ['black', 'dark']:
         colors = [(1, 1, 1), (0.3, 1, 0.3), (1, 0.1, 0.1), (1, 0.2, 1), (1, 1, 0), (0, 0.9, 1)]
 
     n_colors = len(colors)

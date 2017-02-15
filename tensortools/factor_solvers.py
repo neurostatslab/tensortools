@@ -51,7 +51,13 @@ def _get_solver(nonneg, robust, sparsity_penalty, lasso_kw):
 
 
 def _nnls_solver(A, B, warm_start=None):
-    result = nnlsm_blockpivot(A, B)[0].T
+    
+    # catch singular matrix error, reset result
+    # (this should not happen often)
+    try:
+        result = nnlsm_blockpivot(A, B)[0].T
+    except np.linalg.linalg.LinAlgError:
+        result = np.random.rand(B.shape[1], A.shape[1])
 
     # prevent all parameters going to zero
     for r in range(result.shape[1]):

@@ -364,6 +364,12 @@ def _isprime(n):
 def _choose_subplots(n, tol=2.5):
     """Calculate roughly square layout for subplots
     """
+
+    if not isinstance(n, int) or n <= 0:
+        raise ValueError('number of subplots must be specified as a positive integer')
+
+    if n == 1:
+        return (1, 1)
     
     while _isprime(n) and n > 4:
         n = n+1

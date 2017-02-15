@@ -133,7 +133,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
-        iter_samples = int(4 * rank * np.log(rank))
+        iter_samples = max(10, int(4 * rank * np.log(rank)))
 
     if fit_samples >= len(tensor.ravel()):
         # TODO: warning here.
@@ -256,7 +256,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
 
         # print convergence and break loop
         if converged and verbose:
-            print('{}converged in {} iterations.'.format(prepend_print, iteration+1))
+            print('{}converged in {} iterations.'.format(prepend_print, iteration+1), end=append_print)
         if converged:
             break
             
@@ -301,6 +301,9 @@ def cp_mixrand(tensor, rank, **kwargs):
 def _cp_initialize(tensor, rank, init, init_factors):
     """ Parameter initialization methods for CP decomposition
     """
+    if rank <=0:
+        raise ValueError('Trying to fit a rank-{} model. Rank must be a positive integer.'.format(rank))
+
     if init_factors is not None:
         factors = init_factors.copy()
     elif init is 'randn':
@@ -335,11 +338,14 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
     # if true, print progress
     verbose = 'print_every' not in kwargs.keys() or kwargs['print_every'] >= 0
+    if verbose:
+        t0 = time()
 
     for r in ranks:
 
         if verbose:
             print('Optimizing rank-{} models.'.format(r))
+            t0_inner = time()
 
         for s in range(replicates):
             # fit cpd
@@ -354,12 +360,12 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
         # summarize the fits for rank-r models
         if verbose:
-            summary = '\r   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}'
+            summary = '\r   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}, time to fit = {5:.4f}s'
             n_converged = np.sum(results[r]['converged'])
             min_err = np.min(results[r]['err_final'])
             max_err = np.max(results[r]['err_final'])
             mean_err = np.mean(results[r]['err_final'])
-            print(summary.format(n_converged, replicates, min_err, max_err, mean_err))
+            print(summary.format(n_converged, replicates, min_err, max_err, mean_err, time()-t0_inner))
 
         # sort results by final reconstruction error
         idx = np.argsort(results[r]['err_final'])
@@ -373,6 +379,9 @@ def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
             aligned_factors, _, score = align_factors(results[r]['factors'][s], best_model)
             results[r]['similarity'][s] = score
             results[r]['factors'][s] = aligned_factors
+
+    if verbose:
+        print('Total time to fit models: {0:.4f}s'.format(time()-t0))
 
     return results
 
