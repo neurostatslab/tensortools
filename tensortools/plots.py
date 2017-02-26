@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from .kruskal import align_factors, _validate_factors
 from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
-from jetpack import nospines, tickdir, breathe, minlabels
+from jetpack import nospines, tickdir, breathe
 import itertools as itr
 from sklearn.linear_model import LogisticRegression
 
