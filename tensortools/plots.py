@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from .kruskal import align_factors, _validate_factors
 from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
-from jetpack import nospines, tickdir, breathe
+from jetpack import nospines, tickdir
 import itertools as itr
 from sklearn.linear_model import LogisticRegression
 
@@ -167,6 +167,8 @@ def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0
                scatter_kw=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
                line_kw=dict(color='r', lw=3, zorder=1)):
     """Plots reconstruction error and model similarity
+
+    fig, axes = plot_scree(results)
     """
 
     # setup figure and axes
@@ -253,9 +255,8 @@ def plot_similarity(results, axes=None, fig=None, figsize=None, labels=True, sha
             ax.set_ylim(0,1)
 
         ax = axes.ravel()[0]
-        xl = [0, ax.get_xlim()[1]]
+        xl = [0, np.round(ax.get_xlim()[1], 2)]
         ax.set_xlim(xl)
-        breathe(ax=axes.ravel()[0])
 
         for ax in axes.ravel():
             ax.spines['left'].set_bounds(0,1)

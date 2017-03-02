@@ -69,7 +69,7 @@ def standardize_factors(factors, lam_ratios=None, sort_factors=True):
 
 
 def align_factors(A, B, greedy=None, penalize_lam=True):
-    """Align two kruskal tensors
+    """Align two kruskal tensors.
 
     aligned_A, aligned_B, score = align_factors(A, B, **kwargs)
 
@@ -105,20 +105,20 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
             raise ValueError('kruskal tensors do not have same shape.')
 
     # rank of A and B
-    ra = A[0].shape[1]
-    rb = B[0].shape[1]
+    A, ndim_A, rank_A = _validate_factors(A)
+    B, ndim_B, rank_B = _validate_factors(B)
 
     # function assumes rank(A) >= rank(B). Rather than raise an error, we make a recursive call.
-    if ra < rb:
+    if rank_A < rank_B:
         aligned_B, aligned_A, score = align_factors(B, A, greedy=greedy, penalize_lam=penalize_lam)
         return aligned_A, aligned_B, score
 
     # decide whether to use greedy method or exhaustive search
     if greedy is None:
-        greedy = True if min(ra,rb) >= 10 else False
+        greedy = True if min(rank_A, rank_B) >= 10 else False
 
-    A, lamA = normalize_factors(A)
-    B, lamB = normalize_factors(B)
+    A, lam_A = normalize_factors(A)
+    B, lam_B = normalize_factors(B)
 
     # compute dot product
     dprod = np.array([np.dot(a.T, b) for a, b in zip(A, B)])
@@ -128,41 +128,41 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
 
     # include penalty on factor lengths
     if penalize_lam:
-        for i, j in itr.product(range(ra), range(rb)):
-            la, lb = lamA[i], lamB[j]
+        for i, j in itr.product(range(rank_A), range(rank_B)):
+            la, lb = lam_A[i], lam_B[j]
             sim[i, j] *= 1 - (abs(la-lb) / max(abs(la),abs(lb)))
 
     if greedy:
         # find permutation of factors by a greedy method
-        best_perm = -np.ones(ra, dtype='int')
+        best_perm = -np.ones(rank_A, dtype='int')
         score = 0
-        for r in range(rb):
+        for r in range(rank_B):
             i, j = np.unravel_index(np.argmax(sim), sim.shape)
             score += sim[i,j]
             sim[i,:] = -1
             sim[:,j] = -1
             best_perm[j] = i
-        score /= rb
+        score /= rank_B
 
     else:
         # search all permutations
         score = -1
-        best_perm = np.arange(ra)
-        for comb in itr.combinations(range(ra), rb):
-            perm = -np.ones(ra, dtype='int')
-            unset = list(set(range(ra)) - set(comb))
-            perm[unset] = np.arange(rb, ra)
+        best_perm = np.arange(rank_A)
+        for comb in itr.combinations(range(rank_A), rank_B):
+            perm = -np.ones(rank_A, dtype='int')
+            unset = list(set(range(rank_A)) - set(comb))
+            perm[unset] = np.arange(rank_B, rank_A)
             for p in itr.permutations(comb):
                 perm[list(comb)] = list(p)
                 sc = sum([ sim[i,j] for j, i in enumerate(p)])
                 if sc > score:
                     best_perm = perm.copy()
                     score = sc
-        score /= rb
+        score /= rank_B
 
     # Flip signs of ktensor factors for better alignment
-    sgn = np.tile(np.power(lamA, 1/ndim), (ndim,1))
-    for j in range(rb):
+    sgn = np.tile(np.power(lam_A, 1/ndim), (ndim,1))
+    for j in range(rank_B):
 
         # factor i in A matched to factor j in B
         i = best_perm[j]
@@ -184,7 +184,7 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
 
     # flip signs in A
     flipped_A = [s*a for s, a in zip(sgn, A)]
-    aligned_B = [np.power(l, 1/ndim)*b for l, b in zip(lamB, B)]
+    aligned_B = [np.power(l, 1/ndim)*b for l, b in zip(lam_B, B)]
 
     # permute A to align with B
     aligned_A = [a[:,best_perm] for a in flipped_A]
