@@ -200,8 +200,9 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
     for iteration in range(n_iter_max):
 
         if iter_samples > max_iter_samples:
-            print('punting to cpals')
-            return cp_als(tensor, rank, init_factors=best_factors, print_every=-1, nonneg=nonneg)
+            print('punting to cpals...', end=append_print)
+            return cp_als(tensor, rank, init_factors=best_factors, print_every=print_every,
+                          prepend_print=prepend_print+' - cp_als -', nonneg=nonneg, tol=tol)
 
         # alternating optimization over modes
         for mode in range(tensor.ndim):
@@ -243,9 +244,8 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
             min_error = rec_error
             best_factors = [fctr.copy() for fctr in factors]
         else:
-            # TODO - CONSIDER:
-            #   factors = [fctr.copy() for fctr in best_factors]
-            #   rec_errors[-1] = min_error
+            factors = [fctr.copy() for fctr in best_factors]
+            rec_errors[-1] = min_error
             iter_samples = int(iter_samples*sample_increase)
 
         # check convergence
