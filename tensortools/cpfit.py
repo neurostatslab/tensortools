@@ -6,11 +6,33 @@ from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
 from .kruskal import standardize_factors, align_factors
-from .factor_solvers import _get_factor_solvers
+
+def _ls_solver(A, B, warm_start=None):
+    """Solves X*A - B for X using least-squares.
+    """
+    # TODO - do conjugate gradient if n is too large
+    return np.linalg.lstsq(A.T, B.T)[0].T
+
+def _nnls_solver(A, B, warm_start=None):
+    """Solves X*A - B for X within nonnegativity constraint.
+    """
+    # catch singular matrix error, reset result
+    # (this should not happen often)
+    try:
+        result = nnlsm_blockpivot(A.T, B.T, init=warm_start)[0].T
+    except np.linalg.linalg.LinAlgError:
+        result = np.random.rand(B.shape[0], A.shape[0])
+
+    # prevent all parameters going to zero
+    for r in range(result.shape[1]):
+        if np.allclose(result[:,r], 0):
+            result[:,r] = np.random.rand(result.shape[0])
+
+    return result
 
 def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
-           min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3, robust=False,
-           sparsity_penalty=None, lasso_kw=dict(), prepend_print='\r', append_print=''):
+           min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
+           prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -54,16 +76,8 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     t_elapsed = [0]
     rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
 
-    # setup alternating solvers
-    solver_args = {'nonneg': nonneg,
-                   'robust': robust,
-                   'sparsity_penalty': sparsity_penalty,
-                   'lasso_kw': lasso_kw}
-    for k,v in zip(solver_args.keys(), solver_args.values()):
-        if not isinstance(v, (tuple, list)):
-            solver_args[k] = [v for _ in range(tensor.ndim)]
-
-    solvers = _get_factor_solvers(tensor.ndim, **solver_args)
+    # setup alternating solver
+    solver = _nnls_solver if nonneg else _ls_solver
 
     # initial print statement
     verbose = print_every > 0
@@ -89,8 +103,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
             kr = khatri_rao(factors, skip_matrix=mode)
 
             # update factor
-            A, B = G.T, np.dot(unf, kr).T
-            factors[mode] = solvers[mode](A, B, warm_start=factors[mode].T)
+            factors[mode] = solver(G, np.dot(unf, kr), warm_start=factors[mode].T)
         
         # renormalize factors
         factors = standardize_factors(factors, sort_factors=False)
@@ -127,9 +140,8 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                       'iterations' : len(rec_errors) }
 
 def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=2**14, sample_increase=1.0,
-            convergence_window=10, nonneg=False,  robust=False, sparsity_penalty=None, lasso_kw=dict(),
-            init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0.3, prepend_print='\r',
-            append_print=''):
+            convergence_window=10, nonneg=False, init=None, init_factors=None, tol=1e-5, n_iter_max=1000,
+            print_every=0.3, prepend_print='\r', append_print=''):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
@@ -145,12 +157,6 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
 
     # intialize factor matrices
     factors = _cp_initialize(tensor, rank, init, init_factors)
-
-    # use non-negative least squares for nncp
-    if nonneg is True:
-        ls_method = lambda A, B: nnlsm_blockpivot(A, B)[0]
-    else:
-        ls_method = lambda A, B: np.linalg.lstsq(A, B)[0]
 
     # setup convergence checking
     converged = False
@@ -170,16 +176,8 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
     rec_errors = [rec_error]
     t_elapsed = [0.0]
 
-    # setup alternating solvers
-    solver_args = {'nonneg': nonneg,
-                   'robust': robust,
-                   'sparsity_penalty': sparsity_penalty,
-                   'lasso_kw': lasso_kw}
-    for k,v in zip(solver_args.keys(), solver_args.values()):
-        if not isinstance(v, (tuple, list)):
-            solver_args[k] = [v for _ in range(tensor.ndim)]
-
-    solvers = _get_factor_solvers(tensor.ndim, **solver_args)
+    # setup alternating solver
+    solver = _nnls_solver if nonneg else _ls_solver
 
     # initial print statement
     verbose = print_every > 0
@@ -218,7 +216,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
                     kr *= f[idx[i], :]
 
             # update factor
-            factors[mode] = solvers[mode](kr, unf.T, warm_start=factors[mode].T)
+            factors[mode] = solver(kr.T, unf, warm_start=factors[mode].T)
 
         # renormalize factors to prevent singularities
         factors = standardize_factors(factors, sort_factors=False)

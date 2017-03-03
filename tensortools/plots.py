@@ -95,17 +95,19 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
 
             # determine type of plot
             if plots[i] == 'bar':
-                plot_obj[r,i] = axes[r,i].bar(range(f.shape[0]), f[:,r], **bar_kw[i])
+                plot_obj[r,i] = axes[r,i].bar(np.arange(1, f.shape[0]+1), f[:,r], **bar_kw[i])
+                axes[r,i].set_xlim(0, f.shape[0]+1)
             elif plots[i] == 'scatter':
                 plot_obj[r,i] = axes[r,i].scatter(range(f.shape[0]), f[:,r], **scatter_kw[i])
+                axes[r,i].set_xlim(0, f.shape[0])
             elif plots[i] == 'line':
                 plot_obj[r,i] = axes[r,i].plot(f[:,r], '-', **line_kw[i])
+                axes[r,i].set_xlim(0, f.shape[0])
             else:
                 raise ValueError('invalid plot type')
 
             # format axes
             axes[r,i].locator_params(nbins=4)
-            axes[r,i].set_xlim([0,f.shape[0]])
             axes[r,i].spines['top'].set_visible(False)
             axes[r,i].spines['right'].set_visible(False)
             axes[r,i].xaxis.set_tick_params(direction='out')
@@ -207,7 +209,6 @@ def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0
         axes[0].set_ylabel('Norm of resids / Norm of data')
 
     nospines(ax=axes[0])
-    tickdir(ax=axes[0])
 
     # Similarity plot
     axes[1].scatter(ranks_jit[:, 1:].ravel(), sim, **scatter_kw)
@@ -217,7 +218,6 @@ def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0
     axes[1].set_ylim([0, 1.1])
     axes[1].set_yticks([0, 1])
     nospines(ax=axes[1])
-    tickdir(ax=axes[1])
     axes[1].spines['left'].set_bounds(0, 1)
 
     # axis labels
@@ -251,7 +251,6 @@ def plot_similarity(results, axes=None, fig=None, figsize=None, labels=True, sha
     if format_axes:
         for ax in axes.ravel():
             nospines(ax=ax)
-            tickdir(ax=ax)
             ax.set_ylim(0,1)
 
         ax = axes.ravel()[0]
@@ -296,7 +295,6 @@ def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegressio
     dt = ax.scatter(ranks, scores, edgecolor='none', color=ln.get_c(), alpha=0.5)
 
     nospines(ax=ax)
-    tickdir(ax=ax)
 
     return ln, dt
 
