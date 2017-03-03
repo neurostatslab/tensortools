@@ -126,14 +126,14 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=2**14, sample_increase=1.1,
+def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=2**14, sample_increase=1.0,
             convergence_window=10, nonneg=False,  robust=False, sparsity_penalty=None, lasso_kw=dict(),
             init=None, init_factors=None, tol=1e-5, n_iter_max=1000, print_every=0.3, prepend_print='\r',
             append_print=''):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
-        iter_samples = max(10, int(4 * rank * np.log(rank)))
+        iter_samples = max(10, int(np.ceil(4 * rank * np.log(rank))))
 
     if fit_samples >= len(tensor.ravel()):
         # TODO: warning here.
@@ -199,11 +199,6 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
     t0 = time()
     for iteration in range(n_iter_max):
 
-        if iter_samples > max_iter_samples:
-            print('punting to cpals...', end=append_print)
-            return cp_als(tensor, rank, init_factors=best_factors, print_every=print_every,
-                          prepend_print=prepend_print+' - cp_als -', nonneg=nonneg, tol=tol)
-
         # alternating optimization over modes
         for mode in range(tensor.ndim):
             # sample mode-n fibers uniformly with replacement
@@ -246,7 +241,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
         else:
             factors = [fctr.copy() for fctr in best_factors]
             rec_errors[-1] = min_error
-            iter_samples = int(iter_samples*sample_increase)
+            iter_samples = min(max_iter_samples, int(iter_samples*sample_increase))
 
         # check convergence
         if iteration > convergence_window:
@@ -273,6 +268,10 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
                           'err_final' : rec_errors[-1],
                           'converged' : converged,
                           'iterations' : len(rec_errors) }
+
+def cp_scheduled(tensor, rank, rand_kw=dict(), als_kw=dict()):
+    factors = cp_rand(tensor, rank, **rand_kw)[0]
+    return cp_als(tensor, rank, init=factors, **als_kw)
 
 def cp_mixrand(tensor, rank, **kwargs):
     """
