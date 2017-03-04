@@ -5,7 +5,8 @@ from tensorly.kruskal import kruskal_to_tensor
 from tensorly.tenalg import khatri_rao, mode_dot
 from numpy.random import randint
 from time import time
-from .kruskal import standardize_factors, align_factors
+from .kruskal import standardize_factors, align_factors, _validate_factors
+from .nnls import nnlsm_blockpivot
 
 def _ls_solver(A, B, warm_start=None):
     """Solves X*A - B for X using least-squares.
@@ -30,7 +31,7 @@ def _nnls_solver(A, B, warm_start=None):
 
     return result
 
-def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
+def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
            min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
            prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
@@ -47,11 +48,9 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
     nonneg : bool
         (default = False)
         if True, use alternating non-negative least squares to fit tensor
-    init : str
+    init : str or ktensor
         specified initialization procedure for factor matrices
         {'randn','rand','svd'}
-    init_factors : ktensor (list of ndarray)
-        initial factor matrices (overrides "init" keyword arg)
     tol : float
         convergence criterion
     n_iter_max : int
@@ -67,7 +66,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
         init = 'randn' if nonneg is False else 'rand'
 
     # intialize factor matrices
-    factors = _cp_initialize(tensor, rank, init, init_factors)
+    factors = _cp_initialize(tensor, rank, init)
 
     # setup optimization
     converged = False
@@ -139,13 +138,13 @@ def cp_als(tensor, rank, nonneg=False, init=None, init_factors=None, tol=1e-6,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=2**14, sample_increase=1.0,
-            convergence_window=10, nonneg=False, init=None, init_factors=None, tol=1e-5, n_iter_max=1000,
-            print_every=0.3, prepend_print='\r', append_print=''):
+def cp_rand(tensor, rank, nonneg=False, iter_samples=None,
+            fit_samples=2**14, window=10, init=None, tol=1e-5,
+            n_iter_max=1000, print_every=0.3, prepend_print='\r', append_print=''):
 
     # If iter_samples not specified, use heuristic
     if iter_samples is None:
-        iter_samples = max(10, int(np.ceil(4 * rank * np.log(rank))))
+        iter_samples = lambda itr: max(200, int(np.ceil(4 * rank * np.log(rank))))
 
     if fit_samples >= len(tensor.ravel()):
         # TODO: warning here.
@@ -156,7 +155,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
         init = 'randn' if nonneg is False else 'rand'
 
     # intialize factor matrices
-    factors = _cp_initialize(tensor, rank, init, init_factors)
+    factors = _cp_initialize(tensor, rank, init)
 
     # setup convergence checking
     converged = False
@@ -185,22 +184,15 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
     if verbose:
         print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
 
-    # set threshold for calling cp-als
-    if max_iter_samples is None:
-        num_fibers = []
-        for mode in range(tensor.ndim):
-            mode_shape = [s for m,s in enumerate(tensor.shape) if m != mode]
-            num_fibers.append(np.prod(mode_shape))
-        max_iter_samples = np.max(num_fibers)
-
     # main loop
     t0 = time()
     for iteration in range(n_iter_max):
-
+        s = iter_samples(iteration)
+        
         # alternating optimization over modes
         for mode in range(tensor.ndim):
             # sample mode-n fibers uniformly with replacement
-            idx = [tuple(randint(0, D, iter_samples)) if n != mode else slice(None) for n, D in enumerate(tensor.shape)]
+            idx = [tuple(randint(0, D, s)) if n != mode else slice(None) for n, D in enumerate(tensor.shape)]
 
             # unfold sampled tensor
             if mode == 0:
@@ -210,7 +202,7 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
 
             # sub-sampled khatri-rao
             rank = factors[0].shape[1]
-            kr = np.ones((iter_samples, rank))
+            kr = np.ones((s, rank))
             for i, f in enumerate(factors):
                 if i != mode:
                     kr *= f[idx[i], :]
@@ -239,11 +231,10 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
         else:
             factors = [fctr.copy() for fctr in best_factors]
             rec_errors[-1] = min_error
-            iter_samples = min(max_iter_samples, int(iter_samples*sample_increase))
 
         # check convergence
-        if iteration > convergence_window:
-            converged = abs(np.mean(np.diff(rec_errors[-convergence_window:]))) < tol
+        if iteration > window:
+            converged = abs(np.mean(np.diff(rec_errors[-window:]))) < tol
         else:
             converged = False
 
@@ -266,10 +257,6 @@ def cp_rand(tensor, rank, iter_samples=None, max_iter_samples=None, fit_samples=
                           'err_final' : rec_errors[-1],
                           'converged' : converged,
                           'iterations' : len(rec_errors) }
-
-def cp_scheduled(tensor, rank, rand_kw=dict(), als_kw=dict()):
-    factors = cp_rand(tensor, rank, **rand_kw)[0]
-    return cp_als(tensor, rank, init=factors, **als_kw)
 
 def cp_mixrand(tensor, rank, **kwargs):
     """
@@ -295,14 +282,15 @@ def cp_mixrand(tensor, rank, **kwargs):
 
     return factors, info
 
-def _cp_initialize(tensor, rank, init, init_factors):
+def _cp_initialize(tensor, rank, init):
     """ Parameter initialization methods for CP decomposition
     """
     if rank <=0:
         raise ValueError('Trying to fit a rank-{} model. Rank must be a positive integer.'.format(rank))
 
-    if init_factors is not None:
-        factors = init_factors.copy()
+    if isinstance(init, list):
+        _validate_factors(init)
+        factors = [fctr.copy() for fctr in init]
     elif init is 'randn':
         factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
     elif init is 'rand':

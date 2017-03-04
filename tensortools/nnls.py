@@ -86,7 +86,7 @@ def nnlsm_blockpivot(A, B, is_input_prod=False, init=None):
     (n, k) = AtB.shape
     MAX_ITER = n * 5
 
-    if init != None:
+    if init is not None:
         PassSet = init > 0
         X, num_cholesky, num_eq = normal_eq_comb(AtA, AtB, PassSet)
         Y = AtA.dot(X) - AtB
