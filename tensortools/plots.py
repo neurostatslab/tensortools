@@ -164,20 +164,9 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
 
     return fig, axes, plot_obj
 
-def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0.1, labels=True,
-               greedy=None,
-               scatter_kw=dict(edgecolor='none', color='k', alpha=0.6, zorder=2),
-               line_kw=dict(color='r', lw=3, zorder=1)):
-    """Plots reconstruction error and model similarity
-
-    fig, axes = plot_scree(results)
+def plot_scree(ax, results, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
+    """Plots reconstruction error as a function of model rank.
     """
-
-    # setup figure and axes
-    if fig is None and axes is None:
-        fig, axes = plt.subplots(1, 2, figsize=figsize)
-    elif fig is None or axes is None:
-        raise ValueError('If either fig or axes are given as keyword arguments, both must be specifed.')
 
     # compile statistics for plotting
     ranks, err, sim, min_err = [], [], [], []
@@ -197,39 +186,56 @@ def plot_scree(results, yvals=None, axes=None, fig=None, figsize=(6,3), jitter=0
         ranks_jit = ranks + (np.random.rand(*ranks.shape)-0.5)*jitter
 
     # Scree plot
-    axes[0].plot(ranks[:, 0], min_err, **line_kw)
-    axes[0].scatter(ranks_jit.ravel(), err, **scatter_kw)
-
-    x0, x1 = np.min(ranks), np.max(ranks)
-    axes[0].set_xticks(range(x0, x1+1))
-    axes[0].set_xlim([x0-0.5, x1+0.5])
+    ax.scatter(ranks_jit.ravel(), err, **scatter_kw)
+    ax.plot(ranks[:, 0], min_err, **line_kw)
 
     if labels:
-        axes[0].set_xlabel('model rank')
-        axes[0].set_ylabel('Norm of resids / Norm of data')
+        ax.set_xlabel('model rank')
+        ax.set_ylabel('Norm of resids / Norm of data')
+    
+    return ax
 
-    nospines(ax=axes[0])
+def plot_similarity(ax, results, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
+    """Plots model similarity as a function of model rank
+    
+    Args
+    ----
+    ax : matplotlib axis
+    results : dict
+        holds results/output of `cpd_batch_fit`
+    """
+    
+    # compile statistics for plotting
+    ranks, sim, mean_sim = [], [], []
+    for r in results.keys():
+        ranks.append([r for _ in range(len(results[r]['factors'])-1)])
+        sim += list(results[r]['similarity'][1:])
+        mean_sim.append(np.mean(results[r]['similarity'][1:]))
 
-    # Similarity plot
-    axes[1].scatter(ranks_jit[:, 1:].ravel(), sim, **scatter_kw)
+    # add horizontal jitter 
+    ranks = np.array(ranks)
+    if jitter is not None:
+        ranks_jit = ranks + (np.random.rand(*ranks.shape)-0.5)*jitter
 
-    axes[1].set_xticks(range(x0, x1+1))
-    axes[1].set_xlim([x0-0.5, x1+0.5])
-    axes[1].set_ylim([0, 1.1])
-    axes[1].set_yticks([0, 1])
-    nospines(ax=axes[1])
-    axes[1].spines['left'].set_bounds(0, 1)
+    # make plot
+    ax.scatter(ranks_jit.ravel(), sim, **scatter_kw)
+    ax.plot(ranks[:, 0], mean_sim, **line_kw)
+
+    if labels:
+        ax.set_xlabel('model rank')
+        ax.set_ylabel('Norm of resids / Norm of data')
+        
+    ax.scatter(ranks_jit.ravel(), sim, **scatter_kw)
 
     # axis labels
     if labels:
-        axes[1].set_xlabel('model rank')
-        axes[1].set_ylabel('model similarity')
+        ax.set_xlabel('model rank')
+        ax.set_ylabel('model similarity')
     
-    return fig, axes
+    return ax
 
-
-def plot_similarity(results, axes=None, fig=None, figsize=None, labels=True, sharex=True,
-                    sharey=True, format_axes=True, scatter_kw=dict(edgecolor='none', color='k')):
+def plot_sim_v_err(results, axes=None, fig=None, figsize=None, labels=True, sharex=True,
+                   sharey=True, format_axes=True, scatter_kw=dict(edgecolor='none', color='k')):
     """Plots reconstruction error vs model similarity
     """
 
@@ -270,77 +276,6 @@ def plot_similarity(results, axes=None, fig=None, figsize=None, labels=True, sha
 
     return fig, axes
 
-def plot_decode(factors, y, ax=None, lw=3, label=None, Decoder=LogisticRegression, **kwargs):
-    """Plot decoding accruacy of metadata for a series of models
-    """
-
-    if ax is None:
-        ax = plt.gca()
-
-    # extract model ranks
-    ranks = np.array([X.shape[1] for X in factors], dtype=int)
-
-    # fit decoders for each set of factors, save accuracy
-    scores = []
-    for X in factors:
-        scores.append(Decoder(**kwargs).fit(X, y).score(X, y))
-    scores = np.array(scores)
-
-    # mean accuracy for each rank
-    unique_ranks = np.unique(ranks)
-    mean_scores = [np.mean(scores[ranks == rank]) for rank in unique_ranks]
-
-    # make plots
-    ln, = ax.plot(unique_ranks, mean_scores, lw=lw, label=label)
-    dt = ax.scatter(ranks, scores, edgecolor='none', color=ln.get_c(), alpha=0.5)
-
-    nospines(ax=ax)
-
-    return ln, dt
-
-def plot_persistence(models, ref_rank, ax=None, jitter=0.3, plot_kwargs=dict(alpha=0.5), **kwargs):
-    """Plot the persistence score for each factor across all fits.
-    """
-
-    if ax is None:
-        ax = plt.gca()
-
-    # list of ranks for all models
-    model_ranks = [_validate_factors(model)[2] for model in models]
-
-    # list of ranks for each factor
-    factor_ranks = []
-    factor_scores = []
-
-    for m in range(len(models)):
-
-        # all models, except model m
-        other_models = models.copy()
-        other_ranks = model_ranks.copy()
-
-        # inspect model m
-        model = other_models.pop(m)
-        rank = other_ranks.pop(m)
-
-        if rank != ref_rank:
-            continue
-        print('.')
-        sc = np.array([align_factors(om, model, **kwargs)[2] for om in other_models])
-
-        other_ranks = np.array(other_ranks)
-        ln, = ax.plot(other_ranks, sc, 'o', alpha=0.3)
-
-        unique_r = np.unique(other_ranks)
-        mean_sc = np.array([np.mean(sc[other_ranks == r]) for r in unique_r])
-        ax.plot(unique_r, mean_sc, '-', color=ln.get_color(), lw=2)
-
-    ax.set_xlim(np.min(model_ranks)-0.5, np.max(model_ranks)+0.5)
-    ax.set_xticks(np.unique(model_ranks))
-    nospines(ax=ax)
-    tickdir(ax=ax)
-
-    return ax
-
 def _primes(n):
     """Computes the prime factorization for an integer
     """
@@ -352,7 +287,7 @@ def _primes(n):
             n //= d
         d += 1
     if n > 1:
-       pfac.append(n)
+        pfac.append(n)
     return pfac
 
 def _isprime(n):

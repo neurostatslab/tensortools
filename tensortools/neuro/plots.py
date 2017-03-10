@@ -37,7 +37,9 @@ def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, b
 
     # setup axes
     if axes is None:
-        _, axes = plt.subplots(nrows=n_neuron, ncols=ncols, gridspec_kw=gridspec_kw, **subplots_kw)
+        fig, axes = plt.subplots(nrows=n_neuron, ncols=ncols, gridspec_kw=gridspec_kw, **subplots_kw)
+    else:
+        fig = None
 
     axcolumn = axes if axes.ndim == 1 else axes[:, column]
     images = []
@@ -62,7 +64,7 @@ def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, b
     if title is not None:
         axcolumn[0].set_title(title)
 
-    return axes, images
+    return fig, axes, images
 
 def _light_colormap(c):
     r,g,b = colorConverter.to_rgb(c)
