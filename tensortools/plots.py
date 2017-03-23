@@ -146,9 +146,6 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
                 ymin, ymax = np.round(axes[r,i].get_ylim(), 2)
                 axes[r,i].set_ylim((ymin, ymax))
 
-                # reset tick marks
-                yt = np.linspace(ymin, ymax, 4)
-
                 # remove decimals from labels
                 if ymin.is_integer():
                     ymin = int(ymin)
@@ -156,9 +153,8 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
                     ymax = int(ymax)
 
                 # update plot
-                ylab = [str(ymin), *['' for _ in range(len(yt)-2)], str(ymax)]
-                axes[r,i].set_yticks(yt)
-                axes[r,i].set_yticklabels(ylab)
+                axes[r,i].set_yticks([ymin, ymax])
+                axes[r,i].set_yticklabels([str(ymin), str(ymax)])
 
     plt.tight_layout()
 
