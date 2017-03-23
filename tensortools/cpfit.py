@@ -59,6 +59,13 @@ def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
     print_every : float
         how often (in seconds) to print progress. If <= 0 then don't print anything.
         (default = -1)
+
+    Returns
+    -------
+    factors : list of ndarray
+        estimated low-rank decomposition (in kruskal tensor format)
+    info : dict
+        information about the fit / optimization convergence
     """
 
     # default initialization method
