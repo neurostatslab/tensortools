@@ -78,7 +78,6 @@ def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
     # setup optimization
     converged = False
     norm_tensor = tensorly.tenalg.norm(tensor, 2)
-    gram = [np.dot(f.T, f) for f in factors]
     t_elapsed = [0]
     rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
 
@@ -264,6 +263,159 @@ def cp_rand(tensor, rank, nonneg=False, iter_samples=None,
                           'err_final' : rec_errors[-1],
                           'converged' : converged,
                           'iterations' : len(rec_errors) }
+
+def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
+              tol=1e-6, min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
+              prepend_print='\r', append_print=''):
+    """ Fit CP decomposition by alternating least-squares.
+
+    Args
+    ----
+    tensor : ndarray
+        data to be approximated by CP decomposition
+    rank : int
+        number of components in the CP decomposition model
+
+    Keyword Args
+    ------------
+    nonneg : bool
+        (default = False)
+        if True, use alternating non-negative least squares to fit tensor
+    init : str or ktensor
+        specified initialization procedure for factor matrices
+        {'randn','rand','svd'}
+    tol : float
+        convergence criterion
+    n_iter_max : int
+        maximum number of optimizations iterations before aborting
+        (default = 1000)
+    print_every : float
+        how often (in seconds) to print progress. If <= 0 then don't print anything.
+        (default = -1)
+
+    Returns
+    -------
+    factors : list of ndarray
+        estimated low-rank decomposition (in kruskal tensor format)
+    info : dict
+        information about the fit / optimization convergence
+    """
+
+    # default initialization method
+    if init is None:
+        init = 'randn' if nonneg is False else 'rand'
+
+    # initialize factors
+    if warmstart:
+        factors, _ = cp_als(tensor, rank, nonneg=nonneg, tol=tol)
+    else:
+        factors = _cp_initialize(tensor, rank, init)
+
+    # setup optimization
+    converged = False
+    norm_tensor = tensorly.tenalg.norm(tensor, 2)
+    t_elapsed = [0]
+    rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
+
+    # initial print statement
+    verbose = print_every > 0
+    print_counter = 0 # time to print next progress
+    if verbose:
+        print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
+
+    # gradient descent params
+    linesearch_iters = 100
+    stepsize = 0.1
+
+    # main loop
+    t0 = time()
+    for iteration in range(n_iter_max):
+
+        # alternating optimization over modes
+        for mode in range(tensor.ndim):
+            # current optimization state
+            old_rec_err = rec_errors[-1]
+            fctr = factors[mode].copy()
+
+            # keep track of positive and negative elements
+            if not nonneg:
+                pos = fctr > 0
+                neg = fctr < 0
+
+            # form unfolding and khatri-rao product
+            unf = unfold(tensor, mode)
+            kr = khatri_rao(factors, skip_matrix=mode)
+
+            # calculate gradient
+            kr_t_kr = np.dot(kr.T, kr)
+            gradient = np.dot(fctr, kr_t_kr) - np.dot(unf, kr.T)
+
+            # proximal gradient update
+            new_rec_err = np.inf
+
+            for liter in range(linesearch_iters):
+                # take gradient step
+                new_fctr = fctr - stepsize*gradient
+
+                # iterative soft-thresholding
+                if nonneg:
+                    new_fctr -= stepsize*penalty
+                    new_fctr[new_fctr<0] = 0.0
+                else:
+                    new_fctr[pos] -= stepsize*penalty
+                    new_fctr[neg] += stepsize*penalty
+                    sign_changes = (new_factor > 0 & neg) | (new_factor < 0 & pos)
+                    new_fctr[sign_changes] = 0.0
+
+                # calculate new error
+                factors[mode] = new_fctr
+                new_rec_err = _compute_squared_recon_error(tensor, factors, norm_tensor)
+
+                # break if error went down
+                if new_rec_err < old_rec_err:
+                    factors[mode] = new_fctr
+                    break
+                # decrease step size if error went up
+                else:
+                    stepsize /= 2.0
+                    # give up if too many iterations
+                    if liter == (linesearch_iters - 1):
+                        factors[mode] = fctr
+                        new_rec_err = old_rec_err
+
+        # renormalize factors
+        factors = standardize_factors(factors, sort_factors=False)
+
+        # check convergence
+        t_elapsed.append(time() - t0)
+        rec_errors.append(new_rec_err)
+
+        # break loop if converged
+        converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
+        if converged and (time()-t0)>min_time:
+            if verbose: print(prepend_print+'converged in {} iterations.'.format(iteration+1), end=append_print)
+            break
+
+        # display progress
+        if verbose and (time()-t0)/print_every > print_counter:
+            print_str = 'iter={0:d}, error={1:.4f}, variation={2:.4f}'.format(
+                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
+            print(prepend_print+print_str, end=append_print)
+            print_counter += print_every
+
+        # stop early if over time
+        if (time()-t0)>max_time:
+            break
+
+    if not converged and verbose:
+        print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0), end=append_print)
+
+    # return optimized factors and info
+    return factors, { 'err_hist' : rec_errors,
+                      't_hist' : t_elapsed,
+                      'err_final' : rec_errors[-1],
+                      'converged' : converged,
+                      'iterations' : len(rec_errors) }
 
 def cp_mixrand(tensor, rank, **kwargs):
     """
