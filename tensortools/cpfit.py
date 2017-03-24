@@ -264,7 +264,7 @@ def cp_rand(tensor, rank, nonneg=False, iter_samples=None,
                           'converged' : converged,
                           'iterations' : len(rec_errors) }
 
-def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
+def cp_sparse(tensor, rank, penalties, nonneg=False, init=None, warmstart=True,
               tol=1e-6, min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
               prepend_print='\r', append_print=''):
     """ Fit CP decomposition by alternating least-squares.
@@ -311,21 +311,23 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
     else:
         factors = _cp_initialize(tensor, rank, init)
 
+    def _compute_penalty(_factors):
+        return np.sum([lam*np.sum(np.abs(f)) for lam, f in zip(penalties, _factors)])
+
     # setup optimization
     converged = False
     norm_tensor = tensorly.tenalg.norm(tensor, 2)
     t_elapsed = [0]
-    rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
+    obj_history = [_compute_squared_recon_error(tensor, factors, norm_tensor) + _compute_penalty(factors)]
 
     # initial print statement
     verbose = print_every > 0
     print_counter = 0 # time to print next progress
     if verbose:
-        print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
+        print(prepend_print+'iter=0, error={0:.4f}'.format(obj_history[-1]), end=append_print)
 
     # gradient descent params
     linesearch_iters = 100
-    stepsize = 0.1
 
     # main loop
     t0 = time()
@@ -334,7 +336,8 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
         # alternating optimization over modes
         for mode in range(tensor.ndim):
             # current optimization state
-            old_rec_err = rec_errors[-1]
+            stepsize = 1.0
+            old_obj = obj_history[-1]
             fctr = factors[mode].copy()
 
             # keep track of positive and negative elements
@@ -348,10 +351,10 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
 
             # calculate gradient
             kr_t_kr = np.dot(kr.T, kr)
-            gradient = np.dot(fctr, kr_t_kr) - np.dot(unf, kr.T)
+            gradient = np.dot(fctr, kr_t_kr) - np.dot(unf, kr)
 
             # proximal gradient update
-            new_rec_err = np.inf
+            new_obj = np.inf
 
             for liter in range(linesearch_iters):
                 # take gradient step
@@ -359,20 +362,20 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
 
                 # iterative soft-thresholding
                 if nonneg:
-                    new_fctr -= stepsize*penalty
+                    new_fctr -= stepsize*penalties[mode]
                     new_fctr[new_fctr<0] = 0.0
                 else:
-                    new_fctr[pos] -= stepsize*penalty
-                    new_fctr[neg] += stepsize*penalty
+                    new_fctr[pos] -= stepsize*penalties[mode]
+                    new_fctr[neg] += stepsize*penalties[mode]
                     sign_changes = (new_factor > 0 & neg) | (new_factor < 0 & pos)
                     new_fctr[sign_changes] = 0.0
 
                 # calculate new error
                 factors[mode] = new_fctr
-                new_rec_err = _compute_squared_recon_error(tensor, factors, norm_tensor)
+                new_obj = _compute_squared_recon_error(tensor, factors, norm_tensor) + _compute_penalty(factors)
 
                 # break if error went down
-                if new_rec_err < old_rec_err:
+                if new_obj < old_obj:
                     factors[mode] = new_fctr
                     break
                 # decrease step size if error went up
@@ -381,17 +384,17 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
                     # give up if too many iterations
                     if liter == (linesearch_iters - 1):
                         factors[mode] = fctr
-                        new_rec_err = old_rec_err
+                        new_obj = old_obj
 
         # renormalize factors
         factors = standardize_factors(factors, sort_factors=False)
 
         # check convergence
         t_elapsed.append(time() - t0)
-        rec_errors.append(new_rec_err)
+        obj_history.append(new_obj)
 
         # break loop if converged
-        converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
+        converged = abs(obj_history[-2] - obj_history[-1]) < tol
         if converged and (time()-t0)>min_time:
             if verbose: print(prepend_print+'converged in {} iterations.'.format(iteration+1), end=append_print)
             break
@@ -399,7 +402,7 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
         # display progress
         if verbose and (time()-t0)/print_every > print_counter:
             print_str = 'iter={0:d}, error={1:.4f}, variation={2:.4f}'.format(
-                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
+                iteration+1, obj_history[-1], obj_history[-2] - obj_history[-1])
             print(prepend_print+print_str, end=append_print)
             print_counter += print_every
 
@@ -411,11 +414,11 @@ def cp_sparse(tensor, rank, penalty, nonneg=False, init=None, warmstart=True,
         print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0), end=append_print)
 
     # return optimized factors and info
-    return factors, { 'err_hist' : rec_errors,
+    return factors, { 'err_hist' : obj_history,
                       't_hist' : t_elapsed,
-                      'err_final' : rec_errors[-1],
+                      'err_final' : obj_history[-1],
                       'converged' : converged,
-                      'iterations' : len(rec_errors) }
+                      'iterations' : len(obj_history) }
 
 def cp_mixrand(tensor, rank, **kwargs):
     """
