@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 import numpy as np
 
-def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, background='dark', interpolation='none', **subplots_kw):
+def tensor_raster(*tensors, colors=None, share_cax=True, background='dark', **subplots_kw):
     """
     Generates spike rasters with each neuron stacked on top of one another
 
@@ -27,6 +27,7 @@ def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, b
 
     n_colors = len(colors)
     n_neuron = data.shape[0]
+    n_tensors = len(tensors)
 
     # catch keywords intended for gridspec
     gridspec_kw = {}
@@ -36,16 +37,13 @@ def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, b
             subplots_kw.pop(k, None)
 
     # setup axes
-    if axes is None:
-        fig, axes = plt.subplots(nrows=n_neuron, ncols=ncols, gridspec_kw=gridspec_kw, **subplots_kw)
-    else:
-        fig = None
+    fig, axes = plt.subplots(nrows=n_neuron, ncols=len(tensors), gridspec_kw=gridspec_kw, **subplots_kw)
 
     axcolumn = axes if axes.ndim == 1 else axes[:, column]
     images = []
 
-    for i, neuron, ax in zip(range(n_neuron), data, axcolumn):
-        
+    for i in range(n_neuron):
+
         # set up colormap
         if background in ['black', 'dark']:
             cm = _dark_colormap(colors[i % n_colors])
@@ -53,18 +51,14 @@ def tensor_raster(data, axes=None, column=0, ncols=1, colors=None, title=None, b
             cm = _light_colormap(colors[i % n_colors])
         else:
             raise ValueError('Background argument misspecified.')
-        
-        # plot neuron raster
-        img = ax.imshow(np.nan_to_num(data[i].T), cmap=cm, interpolation=interpolation, aspect='auto')
-        images.append(img)
 
-        ax.axis('tight')
-        ax.axis('off')
+        # plot this neuron for all tensors
+        for j in range(n_tensors):
+            axes[i, j].imshow(np.nan_to_num(tensors[j].T), cmap=cm, interpolation='none', aspect='auto')
+            axes[i, j].axis('tight')
+            axes[i, j].axis('off')
 
-    if title is not None:
-        axcolumn[0].set_title(title)
-
-    return fig, axes, images
+    return fig, axes
 
 def _light_colormap(c):
     r,g,b = colorConverter.to_rgb(c)
