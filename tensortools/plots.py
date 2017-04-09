@@ -160,9 +160,27 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
 
     return fig, axes, plot_obj
 
-def plot_scree(ax, results, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
+def plot_scree(results, ax=None, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
     """Plots reconstruction error as a function of model rank.
+
+    Args
+    ----
+    results : dict
+        holds results/output of `cpd_batch_fit`
+    ax : matplotlib axis (optional)
+        axis to plot on (defaults to current axis object)
+    jitter : float (optional)
+        amount of horizontal jitter added to scatterpoints (default=0.1)
+    labels : bool (optional)
+        if True, label the x and y axes (default=True)
+    scatter_kw : dict (optional)
+        keyword arguments for styling the scatterpoints
+    line_kw : dict (optional)
+        keyword arguments for styling the line
     """
+
+    if ax is None:
+        ax = plt.gca()
 
     # compile statistics for plotting
     ranks, err, sim, min_err = [], [], [], []
@@ -191,16 +209,28 @@ def plot_scree(ax, results, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=
     
     return ax
 
-def plot_similarity(ax, results, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
+def plot_similarity(results, ax=None, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
     """Plots model similarity as a function of model rank
     
     Args
     ----
-    ax : matplotlib axis
     results : dict
         holds results/output of `cpd_batch_fit`
+    ax : matplotlib axis (optional)
+        axis to plot on (defaults to current axis object)
+    jitter : float (optional)
+        amount of horizontal jitter added to scatterpoints (default=0.1)
+    labels : bool (optional)
+        if True, label the x and y axes (default=True)
+    scatter_kw : dict (optional)
+        keyword arguments for styling the scatterpoints
+    line_kw : dict (optional)
+        keyword arguments for styling the line
     """
     
+    if ax is None:
+        ax = plt.gca()
+
     # compile statistics for plotting
     ranks, sim, mean_sim = [], [], []
     for r in results.keys():

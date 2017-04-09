@@ -26,7 +26,7 @@ def tensor_raster(*tensors, colors=None, share_cax=True, background='dark', **su
         colors = [(1, 1, 1), (0.3, 1, 0.3), (1, 0.1, 0.1), (1, 0.2, 1), (1, 1, 0), (0, 0.9, 1)]
 
     n_colors = len(colors)
-    n_neuron = data.shape[0]
+    n_neuron = tensors[0].shape[0]
     n_tensors = len(tensors)
 
     # catch keywords intended for gridspec
@@ -38,9 +38,6 @@ def tensor_raster(*tensors, colors=None, share_cax=True, background='dark', **su
 
     # setup axes
     fig, axes = plt.subplots(nrows=n_neuron, ncols=len(tensors), gridspec_kw=gridspec_kw, **subplots_kw)
-
-    axcolumn = axes if axes.ndim == 1 else axes[:, column]
-    images = []
 
     for i in range(n_neuron):
 
