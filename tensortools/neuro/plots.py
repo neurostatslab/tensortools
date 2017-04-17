@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 import numpy as np
 
-def tensor_raster(*tensors, colors=None, share_cax=True, background='dark', **subplots_kw):
+def tensor_raster(*tensors, colors=None, share_cax=True, background='light', **subplots_kw):
     """
     Generates spike rasters with each neuron stacked on top of one another
 
@@ -37,7 +37,8 @@ def tensor_raster(*tensors, colors=None, share_cax=True, background='dark', **su
             subplots_kw.pop(k, None)
 
     # setup axes
-    fig, axes = plt.subplots(nrows=n_neuron, ncols=len(tensors), gridspec_kw=gridspec_kw, **subplots_kw)
+    fig, axes = plt.subplots(nrows=n_neuron, ncols=n_tensors, gridspec_kw=gridspec_kw, **subplots_kw)
+    images = np.empty((n_neuron, n_tensors), dtype=object)
 
     for i in range(n_neuron):
 
@@ -51,11 +52,16 @@ def tensor_raster(*tensors, colors=None, share_cax=True, background='dark', **su
 
         # plot this neuron for all tensors
         for j in range(n_tensors):
-            axes[i, j].imshow(np.nan_to_num(tensors[j].T), cmap=cm, interpolation='none', aspect='auto')
+            images[i, j] = axes[i, j].imshow(np.nan_to_num(tensors[j][i].T), cmap=cm, interpolation='none', aspect='auto')
             axes[i, j].axis('tight')
             axes[i, j].axis('off')
 
-    return fig, axes
+        if share_cax:
+            old_clim = np.array([im.get_clim() for im in images[i,:]])
+            new_clim = (np.min(old_clim), np.max(old_clim))
+            [im.set_clim(new_clim) for im in images[i,:]]
+
+    return fig, axes, images
 
 def _light_colormap(c):
     r,g,b = colorConverter.to_rgb(c)
