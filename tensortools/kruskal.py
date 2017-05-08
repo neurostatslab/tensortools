@@ -41,8 +41,6 @@ def standardize_factors(factors, lam_ratios=None, sort_factors=True):
     -------
     std_factors : ndarray list
         standardized Kruskal tensor with unit length factors
-    lam : 1darray
-        norm of each factor
     """
 
     # normalize tensor
