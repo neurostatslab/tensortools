@@ -473,7 +473,7 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
     """
     return tensorly.tenalg.norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
 
-def cp_batch_fit(tensor, ranks, replicates=1, method=cp_als, **kwargs):
+def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
     # if rank is input as a single int, wrap it in a list
     if isinstance(ranks, int):
