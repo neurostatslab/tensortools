@@ -154,7 +154,6 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
 
                 # update plot
                 axes[r,i].set_yticks([ymin, ymax])
-                axes[r,i].set_yticklabels([str(ymin), str(ymax)])
 
     plt.tight_layout()
 
