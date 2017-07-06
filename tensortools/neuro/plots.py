@@ -2,39 +2,31 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 import numpy as np
 
-def tensor_raster(*tensors, colors=None, share_cax=True, background='light', **subplots_kw):
+def tensor_raster(*tensors, colors=None, share_cax=True, background='white', **subplots_kw):
     """
     Generates spike rasters with each neuron stacked on top of one another
 
     Usage
     -----
-    >>> X   # shape == (n_neurons, n_time_points, n_trials)
-    >>> tensor_raster(X)
+    >>> X, Y  # data tensors (n_neurons x n_timepoints x n_trials)
+    >>> fig, axes, images = tensor_raster(X)
+    >>> fig, axes, images = tensor_raster(X, Y) # plots tensors side by side
 
-    Parameters
-    ----------
-        data: array of the form [n_neuron, n_time, n_trial]
-        grid_spec: matplotlib.GridSpec (default: GridSpec(n_neuron, 1))
-        colors: fixed colormap to use for all neurons (default: hand-picked by Alex)
-        n_colors: number of colormap colors (default: 9)
-        background: colormap specified by string (default: 'dark')
-        interpolation: inteprolation argument to imshow (default: None)
+    Keyword Arguments
+    -----------------
+    colors, list: colors to use for each raster (default: hand-picked)
+    share_cax, bool: If True, set the heatmap limits to be equal (default: True)
+    background, str: whether background of raster heatmap is black or white (default: 'white')
+    **subplots_kw: All additional keywords are passed to plt.subplots(...) function
     """
-    if colors is None and background in ['white', 'light']:
+    if colors is None and background in ['white', 'w']:
         colors = [(0, 0, 0), (0, 0, 0.7), (0.7, 0, 0), (0, 0.8, 0), (0.7, 0, 0.7), (0.9, 0.4, 0)]
-    elif colors is None and background  in ['black', 'dark']:
+    elif colors is None and background  in ['black', 'k']:
         colors = [(1, 1, 1), (0.3, 1, 0.3), (1, 0.1, 0.1), (1, 0.2, 1), (1, 1, 0), (0, 0.9, 1)]
 
     n_colors = len(colors)
     n_neuron = tensors[0].shape[0]
     n_tensors = len(tensors)
-
-    # catch keywords intended for gridspec
-    gridspec_kw = {}
-    for k in list(subplots_kw.keys()):
-        if k in ['hspace', 'wspace']:
-            gridspec_kw[k] = subplots_kw[k]
-            subplots_kw.pop(k, None)
 
     # setup axes
     fig, axes = plt.subplots(nrows=n_neuron, ncols=n_tensors, gridspec_kw=gridspec_kw, **subplots_kw)
@@ -43,9 +35,9 @@ def tensor_raster(*tensors, colors=None, share_cax=True, background='light', **s
     for i in range(n_neuron):
 
         # set up colormap
-        if background in ['black', 'dark']:
+        if background in ['k', 'black']:
             cm = _dark_colormap(colors[i % n_colors])
-        elif background in ['white', 'light']:
+        elif background in ['w', 'white']:
             cm = _light_colormap(colors[i % n_colors])
         else:
             raise ValueError('Background argument misspecified.')

@@ -1,9 +1,13 @@
-from .kruskal import normalize_factors, standardize_factors, align_factors, soft_cluster_factor
-from .cpfit import cp_als, cp_rand, cp_sparse, fit_ensemble
+# core functions
+from .kruskal import normalize_factors, standardize_factors, align_factors
+from .cpfit import cp_als, fit_ensemble
 from .plots import plot_factors, plot_scree, plot_similarity
-from .tensor import coarse_grain_1d, coarse_grain
-from .constrained_cp import constrained_cp
+
+# core functions imported from other packages
 from tensorly import unfold
 from tensorly.tenalg import norm
+
+# useful, non-critical functions
+from . import utils
 
 __version__ = '0.0.1'

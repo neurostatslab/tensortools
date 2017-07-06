@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 from .kruskal import align_factors, _validate_factors
 from tensorly.tenalg import norm
 from tensorly.kruskal import kruskal_to_tensor
-from jetpack import nospines, tickdir
 import itertools as itr
-from sklearn.linear_model import LogisticRegression
 
 def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axes=None,
                  yticks=True, width_ratios=None, scatter_kw=dict(), line_kw=dict(), bar_kw=dict()):
@@ -281,7 +279,8 @@ def plot_sim_v_err(results, axes=None, fig=None, figsize=None, labels=True, shar
 
     if format_axes:
         for ax in axes.ravel():
-            nospines(ax=ax)
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
             ax.set_ylim(0,1)
 
         ax = axes.ravel()[0]

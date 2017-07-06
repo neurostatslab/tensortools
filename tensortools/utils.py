@@ -1,3 +1,7 @@
+"""
+Useful helper functions, not critical to core functionality of tensortools.
+"""
+
 import numpy as np
 import math
 
@@ -44,3 +48,38 @@ def coarse_grain(tensor, factors, **kwargs):
         tensor = coarse_grain_1d(tensor, factor, axis=axis, **kwargs)
 
     return tensor
+
+def soft_cluster_factor(factor):
+    """Returns soft-clustering of data based on CP decomposition results.
+
+    Args
+    ----
+    factors : ndarray
+        Matrix holding low-dimensional CP factors in columns
+
+    Returns
+    -------
+    cluster_ids : ndarray of ints
+        List of cluster assignments for each row of factor matrix
+    perm : ndarray of ints
+        Permutation that groups rows by clustering and factor magnitude
+    """
+    
+    # copy factor of interest
+    f = np.copy(factor)
+
+    # cluster based on score of maximum absolute value
+    cluster_ids = np.argmax(np.abs(f), axis=1)
+    scores = f[range(f.shape[0]), cluster_ids]
+
+    # resort based on cluster assignment
+    #i0 = np.argsort(cluster_ids)
+    #f, scores = f[i0], scores[i0]
+
+    # resort within each cluster
+    perm = []
+    for cluster in np.unique(cluster_ids):
+        idx = np.where(cluster_ids == cluster)[0]
+        perm += list(idx[np.argsort(scores[idx])][::-1])
+
+    return cluster_ids, perm
