@@ -27,6 +27,18 @@ plot_scree(results)
 plot_similarity(results)
 ```
 
+#### Visualizing Factors
+
+After fitting your models and assessing their goodness of fit (see above), TensorTools provides methods to visualize the low-rank factors.
+
+```python
+from tensortools import plot_factors
+
+# plot the best model with R = 5 components
+R = 5
+plot_factors(results[R]['factors'][0])
+```
+
 ## What *isn't* TensorTools?
 
 TensorTools does not support many other interesting tensor models, such as Tucker decompositions and tensor regression problems.
