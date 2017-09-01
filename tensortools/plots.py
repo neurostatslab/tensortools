@@ -6,8 +6,7 @@ import numpy as np
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
 from .kruskal import align_factors, _validate_factors
-from tensorly.tenalg import norm
-from tensorly.kruskal import kruskal_to_tensor
+from .tensor_utils import norm, kruskal_to_tensor
 import itertools as itr
 
 def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axes=None,

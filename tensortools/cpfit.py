@@ -3,10 +3,7 @@ Fitting code for Canonical Polyadic (CP) Decompositions.
 """
 
 import numpy as np
-import tensorly
-from tensorly.base import unfold
-from tensorly.kruskal import kruskal_to_tensor
-from tensorly.tenalg import khatri_rao, mode_dot
+from .tensor_utils import unfold, kruskal_to_tensor, khatri_rao, norm
 from numpy.random import randint
 from time import time
 from .kruskal import standardize_factors, align_factors, _validate_factors
@@ -81,7 +78,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
 
     # setup optimization
     converged = False
-    norm_tensor = tensorly.tenalg.norm(tensor, 2)
+    norm_tensor = norm(tensor, 2)
     t_elapsed = [0]
     rec_errors = [_compute_squared_recon_error(tensor, factors, norm_tensor)]
 
@@ -175,7 +172,7 @@ def _cp_initialize(tensor, rank, init):
 def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
     """ Computes norm of residuals divided by norm of data.
     """
-    return tensorly.tenalg.norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
+    return norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
 
 def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
