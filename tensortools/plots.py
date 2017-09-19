@@ -156,7 +156,7 @@ def plot_factors(factors, figsize=None, plots='line', ylim='link', fig=None, axe
 
     return fig, axes, plot_obj
 
-def plot_scree(results, ax=None, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
+def plot_error(results, partition='train', ax=None, jitter=0.1, labels=True, scatter_kw=dict(), line_kw=dict()):
     """Plots reconstruction error as a function of model rank.
 
     Args
@@ -178,11 +178,18 @@ def plot_scree(results, ax=None, jitter=0.1, labels=True, scatter_kw=dict(), lin
     if ax is None:
         ax = plt.gca()
 
+    if partition == 'train':
+        key = 'err_final'
+    elif partition == 'test':
+        key = 'test_err_final'
+    else:
+        raise ValueError('partiion must be \'train\' or \'test\'')
+
     # compile statistics for plotting
     ranks, err, sim, min_err = [], [], [], []
     for r in results.keys():
         # reconstruction errors for rank-r models
-        e = list(results[r]['err_final'])
+        e = list(results[r][key])
         err += e
         min_err.append(min(e))
         ranks.append([r for _ in range(len(e))])

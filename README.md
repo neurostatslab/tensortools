@@ -21,9 +21,9 @@ results = fit_ensemble(data_tensor, range(1,11), replicates=3)
 TensorTools provides code to visualize fitted ensembles of CP decomposition models. These plots help assess (a) whether models are becoming stuck in highly suboptimal local minima, (b) whether the final model parameters are sensitive to the initialization. Together these can help a practitioner determine the appropriate number of latent components in the model.
 
 ```python
-from tensortools import plot_scree, plot_similarity
+from tensortools import plot_error, plot_similarity
 
-plot_scree(results)
+plot_error(results)
 plot_similarity(results)
 ```
 

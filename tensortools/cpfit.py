@@ -9,32 +9,42 @@ from time import time
 from .kruskal import standardize_factors, align_factors, _validate_factors
 from .nnls import nnlsm_blockpivot
 
-def _ls_solver(A, B, warm_start=None):
-    """Solves X*A - B for X using least-squares.
+_default_options = {
+    'min_time': 0,
+    'max_time': np.inf,
+    'n_iter_max': 1000,
+    'print_every': 0.3,
+    'prepend_print': '\r',
+    'append_print': ''    
+}
+
+def _ls_solver(A, B, X0):
+    """Minimizes ||X*A - B||_F for X
     """
-    # TODO - do conjugate gradient if n is too large
+    # TODO - do conjugate gradient if n is too large    
     return np.linalg.lstsq(A.T, B.T)[0].T
 
-def _nnls_solver(A, B, warm_start=None):
-    """Solves X*A - B for X within nonnegativity constraint.
+
+def _nnls_solver(A, B, X0):
+    """Minimizes ||X*A - B||_F for X, subject to nonnegativity
     """
+
     # catch singular matrix error, reset result
     # (this should not happen often)
     try:
-        result = nnlsm_blockpivot(A.T, B.T, init=warm_start)[0].T
+        X = nnlsm_blockpivot(A.T, B.T, init=X0)[0].T
     except np.linalg.linalg.LinAlgError:
-        result = np.random.rand(B.shape[0], A.shape[0])
+        X = np.random.rand(B.shape[0], A.shape[0])
 
     # prevent all parameters going to zero
-    for r in range(result.shape[1]):
-        if np.allclose(result[:,r], 0):
-            result[:,r] = np.random.rand(result.shape[0])
+    for r in range(X.shape[1]):
+        if np.allclose(X[:,r], 0):
+            X[:,r] = np.random.rand(X.shape[0])
 
-    return result
+    return X
 
 def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
-           min_time=0, max_time=np.inf, n_iter_max=1000, print_every=0.3,
-           prepend_print='\r', append_print=''):
+           options=_default_options):
     """ Fit CP decomposition by alternating least-squares.
 
     Args
@@ -86,14 +96,14 @@ def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
     solver = _nnls_solver if nonneg else _ls_solver
 
     # initial print statement
-    verbose = print_every > 0
+    verbose = options['print_every'] > 0
     print_counter = 0 # time to print next progress
-    if verbose:
-        print(prepend_print+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=append_print)
+    # if verbose:
+    #     print(options['prepend_print']+'iter=0, error={0:.4f}'.format(rec_errors[-1]), end=options['append_print'])
 
     # main loop
     t0 = time()
-    for iteration in range(n_iter_max):
+    for iteration in range(options['n_iter_max']):
 
         # alternating optimization over modes
         for mode in range(tensor.ndim):
@@ -109,7 +119,7 @@ def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
             kr = khatri_rao(factors, skip_matrix=mode)
 
             # update factor
-            factors[mode] = solver(G, np.dot(unf, kr), warm_start=factors[mode].T)
+            factors[mode] = solver(G, np.dot(unf, kr), factors[mode].T)
         
         # renormalize factors
         factors = standardize_factors(factors, sort_factors=False)
@@ -117,31 +127,35 @@ def cp_als(tensor, rank, nonneg=False, init=None, tol=1e-6,
         # check convergence
         rec_errors.append(_compute_squared_recon_error(tensor, factors, norm_tensor))
         t_elapsed.append(time() - t0)
-
-        # break loop if converged
         converged = abs(rec_errors[-2] - rec_errors[-1]) < tol
-        if converged and (time()-t0)>min_time:
-            if verbose: print(prepend_print+'converged in {} iterations.'.format(iteration+1), end=append_print)
-            break
 
         # display progress
-        if verbose and (time()-t0)/print_every > print_counter:
-            print_str = 'iter={0:d}, error={1:.4f}, variation={2:.4f}'.format(
-                iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
-            print(prepend_print+print_str, end=append_print)
-            print_counter += print_every
+        if verbose and (time()-t0)/options['print_every'] > print_counter:
+            prnt = options['prepend_print'] + 'iter={0:d}, error={1:.4f}, variation={2:.4f}'
+            fprnt = prnt.format(iteration+1, rec_errors[-1], rec_errors[-2] - rec_errors[-1])
+            print(fprnt, end=options['append_print'])
+            print_counter += options['print_every']
+
+        # break loop if converged
+        if converged and (time()-t0) > options['min_time']:
+            prnt = options['prepend_print'] + 'converged in {} iterations.'
+            if verbose: print(prnt.format(iteration+1), end=options['append_print'])
+            break
 
         # stop early if over time
-        if (time()-t0)>max_time:
+        if (time()-t0) > options['max_time']:
             break
 
     if not converged and verbose:
-        print('gave up after {} iterations and {} seconds'.format(iteration, time()-t0), end=append_print)
+        prnt = 'gave up after {} iterations and {} seconds'
+        print(prnt.format(iteration, time()-t0), end=options['append_print'])
 
     # return optimized factors and info
     return factors, { 'err_hist' : rec_errors,
+                      'test_err_hist': None,
                       't_hist' : t_elapsed,
                       'err_final' : rec_errors[-1],
+                      'test_err_final': None,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
@@ -174,14 +188,14 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
     """
     return norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
 
-def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, **kwargs):
+def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, options=_default_options, **kwargs):
 
     # if rank is input as a single int, wrap it in a list
     if isinstance(ranks, int):
         ranks = [ranks]
 
     # compile optimization results into dict indexed by model rank
-    keys = ['factors', 'ranks', 'err_hist', 'err_final', 't_hist', 'converged', 'iterations']
+    keys = ['factors', 'ranks', 'err_hist', 'test_err_hist', 'err_final', 'test_err_final', 't_hist', 'converged', 'iterations']
     results = {r: {k: [] for k in keys} for r in ranks}
 
     # if true, print progress
@@ -197,8 +211,8 @@ def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
         for s in range(replicates):
             # fit cpd
-            kwargs['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
-            factors, info = method(tensor, r, **kwargs)
+            options['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
+            factors, info = method(tensor, r, options=options, **kwargs)
 
             # store results
             results[r]['factors'].append(factors)
