@@ -188,18 +188,24 @@ def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
     """
     return norm(tensor - kruskal_to_tensor(kruskal_factors), 2) / norm_tensor
 
-def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, options=_default_options, **kwargs):
+def fit_ensemble(tensor, ranks, replicates=1, method=cp_als, **kwargs):
 
     # if rank is input as a single int, wrap it in a list
     if isinstance(ranks, int):
         ranks = [ranks]
+
+    # collect optimization options into a dictionary
+    options = _default_options.copy()
+    for k in set(options).intersection(kwargs):
+        options[k] = kwargs[k]
+        kwargs.pop(k)
 
     # compile optimization results into dict indexed by model rank
     keys = ['factors', 'ranks', 'err_hist', 'test_err_hist', 'err_final', 'test_err_final', 't_hist', 'converged', 'iterations']
     results = {r: {k: [] for k in keys} for r in ranks}
 
     # if true, print progress
-    verbose = 'print_every' not in kwargs.keys() or kwargs['print_every'] >= 0
+    verbose = 'print_every' in options.keys() and options['print_every'] >= 0
     if verbose:
         t0 = time()
 
