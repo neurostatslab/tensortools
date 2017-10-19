@@ -181,7 +181,7 @@ def plot_error(results, partition='train', ax=None, jitter=0.1, labels=True, sca
     if partition == 'train':
         key = 'err_final'
     elif partition == 'test':
-        key = 'test_err_final'
+        key = 'test_err'
     else:
         raise ValueError('partiion must be \'train\' or \'test\'')
 
