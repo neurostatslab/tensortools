@@ -52,6 +52,24 @@ Some of these models are supported by other tensor packages:
 * Python
     * [TensorLy](https://tensorly.github.io/stable/index.html)
 
+## Installation
+
+For now, install manually from the command line:
+
+```bash
+$ git clone https://github.com/ahwillia/tensortools
+$ cd tensortools
+$ python setup.py install
+```
+
+Or, if you plan to modify the source code yourself you can use:
+
+```bash
+$ python setup.py develop
+```
+
+which will conveniently incorporate any edits you make to the code after you restart the Python kernel. Open [an issue](https://github.com/ahwillia/tensortools/issues) if you have trouble installing tensortools.
+
 ## References
 
 [**[ 1 ]**](http://www.sandia.gov/~tgkolda/pubs/pubfiles/TensorReview.pdf) Kolda TG, Bader BW (2009). "Tensor Decompositions and Applications." *SIAM Review* 51:3, 455–500.
