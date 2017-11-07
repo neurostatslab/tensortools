@@ -421,7 +421,7 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
 
             # fit cpd
             options['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
-            factors, info = cp_solver(tensor, r, M=M, l1=l1, l2=l2, nonneg=nonneg, options=options)
+            factors, info = cp_solver(tensor, r, M=M, tol=tol, l1=l1, l2=l2, nonneg=nonneg, options=options)
 
             # store results
             results[r]['factors'].append(factors)

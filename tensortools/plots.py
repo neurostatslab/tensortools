@@ -253,8 +253,6 @@ def plot_similarity(results, ax=None, jitter=0.1, labels=True, scatter_kw=dict()
     if labels:
         ax.set_xlabel('model rank')
         ax.set_ylabel('Norm of resids / Norm of data')
-        
-    ax.scatter(ranks_jit.ravel(), sim, **scatter_kw)
 
     # axis labels
     if labels:
