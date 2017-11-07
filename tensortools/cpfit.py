@@ -9,6 +9,7 @@ from time import time
 from .kruskal import standardize_factors, align_factors, _validate_factors
 from .nnls import nnlsm_blockpivot
 from scipy.optimize import minimize
+import scipy
 
 # default options for cp_solver
 OPTIONS = {
@@ -38,7 +39,6 @@ def _ls_solver(X0, A, B):
     # TODO - do conjugate gradient if n is too large    
     return np.linalg.lstsq(A.T, B.T)[0].T
 
-
 def _nnls_solver(X0, A, B):
     """Minimizes ||X*A - B||_F for X, subject to X >= 0
 
@@ -65,6 +65,80 @@ def _nnls_solver(X0, A, B):
             X[:,r] = np.random.rand(X.shape[0])
 
     return X
+
+def _add_to_diag(A, z):
+    B = A.copy()
+    B[np.diag_indices_from(B)] + z
+    return B
+
+
+def _elastic_net_solver(X0, A, B, gam1, gam2, nonneg, lam=1, iterations=1000):
+    """Minimizes ||X*A - B||_F + elastic_net(X) for CP decomposition subproblem
+
+    Parameters
+    ----------
+    X0 : ndarray
+            n x r matrix, initial guess for X
+    A : ndarray
+            r x r, symmetric matrix holding reduced Grammians
+    B : ndarray
+            n x r matrix, unfolding times khatri-rao product
+    """
+
+    # admm penalty param
+    lam1 = gam1*lam
+    lam2 = gam2*lam
+
+    # cache lu factorization for fast prox operator
+    # add 1/lam to diagonal of AtA
+    Afct = scipy.linalg.lu_factor(_add_to_diag(A, 1/lam))
+
+    # proximal operators
+    prox_f = lambda v: scipy.linalg.lu_solve(Afct, (B + v/lam).T).T
+    if nonneg:
+        prox_g = lambda v: np.maximum(0, v-lam1) / (1 + lam2)
+    else:
+        prox_g = lambda v: (np.maximum(0, v-lam1) - np.maximum(0, -v-lam1)) / (1 + lam2)
+
+    # initialize admm
+    x = X0.copy()
+    z = prox_g(x)
+    u = x - z
+
+    # admm iterations
+    for itr in range(iterations):
+        # updates
+        x1 = prox_f(z - u)
+        z1 = prox_g(x1 + u)
+        u1 = u + x1 - z1
+
+        # primal resids (r) and dual resids (s)
+        r = np.linalg.norm(x1 - z1)
+        s = (1/lam) * np.linalg.norm(z - z1)
+
+        # # keep primal and dual resids within factor of 10
+        # if r > 10*s:
+        #     lam = lam / 2
+        #     # print('{} - {} - {}'.format(itr, r, s))
+        #     lam1 = gam1*lam
+        #     lam2 = gam2*lam
+        #     Afct = scipy.linalg.lu_factor(_add_to_diag(A, 1/lam))
+
+        # elif s > 10*r:
+        #     lam = lam * 1.9
+        #     # print('{} * {} * {}'.format(itr, r, s))
+        #     lam1 = gam1*lam
+        #     lam2 = gam2*lam
+        #     Afct = scipy.linalg.lu_factor(_add_to_diag(A, 1/lam))
+
+        # accept parameter update
+        x, z, u = x1.copy(), z1.copy(), u1.copy()
+
+        # quit if we've converged
+        if r < np.sqrt(x.size)*1e-3 and s < np.sqrt(x.size)*1e-3:
+            break
+
+    return x
 
 def _l1_reg(lam, X):
     """Returns value and gradient of l1 regularization term on X
@@ -139,45 +213,34 @@ def solve_subproblem(tensor, factors, mode, M=None, l1=None, l2=None, nonneg=Fal
     X0 = factors[mode]
 
     # if no missing data or regularization, exploit fast solvers
-    if M is None and l1 is None and l2 is None:
-
+    if M is None:
         # reduce grammians
         rank = X0.shape[1]
         G = np.ones((rank, rank))
         for i, f in enumerate(factors):
             if i != mode:
                 G *= np.dot(f.T, f)
-
-        # method for least squares or nonneg least squares
-        solver = _nnls_solver if nonneg else _ls_solver
-
-        # see Kolda & Bader
-        return solver(X0.T, G, np.dot(B, A.T))
-
-    # use scipy.optimize
-    else:
-
-        if M is None:
-            # computes value and gradient without missing data
-            def fg(x):
-                X = x.reshape(*X0.shape)
-                resid = np.dot(X, A) - B
-                f1, g1 = _l1_reg(l1, X)
-                f2, g2 = _l2_reg(l2, X)
-                f = 0.5*np.sum(resid**2) + f1 + f2
-                g = np.dot(resid, A.T) + g1 + g2
-                return f, g.ravel()
+    
+        if l1 is None and l2 is None:
+            # method for least squares or nonneg least squares
+            solver = _nnls_solver if nonneg else _ls_solver
+            return solver(X0.T, G, np.dot(B, A.T))
         else:
-            # computes value and gradient with missing data
-            M = unfold(M, mode)
-            def fg(x):
-                X = x.reshape(*X0.shape)
-                resid = np.dot(X, A) - B
-                f1, g1 = _l1_reg(l1, X)
-                f2, g2 = _l2_reg(l2, X)
-                f = 0.5*np.sum(resid[M]**2) + f1 + f2
-                g = np.dot((M * resid), A.T) + g1 + g2
-                return f, g.ravel()
+            l1 = 0 if l1 is None else l1
+            l2 = 0 if l2 is None else l2
+            return _elastic_net_solver(X0, G, np.dot(B, A.T), l1, l2, nonneg)
+    else:
+        # Missing data - use scipy.optimize
+        M = unfold(M, mode)
+        def fg(x):
+            # computes objective and gradient with missing data
+            X = x.reshape(*X0.shape)
+            resid = np.dot(X, A) - B
+            f1, g1 = _l1_reg(l1, X)
+            f2, g2 = _l2_reg(l2, X)
+            f = 0.5*np.sum(resid[M]**2) + f1 + f2
+            g = np.dot((M * resid), A.T) + g1 + g2
+            return f, g.ravel()
         # run optimization
         bounds = [(0,None) for _ in range(X.size())] if nonneg else None
         result = minimize(fg, X0.ravel(), method='L-BFGS-B', jac=True, options=options, bounds=bounds)
