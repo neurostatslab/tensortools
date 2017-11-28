@@ -5,10 +5,29 @@ Core operations to align and score Kruskal tensors.
 import numpy as np
 import itertools as itr
 
-def normalize_factors(factors):
-    """Normalizes all factors to unit length
+def normalize_factors(X):
     """
-    factors, ndim, rank = _validate_factors(factors)
+    Normalizes all factors to unit length, and returns
+    factor weights (higher-order singular values.)
+
+    Example:
+        >>> Y, lam = normalize_factors(X)
+        >>> [y * np.power(lam[None,:], 1/len(X)) for y in Y] # equal to X
+
+    Parameters
+    -----------
+    X : list of ndarray
+        list of factor matrices (each matrix has R
+        columns, corresponding to the rank of the model)
+
+    Returns
+    -------
+    Y : list of ndarray
+        same as factors, but with normalized columns (unit length)
+    lam : ndarray
+        vector of length R holding the weight for each factor
+    """
+    factors, ndim, rank = _validate_factors(X)
 
     # factor norms
     lam = np.ones(rank)
@@ -25,26 +44,29 @@ def normalize_factors(factors):
 
     return newfactors, lam
 
-def standardize_factors(factors, lam_ratios=None, sort_factors=True):
-    """Sorts factors by norm
+def standardize_factors(X, lam_ratios=None, sort_factors=True):
+    """Sorts factors by norm and distributes factor weights across all modes
 
     Parameters
     ----------
-    factors : ndarray list
-        list of matrices, all with the same number of columns
-        ie for all u in factor_matrices:
-        u[i] has shape (s_u_i, R), where R is fixed
-    mode: int
-        mode of the desired unfolding
+    X : list of ndarray
+        List of factor matrices (each matrix has R
+        columns, corresponding to the rank of the model)
+    lam_ratios (optinoal) : ndarray
+        If specified, determines how to distribute factors weights. For example,
+        if lam_ratios = [1, 0, 0, ...] then all factors are unit length except
+        the first factor which is multiplied by the weight of that component.
+    sort_factors (optional) : bool
+        If True, sort the factors by their weight (significance).
 
     Returns
     -------
-    std_factors : ndarray list
-        standardized Kruskal tensor with unit length factors
+    Y : ndarray list
+        list of factor matrices after standardization
     """
 
     # normalize tensor
-    nrmfactors, lam = normalize_factors(factors)
+    nrmfactors, lam = normalize_factors(X)
 
     # default to equally sized factors
     if lam_ratios is None:
@@ -52,9 +74,9 @@ def standardize_factors(factors, lam_ratios=None, sort_factors=True):
     
     # check input is valid
     if len(lam_ratios) != len(factors):
-        raise ValueError('list of scalings must match the number of tensor modes/dimensions')
+        raise ValueError('lam_ratios must be a list equal to the number of tensor modes/dimensions')
     elif np.min(lam_ratios) < 0:
-        raise ValueError('list of scalings must be nonnegative')
+        raise ValueError('lam_ratios must all be nonnegative')
     else:
         lam_ratios = np.array(lam_ratios) / np.sum(lam_ratios)
 
