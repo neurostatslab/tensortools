@@ -70,10 +70,10 @@ def standardize_factors(X, lam_ratios=None, sort_factors=True):
 
     # default to equally sized factors
     if lam_ratios is None:
-        lam_ratios = np.ones(len(factors))
+        lam_ratios = np.ones(len(X))
     
     # check input is valid
-    if len(lam_ratios) != len(factors):
+    if len(lam_ratios) != len(X):
         raise ValueError('lam_ratios must be a list equal to the number of tensor modes/dimensions')
     elif np.min(lam_ratios) < 0:
         raise ValueError('lam_ratios must all be nonnegative')
