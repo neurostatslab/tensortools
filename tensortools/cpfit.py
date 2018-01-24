@@ -242,7 +242,7 @@ def solve_subproblem(tensor, factors, mode, M=None, l1=None, l2=None, nonneg=Fal
             g = np.dot((M * resid), A.T) + g1 + g2
             return f, g.ravel()
         # run optimization
-        bounds = [(0,None) for _ in range(X.size())] if nonneg else None
+        bounds = [(0,None) for _ in range(X0.size)] if nonneg else None
         result = minimize(fg, X0.ravel(), method='L-BFGS-B', jac=True, options=options, bounds=bounds)
         return result.x.reshape(*X0.shape)
 

@@ -105,7 +105,7 @@ def resort_factor_tsp(factor, niter=1000, metric='euclidean', **kwargs):
     path, cost_hist = solve_tsp(D)
     
     # remove dummy node at position i
-    i = np.argwhere(path==N).ravel()[0]
+    i = np.argwhere(path==N+1).ravel()[0]
     path = np.hstack((path[(i+1):], path[:i]))
     
     return path, cost_hist
