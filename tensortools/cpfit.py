@@ -7,7 +7,7 @@ from .tensor_utils import unfold, kruskal_to_tensor, khatri_rao, norm
 from numpy.random import randint
 from time import time
 from .kruskal import standardize_factors, align_factors, _validate_factors
-from .nnls import nnlsm_blockpivot
+from .solvers import solve_subproblem
 from scipy.optimize import minimize
 import scipy
 
@@ -23,228 +23,6 @@ OPTIONS = {
 
 # default stopping criterion for cp_solver
 TOL = 1e-6
-
-def _ls_solver(X0, A, B):
-    """Minimizes ||X*A - B||_F for X
-
-    Parameters
-    ----------
-    X0 : ndarray
-            m x k matrix, initial guess for X
-    A : ndarray
-            k x n matrix
-    B : ndarray
-            m x n matrix
-    """
-    # TODO - do conjugate gradient if n is too large    
-    return np.linalg.lstsq(A.T, B.T)[0].T
-
-def _nnls_solver(X0, A, B):
-    """Minimizes ||X*A - B||_F for X, subject to X >= 0
-
-    Parameters
-    ----------
-    X0 : ndarray
-            m x k matrix, initial guess for X
-    A : ndarray
-            k x n matrix
-    B : ndarray
-            m x n matrix
-    """
-
-    # catch singular matrix error, reset result
-    # (this should not happen often)
-    try:
-        X = nnlsm_blockpivot(A.T, B.T, init=X0)[0].T
-    except np.linalg.linalg.LinAlgError:
-        X = np.random.rand(B.shape[0], A.shape[0])
-
-    # prevent all parameters going to zero
-    for r in range(X.shape[1]):
-        if np.allclose(X[:,r], 0):
-            X[:,r] = np.random.rand(X.shape[0])
-
-    return X
-
-def _add_to_diag(A, z):
-    B = A.copy()
-    B[np.diag_indices_from(B)] + z
-    return B
-
-
-def _elastic_net_solver(X0, A, B, gam1, gam2, nonneg, lam=1, iterations=1000):
-    """Minimizes ||X*A - B||_F + elastic_net(X) for CP decomposition subproblem
-
-    Parameters
-    ----------
-    X0 : ndarray
-            n x r matrix, initial guess for X
-    A : ndarray
-            r x r, symmetric matrix holding reduced Grammians
-    B : ndarray
-            n x r matrix, unfolding times khatri-rao product
-    """
-
-    # admm penalty param
-    lam1 = gam1*lam
-    lam2 = gam2*lam
-
-    # cache lu factorization for fast prox operator
-    # add 1/lam to diagonal of AtA
-    Afct = scipy.linalg.lu_factor(_add_to_diag(A, 1/lam))
-
-    # proximal operators
-    prox_f = lambda v: scipy.linalg.lu_solve(Afct, (B + v/lam).T).T
-    if nonneg:
-        prox_g = lambda v: np.maximum(0, v-lam1) / (1 + lam2)
-    else:
-        prox_g = lambda v: (np.maximum(0, v-lam1) - np.maximum(0, -v-lam1)) / (1 + lam2)
-
-    # initialize admm
-    x = X0.copy()
-    z = prox_g(x)
-    u = x - z
-
-    # admm iterations
-    for itr in range(iterations):
-        # updates
-        x1 = prox_f(z - u)
-        z1 = prox_g(x1 + u)
-        u1 = u + x1 - z1
-
-        # primal resids (r) and dual resids (s)
-        r = np.linalg.norm(x1 - z1)
-        s = (1/lam) * np.linalg.norm(z - z1)
-
-        # # keep primal and dual resids within factor of 10
-        # if r > 10*s:
-        #     lam = lam / 2
-        #     # print('{} - {} - {}'.format(itr, r, s))
-        #     lam1 = gam1*lam
-        #     lam2 = gam2*lam
-        #     Afct = scipy.linalg.lu_factor(_add_to_diag(A, 1/lam))
-
-        # elif s > 10*r:
-        #     lam = lam * 1.9
-        #     # print('{} * {} * {}'.format(itr, r, s))
-        #     lam1 = gam1*lam
-        #     lam2 = gam2*lam
-        #     Afct = scipy.linalg.lu_factor(_add_to_diag(A, 1/lam))
-
-        # accept parameter update
-        x, z, u = x1.copy(), z1.copy(), u1.copy()
-
-        # quit if we've converged
-        if r < np.sqrt(x.size)*1e-3 and s < np.sqrt(x.size)*1e-3:
-            break
-
-    return x
-
-def _l1_reg(lam, X):
-    """Returns value and gradient of l1 regularization term on X
-
-    Parameters
-    ----------
-    lam : float
-        scale of the regularization
-    X : ndarray
-        Array holding the optimized variables
-    """
-    if lam is None:
-        return 0, 0
-    else:
-        f = lam * np.sum(np.abs(X))
-        g = lam * np.sign(X)
-        return f, g
-
-def _l2_reg(lam, X):
-    """Returns value and gradient of l2 regularization term on X
-
-    Parameters
-    ----------
-    lam : float
-        scale of the regularization
-    X : ndarray
-        Array holding the optimized variables
-    """
-    if lam is None:
-        return 0, 0
-    else:
-        f = 0.5 * lam * np.sum(X**2)
-        g = lam * X
-        return f, g
-
-def solve_subproblem(tensor, factors, mode, M=None, l1=None, l2=None, nonneg=False, options=dict(maxiter=10000)):
-    """Approximately solves least-squares with missing/censored data by L-BFGS-B
-        Updates X to (approximately) minimize ||X*A - B|| using Frobenius
-        norm. Also accommodates missing data entries and l1/l2 regularization
-        on X.
-
-    Parameters
-    ----------
-    tensor : ndarray
-            Data tensor being approximated by CP decomposition
-    factors : list
-            List of factor matrices
-    mode : int
-            Specifies which factor matrix is updated
-    M : ndarray (optional)
-            Binary masking matrix (m x n), specifies missing data. Ignored if None (default).
-    l1 : float (optional)
-            Strength of l1 regularization. Ignored if None (default).
-    l2 : float (optional)
-            Strength of l2 regularization. Ignored if None (default).
-    nonneg : bool (optional)
-            If True, constrain X to be nonnegative. Ignored if False (default).
-    options : dict
-            optimization options passed to scipy.optimize.minimize
-
-    Returns
-    -------
-    result : OptimizeResult
-            returned by scipy.optimize.minimize
-    """
-
-    # set up loss function: || X*A - B ||
-    A = khatri_rao(factors, skip_matrix=mode).T
-    B = unfold(tensor, mode)
-
-    # initial guess for X
-    X0 = factors[mode]
-
-    # if no missing data or regularization, exploit fast solvers
-    if M is None:
-        # reduce grammians
-        rank = X0.shape[1]
-        G = np.ones((rank, rank))
-        for i, f in enumerate(factors):
-            if i != mode:
-                G *= np.dot(f.T, f)
-    
-        if l1 is None and l2 is None:
-            # method for least squares or nonneg least squares
-            solver = _nnls_solver if nonneg else _ls_solver
-            return solver(X0.T, G, np.dot(B, A.T))
-        else:
-            l1 = 0 if l1 is None else l1
-            l2 = 0 if l2 is None else l2
-            return _elastic_net_solver(X0, G, np.dot(B, A.T), l1, l2, nonneg)
-    else:
-        # Missing data - use scipy.optimize
-        M = unfold(M, mode)
-        def fg(x):
-            # computes objective and gradient with missing data
-            X = x.reshape(*X0.shape)
-            resid = np.dot(X, A) - B
-            f1, g1 = _l1_reg(l1, X)
-            f2, g2 = _l2_reg(l2, X)
-            f = 0.5*np.sum(resid[M]**2) + f1 + f2
-            g = np.dot((M * resid), A.T) + g1 + g2
-            return f, g.ravel()
-        # run optimization
-        bounds = [(0,None) for _ in range(X0.size)] if nonneg else None
-        result = minimize(fg, X0.ravel(), method='L-BFGS-B', jac=True, options=options, bounds=bounds)
-        return result.x.reshape(*X0.shape)
 
 def cp_solver(tensor, rank, M=None, l1=None, l2=None, nonneg=False,
               init_factors=None, tol=TOL, options=OPTIONS):
@@ -368,46 +146,6 @@ def cp_solver(tensor, rank, M=None, l1=None, l2=None, nonneg=False,
                       'converged' : converged,
                       'iterations' : len(rec_errors) }
 
-def _cp_initialize(tensor, rank, init):
-    """ Parameter initialization methods for CP decomposition
-    """
-    if rank <=0:
-        raise ValueError('Trying to fit a rank-{} model. Rank must be a positive integer.'.format(rank))
-
-    if isinstance(init, list):
-        _validate_factors(init)
-        factors = [fctr.copy() for fctr in init]
-    elif init is 'randn':
-        factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    elif init is 'rand':
-        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
-    elif init is 'svd':
-        factors = []
-        for mode in range(tensor.ndim):
-            u, s, _ = np.linalg.svd(unfold(tensor, mode), full_matrices=False)
-            factors.append(u[:, :rank]*np.sqrt(s[:rank]))
-    else:
-        raise ValueError('initialization method not recognized')
-
-    return factors
-
-def _hold_out_data(tensor, nanmask, p_holdout):
-    """ Create cross-validation mask
-    """
-    cvmask = np.random.rand(*tensor.shape) > p_holdout if (p_holdout > 0) else None
-    
-    if nanmask is None and cvmask is None:
-        M = None
-    elif nanmask is not None and cvmask is not None:
-        M = cvmask | nanmask
-        cvmask[nanmask] = 0
-    elif cvmask is None:
-        M = nanmask.copy()
-    else:
-        M = cvmask.copy()
-
-    return M, cvmask
-
 def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
                  replicates=1, p_holdout=0, tol=TOL, options=OPTIONS):
     """ Helper function that fits a bunch of CP decomposition models
@@ -527,19 +265,42 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
 
     return results
 
+def _cp_initialize(tensor, rank, init):
+    """ Parameter initialization methods for CP decomposition
+    """
+    if rank <=0:
+        raise ValueError('Trying to fit a rank-{} model. Rank must be a positive integer.'.format(rank))
 
-# def _compute_squared_recon_error(tensor, kruskal_factors, norm_tensor):
-#     """Prototype for more efficient reconstruction of squared recon error.
-#     """
-#     rank = kruskal_factors[0].shape[1]
-#     # e.g. 'abc' for a third-order tensor
-#     tnsr_idx = ''.join(chr(ord('a') + i) for i in range(len(kruskal_factors)))
-#     # e.g. 'az,bz,cz' for a third-order tensor
-#     kruskal_idx = ','.join(idx+'z' for idx in tnsr_idx)
-#     # compute reconstruction error using einsum
-#     innerprod = np.einsum(tnsr_idx+','+kruskal_idx+'->', tensor, *kruskal_factors)
-#     G = np.ones((rank, rank))
-#     for g in [np.dot(f.T, f) for f in kruskal_factors]:
-#         G *= g
-#     factors_sqnorm = np.sum(G)
-#     return np.sqrt(norm_tensor**2 + factors_sqnorm - 2*innerprod) / norm_tensor
+    if isinstance(init, list):
+        _validate_factors(init)
+        factors = [fctr.copy() for fctr in init]
+    elif init is 'randn':
+        factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
+    elif init is 'rand':
+        factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
+    elif init is 'svd':
+        factors = []
+        for mode in range(tensor.ndim):
+            u, s, _ = np.linalg.svd(unfold(tensor, mode), full_matrices=False)
+            factors.append(u[:, :rank]*np.sqrt(s[:rank]))
+    else:
+        raise ValueError('initialization method not recognized')
+
+    return factors
+
+def _hold_out_data(tensor, nanmask, p_holdout):
+    """ Create cross-validation mask
+    """
+    cvmask = np.random.rand(*tensor.shape) > p_holdout if (p_holdout > 0) else None
+    
+    if nanmask is None and cvmask is None:
+        M = None
+    elif nanmask is not None and cvmask is not None:
+        M = cvmask | nanmask
+        cvmask[nanmask] = 0
+    elif cvmask is None:
+        M = nanmask.copy()
+    else:
+        M = cvmask.copy()
+
+    return M, cvmask

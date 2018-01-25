@@ -1,5 +1,45 @@
 """
-Code in this file was written and shared by Jingu Kim (@kimjingu).
+Code for nonnegative least squares by block-pivoting.
+"""
+import numpy as np
+import scipy.optimize as opt
+import scipy.sparse as sps
+import numpy.linalg as nla
+import scipy.linalg as sla
+import time
+
+def nnls_solver(X0, A, B):
+    """Minimizes ||X*A - B||_F for X, subject to X >= 0
+
+    Parameters
+    ----------
+    X0 : ndarray
+            m x k matrix, initial guess for X
+    A : ndarray
+            k x n matrix
+    B : ndarray
+            m x n matrix
+    """
+
+    # catch singular matrix error, reset result
+    # (this should not happen often)
+    try:
+        X = nnlsm_blockpivot(A.T, B.T, init=X0)[0].T
+    except np.linalg.linalg.LinAlgError:
+        X0 = np.random.rand(B.shape[0], A.shape[0])
+        X = nnlsm_blockpivot(A.T, B.T, init=X0)[0].T
+
+    # prevent all parameters going to zero
+    z  = np.isclose(X, 0).all(axis=0) # indices of factors that are zero
+    if np.any(z):
+        X[:,idx] = np.random.rand(X.shape[0], np.sum(z))
+        X = nnlsm_blockpivot(A.T, B.T, init=X)[0].T
+
+    return X
+
+
+"""
+The remaining code in this file was written and shared by Jingu Kim (@kimjingu).
 
 REPO:
 ----
@@ -32,13 +72,6 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import numpy as np
-import scipy.optimize as opt
-import scipy.sparse as sps
-import numpy.linalg as nla
-import scipy.linalg as sla
-import time
-
 
 def nnlsm_blockpivot(A, B, is_input_prod=False, init=None):
     """ Nonnegativity-constrained least squares with block principal pivoting method and column grouping
