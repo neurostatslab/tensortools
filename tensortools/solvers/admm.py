@@ -1,4 +1,7 @@
-def admm_solver(X0, A, B, gam1, gam2, nonneg, lam=1.0, iterations=1000):
+"""ADMM solver
+"""
+
+def _admm(X0, A, B, gam1, gam2, nonneg, lam=1.0, iterations=1000):
     """Minimizes ||X*A - B||_F + elastic_net(X) for CP decomposition subproblem
 
     Parameters
@@ -75,40 +78,6 @@ def admm_solver(X0, A, B, gam1, gam2, nonneg, lam=1.0, iterations=1000):
             break
 
     return x
-
-def _l1_reg(lam, X):
-    """Returns value and gradient of l1 regularization term on X
-
-    Parameters
-    ----------
-    lam : float
-        scale of the regularization
-    X : ndarray
-        Array holding the optimized variables
-    """
-    if lam is None:
-        return 0, 0
-    else:
-        f = lam * np.sum(np.abs(X))
-        g = lam * np.sign(X)
-        return f, g
-
-def _l2_reg(lam, X):
-    """Returns value and gradient of l2 regularization term on X
-
-    Parameters
-    ----------
-    lam : float
-        scale of the regularization
-    X : ndarray
-        Array holding the optimized variables
-    """
-    if lam is None:
-        return 0, 0
-    else:
-        f = 0.5 * lam * np.sum(X**2)
-        g = lam * X
-        return f, g
 
 def _add_to_diag(A, z):
     """Add z to diagonal of matrix A.

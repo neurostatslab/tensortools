@@ -1,11 +1,15 @@
-# core functions ported from tensorly
-from .tensor_utils import unfold, norm
+# main fitting function
+from .ensemble import fit_ensemble
 
-# core functions
-from .kruskal import normalize_factors, standardize_factors, align_factors
-from .cpfit import cp_solver, fit_ensemble
+# solvers for fitting a single tensor decomposition
+from .cpdirect import cp_direct
+from .cprand import cp_rand
+
+# visualization tools
 from .plots import plot_factors, plot_error, plot_similarity
-from .crossval import cp_crossval
+
+# functions for manipulating tensor decompositions
+from .kruskal import normalize_factors, standardize_factors, align_factors
 
 # useful, non-critical functions
 from . import utils

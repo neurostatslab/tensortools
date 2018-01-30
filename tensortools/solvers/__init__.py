@@ -1,3 +1,7 @@
-from .core import solve_subproblem, ls_solver
-from .nnls import nnls_solver
-from .admm import admm_solver
+"""
+Contains solvers for the subproblems that arise from fitting
+tensor decomposition by alternating minimization.
+"""
+
+from .least_squares import ls_solver
+
