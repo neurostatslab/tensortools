@@ -52,7 +52,10 @@ def cp_rand(tensor, rank, M=None, l1=None, l2=None, nonneg=False, init=None,
     factors = _cp_initialize(tensor, rank, init)
     
     # set up error estimation
-    fit_ind = np.random.randint(0, tensor.size, size=fs)
+    if M is None:
+        fit_ind = np.random.randint(0, tensor.size, size=fs)
+    else:
+        fit_ind = np.random.choice(np.where(tensor.ravel())[0], size=fs, replace=False)
     fit_sub = np.array(np.unravel_index(fit_ind, tensor.shape)).T
     tensor_sample = tensor.ravel()[fit_ind]
     tensor_sample_norm = np.linalg.norm(tensor_sample)
