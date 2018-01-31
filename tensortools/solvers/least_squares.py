@@ -3,9 +3,9 @@
 import numpy as np
 from ..tensor_utils import unfold, khatri_rao
 from .nnls import nnlsm_blockpivot
-from numba import jit
+import sys
 
-def ls_solver(A, B, M=None, l1=None, l2=None, X0=None, nonneg=False):
+def ls_solver(A, B, M=None, l1=None, l2=None, X0=None, nonneg=False, is_input_prod=False):
     """Updates a factor matrix by least-squares.
     
     Note: Does not support regularization
@@ -42,21 +42,27 @@ def ls_solver(A, B, M=None, l1=None, l2=None, X0=None, nonneg=False):
 
         # Simple Least Squares
         if nonneg is False:
-            return np.linalg.lstsq(A.T, B.T)[0].T
+            if is_input_prod:
+                # interpret input as AtA, AtB
+                return np.linalg.solve(A, B.T).T
+            else:
+                return np.linalg.lstsq(A.T, B.T)[0].T
 
         # Nonnegative Least Squares 
         else:
-            # catch singular matrix error, reset result
-            # (this should not happen often)
-            try:
-                X = nnlsm_blockpivot(A.T, B.T, init=X0)[0].T
-            except np.linalg.linalg.LinAlgError:
-                X = np.random.rand(*X0.shape)
+
+            # prevent singular matrix
+            if not is_input_prod:
+                A = np.dot(A.T, A)
+                B = np.dot(A.T, B)
+            if np.linalg.cond(A) > 1/sys.float_info.epsilon:
+                A[np.diag_indices_from(A)] += 1e-3
+
+            X = nnlsm_blockpivot(A, B.T, init=X0.T, is_input_prod=True)[0].T
 
             # prevent a full column of X going to zero
-            z  = np.isclose(X, 0).all(axis=0)
-            if np.any(z):
-                X[:,z] = np.random.rand(X.shape[0], np.sum(z))
+            idx = np.linalg.norm(X, axis=0) < sys.float_info.epsilon
+            X[:, idx] = X0[:, idx]
 
             return X
 
@@ -74,9 +80,21 @@ def ls_solver(A, B, M=None, l1=None, l2=None, X0=None, nonneg=False):
 
         # Nonnegative Least Squares
         else:
-            x = np.array(_nnls_broadcast(Astack, Bstack))
+            x = np.array(_nnls_broadcast(Astack, Bstack, X0))
         
         return x.reshape((B.shape[0], A.shape[0]))
 
-def _nnls_broadcast(Astack, Bstack):
-    return [nnlsm_blockpivot(A, b)[0] for A, b in zip(Astack, Bstack)]
+def _nnls_broadcast(Astack, Bstack, X0):
+    for i in range(len(Astack)):
+        A, B = Astack[i], Bstack[i]
+        if np.linalg.cond(A) > 1/sys.float_info.epsilon:
+            A[np.diag_indices_from(A)] += 1e-3
+        X0[i] = nnlsm_blockpivot(A, B, is_input_prod=True, init=X0[i,:,None])[0].T
+    return X0.ravel()
+
+
+def _add_to_diag(A, z):
+    """Add z to diagonal of matrix A.
+    """
+    A[np.diag_indices_from(A)] += z
+

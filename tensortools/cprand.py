@@ -9,15 +9,16 @@ OPTIONS = {
     'min_time': 0,
     'max_time': np.inf,
     'n_iter_max': 10000,
-    'print_every': 1.0,
+    'print_every': .2,
     'prepend_print': '\r',
     'append_print': '',
     'rs': None,
     'fs': 2**14,
     'rs_inc': 2,
     'rs_max': None,
-    'patience': 100,
-    'tol': 1e-3
+    'patience': 40,
+    'tol': 1e-3,
+    'polyak_averages': -1
 }
             
 def cp_rand(tensor, rank, M=None, l1=None, l2=None, nonneg=False, init=None,
@@ -49,11 +50,6 @@ def cp_rand(tensor, rank, M=None, l1=None, l2=None, nonneg=False, init=None,
 
     # intialize factor matrices
     factors = _cp_initialize(tensor, rank, init)
-
-    # initialize Polyak averaging with damping to stabilize our
-    # parameter estimate
-    damping = 1e-2 ** (1 / patience)
-    averaged_factors = [f.copy() for f in factors]
     
     # set up error estimation
     fit_ind = np.random.randint(0, tensor.size, size=fs)
@@ -103,14 +99,11 @@ def cp_rand(tensor, rank, M=None, l1=None, l2=None, nonneg=False, init=None,
             # compute sampled khatri-rao
             _krprod_sampled(kr[:rs], factors, idx, mode)
 
-            # update factor with trust region approach / damping
+            # update factor with randomized least squares
             factors[mode] = ls_solver(kr[:rs].T, unf, M=Mm, nonneg=nonneg, X0=factors[mode])
 
         # renormalize factors to prevent singularities
         factors = standardize_factors(factors, sort_factors=False)
-        
-        # Polyak averaging
-        averaged_factors = [damping*f0+(1-damping)*f1 for f0, f1 in zip(averaged_factors, factors)]
 
         # store reconstruction error
         est_sample = _cp_est_subset(est_rnks, factors, fit_sub)
@@ -144,16 +137,46 @@ def cp_rand(tensor, rank, M=None, l1=None, l2=None, nonneg=False, init=None,
             print(options['prepend_print']+print_str, end=options['append_print'])
             print_counter += options['print_every']
 
-    #
-    est_sample = _cp_est_subset(est_rnks, averaged_factors, fit_sub)
-    final_error = np.linalg.norm(tensor_sample - est_sample) / np.linalg.norm(tensor_sample)
+
+    # estimate the final error
+    if options['polyak_averages'] > 1:
+
+        averaged_factors = [f.copy() for f in factors]
+
+        for itr in range(options['polyak_averages']):
+            for mode in range(tensor.ndim):
+                # sample mode-n fibers uniformly with replacement
+                idx = [tuple(np.random.randint(0, D, rs)) if n != mode else slice(None) for n, D in enumerate(tensor.shape)]
+
+                # unfold sampled tensor
+                unf = tensor[idx] if mode == 0 else tensor[idx].T
+                
+                # if missing data, also unfold mask
+                if M is not None:
+                    Mm = M[idx] if mode == 0 else M[idx].T
+                
+                # compute sampled khatri-rao
+                _krprod_sampled(kr[:rs], factors, idx, mode)
+
+                # update factor with randomized least squares
+                factors[mode] = ls_solver(kr[:rs].T, unf, M=Mm, nonneg=nonneg, X0=factors[mode])
+
+            factors = standardize_factors(factors, sort_factors=False)
+            averaged_factors = [f0+f1 for f0, f1 in zip(factors, averaged_factors)]
+
+        factors = [f / (options['polyak_averages']+1) for f in averaged_factors]
+        est_sample = _cp_est_subset(est_rnks, factors, fit_sub)
+        final_error = np.linalg.norm(tensor_sample - est_sample) / np.linalg.norm(tensor_sample)
+
+    else:
+        final_error = err_hist[-1]
 
     # return optimized factors and info
-    return averaged_factors, { 'err_hist' : err_hist,
-                               't_hist' : t_elapsed,
-                               'err_final' : final_error,
-                               'converged' : converged,
-                               'iterations' : len(err_hist) }
+    return factors, { 'err_hist' : err_hist,
+                      't_hist' : t_elapsed,
+                      'err_final' : final_error,
+                      'converged' : converged,
+                      'iterations' : len(err_hist) }
 
 
 def _krprod_sampled(kr, factors, idx, mode):

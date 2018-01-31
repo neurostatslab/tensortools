@@ -111,7 +111,7 @@ def cp_direct(tensor, rank, M=None, l1=None, l2=None, nonneg=False,
                     if i != mode:
                         G *= np.dot(factors[i].T, factors[i])
                 # compute update
-                factors[mode] = ls_solver(G, np.dot(B, A.T), l1=l1[mode], l2=l2[mode], nonneg=nonneg[mode], X0=factors[mode])
+                factors[mode] = ls_solver(G, np.dot(B, A.T), l1=l1[mode], l2=l2[mode], nonneg=nonneg[mode], X0=factors[mode], is_input_prod=True)
             else:
                 factors[mode] = ls_solver(A, B, M=unfold(M, mode), l1=l1[mode], l2=l2[mode], nonneg=nonneg[mode], X0=factors[mode])
 
