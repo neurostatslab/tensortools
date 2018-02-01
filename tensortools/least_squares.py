@@ -1,7 +1,7 @@
 """Simple least squares solvers
 """
 import numpy as np
-from ..tensor_utils import unfold, khatri_rao
+from .tensor_utils import unfold, khatri_rao
 from .nnls import nnlsm_blockpivot
 import sys
 
@@ -58,6 +58,7 @@ def ls_solver(A, B, M=None, l1=None, l2=None, X0=None, nonneg=False, is_input_pr
             if np.linalg.cond(A) > 1/sys.float_info.epsilon:
                 A[np.diag_indices_from(A)] += 1e-3
 
+            # solve nonnegative least squares
             X = nnlsm_blockpivot(A, B.T, init=X0.T, is_input_prod=True)[0].T
 
             # prevent a full column of X going to zero

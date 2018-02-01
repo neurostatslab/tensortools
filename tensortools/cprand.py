@@ -1,6 +1,6 @@
 import numpy as np
 from .cpdirect import _cp_initialize
-from .solvers import ls_solver
+from .least_squares import ls_solver
 from time import time
 from .kruskal import standardize_factors
 

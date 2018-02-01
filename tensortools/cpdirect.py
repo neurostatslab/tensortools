@@ -7,7 +7,7 @@ from .tensor_utils import unfold, kruskal_to_tensor, norm, khatri_rao
 from numpy.random import randint
 from time import time
 from .kruskal import standardize_factors, _validate_factors
-from .solvers import ls_solver
+from .least_squares import ls_solver
 
 # default options for cp_direct
 OPTIONS = {
