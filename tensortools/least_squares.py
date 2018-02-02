@@ -44,6 +44,8 @@ def ls_solver(A, B, M=None, l1=None, l2=None, X0=None, nonneg=False, is_input_pr
         if nonneg is False:
             if is_input_prod:
                 # interpret input as AtA, AtB
+                if np.linalg.cond(A) > 1/sys.float_info.epsilon:
+                    A[np.diag_indices_from(A)] += 1e-3
                 return np.linalg.solve(A, B.T).T
             else:
                 return np.linalg.lstsq(A.T, B.T)[0].T
