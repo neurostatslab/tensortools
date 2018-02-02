@@ -1,9 +1,15 @@
 # main fitting function
-from .ensemble import fit_ensemble
+from .cp_decomposition.ensemble import fit_ensemble
 
 # solvers for fitting a single tensor decomposition
-from .cpdirect import cp_direct
-from .cprand import cp_rand
+from .cp_decomposition.cpdirect import cp_direct
+from .cp_decomposition.cprand import cp_rand
+from .cp_decomposition.cp_als import cp_als
+from .cp_decomposition.cp_opt import cp_opt
+from .cp_decomposition.ncp_bcd import ncp_bcd
+
+# randomized tensor QB decomposition
+from .compress import compress
 
 # visualization tools
 from .plots import plot_factors, plot_error, plot_similarity
@@ -13,5 +19,3 @@ from .kruskal import normalize_factors, standardize_factors, align_factors
 
 # useful, non-critical functions
 from . import utils
-
-__version__ = '0.0.1'
