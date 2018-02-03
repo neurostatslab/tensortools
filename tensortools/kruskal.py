@@ -4,6 +4,34 @@ Core operations to align and score Kruskal tensors.
 
 import numpy as np
 import itertools as itr
+from scipy.spatial import cdist
+
+def factor_cdist(A, B):
+    """
+    Compute similarity matrix between all factors in an ensemble of models
+    """
+
+    if len(args) == 2:
+    # check tensor order matches
+    ndim = len(A)
+    if len(B) != ndim:
+        raise ValueError('number of dimensions do not match.')
+
+    # check tensor shapes match
+    for a, b in zip(A, B):
+        if a.shape[0] != b.shape[0]:
+            raise ValueError('kruskal tensors do not have same shape.')
+
+    # rank of A and B
+    A, ndim_A, rank_A = _validate_factors(A)
+    B, ndim_B, rank_B = _validate_factors(B)
+
+    A, lam_A = normalize_factors(A)
+    B, lam_B = normalize_factors(B)
+
+    # rank_A x rank_B distance matrix
+    return np.mean([cdist(a, b, 'cosine') for a, b in zip(A, B)], axis=-1)
+
 
 def normalize_factors(X):
     """
@@ -135,7 +163,7 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
 
     # decide whether to use greedy method or exhaustive search
     if greedy is None:
-        greedy = True if min(rank_A, rank_B) >= 10 else False
+        greedy = True if min(rank_A, rank_B) >= 7 else False
 
     A, lam_A = normalize_factors(A)
     B, lam_B = normalize_factors(B)

@@ -6,6 +6,7 @@ import numpy as np
 import scipy
 import math
 
+
 def coarse_grain_1d(tensor, factor, axis=0, reducer=np.sum,
                     pad_mode='constant', pad_kwargs=dict(constant_values=0)):
     """Coarse grains a large tensor along axis by factor
@@ -193,3 +194,4 @@ def solve_tsp(dist):
                 break
 
     return path, cost_hist
+

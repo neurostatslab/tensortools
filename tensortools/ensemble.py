@@ -17,7 +17,8 @@ fitting_methods = {
 }
 
 def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
-                 replicates=1, p_holdout=0, method='direct', options={}):
+                 replicates=1, p_holdout=0, align_factors=True,
+                 method='direct', options={}):
     """ Helper function that fits a bunch of CP decomposition models
 
     Args
@@ -137,16 +138,25 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
         for k in results[r].keys():
             results[r][k] = [results[r][k][i] for i in idx]
 
-        # calculate similarity score of each model to the best fitting model
-        best_model = results[r]['factors'][0]
-        results[r]['similarity'] = [1.0] + (replicates-1)*[None]
-        for s in range(1, replicates):
-            aligned_factors, _, score = align_factors(results[r]['factors'][s], best_model)
-            results[r]['similarity'][s] = score
-            results[r]['factors'][s] = aligned_factors
-
     if verbose:
         print('Total time to fit models: {0:.4f}s'.format(time()-t0))
+
+
+    if align_factors:
+        # align factors across ranks
+        for r in reversed(ranks[:-1]):
+            # align best rank-r model to the best rank-(r+1) model
+            factors = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])[0]
+            results[r]['factors'][0] = factors
+
+        # align factors within ranks
+        for r in ranks:
+            best_model = results[r]['factors'][0]
+            results[r]['similarity'] = [1.0] + (replicates-1)*[None]
+            for s in range(1, replicates):
+                aligned_factors, _, score = align_factors(results[r]['factors'][s], best_model)
+                results[r]['similarity'][s] = score
+                results[r]['factors'][s] = aligned_factors
 
     return results
 
