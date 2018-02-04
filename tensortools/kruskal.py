@@ -4,7 +4,6 @@ Core operations to align and score Kruskal tensors.
 
 import numpy as np
 import itertools as itr
-from scipy.spatial import cdist
 
 def normalize_factors(X):
     """
