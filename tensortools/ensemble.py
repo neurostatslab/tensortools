@@ -17,7 +17,7 @@ fitting_methods = {
 }
 
 def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
-                 replicates=1, p_holdout=0, align_factors=True,
+                 replicates=1, p_holdout=0, align=True,
                  method='direct', options={}):
     """ Helper function that fits a bunch of CP decomposition models
 
@@ -142,7 +142,7 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
         print('Total time to fit models: {0:.4f}s'.format(time()-t0))
 
 
-    if align_factors:
+    if align:
         # align factors across ranks
         for r in reversed(ranks[:-1]):
             # align best rank-r model to the best rank-(r+1) model
