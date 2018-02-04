@@ -126,7 +126,7 @@ def align_factors(A, B, penalize_lam=True):
 
     # function assumes rank(A) >= rank(B). Rather than raise an error, we make a recursive call.
     if rank_A < rank_B:
-        aligned_B, aligned_A, score = align_factors(B, A, greedy=greedy, penalize_lam=penalize_lam)
+        aligned_B, aligned_A, score = align_factors(B, A, penalize_lam=penalize_lam)
         return aligned_A, aligned_B, score
 
     # decide whether to use greedy method or exhaustive search
