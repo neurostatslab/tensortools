@@ -129,10 +129,6 @@ def align_factors(A, B, penalize_lam=True):
         aligned_B, aligned_A, score = align_factors(B, A, penalize_lam=penalize_lam)
         return aligned_A, aligned_B, score
 
-    # decide whether to use greedy method or exhaustive search
-    if greedy is None:
-        greedy = True if min(rank_A, rank_B) >= 7 else False
-
     A, lam_A = normalize_factors(A)
     B, lam_B = normalize_factors(B)
 
