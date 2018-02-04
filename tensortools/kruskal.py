@@ -88,7 +88,7 @@ def standardize_factors(X, lam_ratios=None, sort_factors=True):
         return [f*np.power(lam, r) for f, r in zip(nrmfactors, lam_ratios)]
 
 
-def align_factors(A, B, greedy=None, penalize_lam=True):
+def align_factors(A, B, penalize_lam=True):
     """Align two kruskal tensors.
 
     aligned_A, aligned_B, score = align_factors(A, B, **kwargs)
@@ -97,10 +97,6 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
     ---------
     A : kruskal tensor
     B : kruskal tensor
-    greedy : bool
-        Whether to use a gredy algorithm to attempt alignment,
-        or do an exhaustive search over all permutations.
-        Defaults to True if rank >= 10, else defaults to False.
     penalize_lam : bool (default=True)
         whether or not to penalize factor magnitudes
 
@@ -152,33 +148,16 @@ def align_factors(A, B, greedy=None, penalize_lam=True):
             la, lb = lam_A[i], lam_B[j]
             sim[i, j] *= 1 - (abs(la-lb) / max(abs(la),abs(lb)))
 
-    if greedy:
-        # find permutation of factors by a greedy method
-        best_perm = -np.ones(rank_A, dtype='int')
-        score = 0
-        for r in range(rank_B):
-            i, j = np.unravel_index(np.argmax(sim), sim.shape)
-            score += sim[i,j]
-            sim[i,:] = -1
-            sim[:,j] = -1
-            best_perm[j] = i
-        score /= rank_B
-
-    else:
-        # search all permutations
-        score = -1
-        best_perm = np.arange(rank_A)
-        for comb in itr.combinations(range(rank_A), rank_B):
-            perm = -np.ones(rank_A, dtype='int')
-            unset = list(set(range(rank_A)) - set(comb))
-            perm[unset] = np.arange(rank_B, rank_A)
-            for p in itr.permutations(comb):
-                perm[list(comb)] = list(p)
-                sc = sum([ sim[i,j] for j, i in enumerate(p)])
-                if sc > score:
-                    best_perm = perm.copy()
-                    score = sc
-        score /= rank_B
+    # find permutation of factors by a greedy method
+    best_perm = -np.ones(rank_A, dtype='int')
+    score = 0
+    for r in range(rank_B):
+        i, j = np.unravel_index(np.argmax(sim), sim.shape)
+        score += sim[i,j]
+        sim[i,:] = -1
+        sim[:,j] = -1
+        best_perm[j] = i
+    score /= rank_B
 
     # Flip signs of ktensor factors for better alignment
     sgn = np.tile(np.power(lam_A, 1/ndim), (ndim,1))
