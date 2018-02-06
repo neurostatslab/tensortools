@@ -150,8 +150,8 @@ def align_factors(A, B, penalize_lam=True):
     for r in range(rank_B):
         i, j = np.unravel_index(np.argmax(sim), sim.shape)
         score += sim[i,j]
-        sim[i,:] = -1
-        sim[:,j] = -1
+        sim[i,:] = -np.inf
+        sim[:,j] = -np.inf
         best_perm[j] = i
     score /= rank_B
 
@@ -182,7 +182,7 @@ def align_factors(A, B, penalize_lam=True):
     aligned_B = [np.power(lam_B, 1/ndim)*b for b in B]
 
     # permute A to align with B
-    aligned_A = [a[:,best_perm] for a in flipped_A]
+    aligned_A = [a.copy()[:,best_perm] for a in flipped_A]
     return aligned_A, aligned_B, score
 
 def _validate_factors(factors):

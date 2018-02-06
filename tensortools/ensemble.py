@@ -77,6 +77,8 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
     # if rank is input as a single int, wrap it in a list
     if isinstance(ranks, int):
         ranks = [ranks]
+    # make sure ranks are sorted
+    ranks = np.sort(ranks)
 
     # compile optimization results into dict indexed by model rank
     keys = ['factors', 'ranks', 'err_hist', 'err_final',
@@ -144,15 +146,16 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
 
     if align:
         # align factors across ranks
+        results[ranks]['similarity'] = [1.0] + (replicates-1)*[None]
         for r in reversed(ranks[:-1]):
             # align best rank-r model to the best rank-(r+1) model
-            factors = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])[0]
+            factors, _, score = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])[0]
             results[r]['factors'][0] = factors
+            results[r]['similarity'] = [score] + (replicates-1)*[None]
 
         # align factors within ranks
         for r in ranks:
             best_model = results[r]['factors'][0]
-            results[r]['similarity'] = [1.0] + (replicates-1)*[None]
             for s in range(1, replicates):
                 aligned_factors, _, score = align_factors(results[r]['factors'][s], best_model)
                 results[r]['similarity'][s] = score
