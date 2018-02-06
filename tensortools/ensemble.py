@@ -146,7 +146,7 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
 
     if align:
         # align factors across ranks
-        results[ranks]['similarity'] = [1.0] + (replicates-1)*[None]
+        results[ranks[-1]]['similarity'] = [1.0] + (replicates-1)*[None]
         for r in reversed(ranks[:-1]):
             # align best rank-r model to the best rank-(r+1) model
             factors, _, score = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])[0]
