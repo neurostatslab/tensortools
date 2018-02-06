@@ -179,7 +179,7 @@ def align_factors(A, B, penalize_lam=True):
 
     # flip signs in A
     flipped_A = [s*a for s, a in zip(sgn, A)]
-    aligned_B = [np.power(l, 1/ndim)*b for l, b in zip(lam_B, B)]
+    aligned_B = [np.power(lam_B, 1/ndim)*b for b in B]
 
     # permute A to align with B
     aligned_A = [a[:,best_perm] for a in flipped_A]
