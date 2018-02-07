@@ -9,6 +9,7 @@ from .cpdirect import cp_direct
 from .cprand import cp_rand
 from .kruskal import align_factors
 from .tensor_utils import norm
+import pdb
 
 # dictionary holding various optimization algorithms
 fitting_methods = {
@@ -146,10 +147,10 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
 
     if align:
         # align factors across ranks
-        results[ranks[-1]]['similarity'] = [1.0] + (replicates-1)*[None]
+        results[ranks[-1]]['similarity'] = [np.nan] + (replicates-1)*[None]
         for r in reversed(ranks[:-1]):
             # align best rank-r model to the best rank-(r+1) model
-            factors, _, score = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])[0]
+            factors, _, score = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])
             results[r]['factors'][0] = factors
             results[r]['similarity'] = [score] + (replicates-1)*[None]
 

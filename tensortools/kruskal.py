@@ -124,6 +124,10 @@ def align_factors(A, B, penalize_lam=True):
     A, ndim_A, rank_A = _validate_factors(A)
     B, ndim_B, rank_B = _validate_factors(B)
 
+    # check that factors aren't empty
+    if (rank_A == 0) or (rank_B == 0):
+        raise ValueError('Cannot align a tensor of rank zero')
+
     # function assumes rank(A) >= rank(B). Rather than raise an error, we make a recursive call.
     if rank_A < rank_B:
         aligned_B, aligned_A, score = align_factors(B, A, penalize_lam=penalize_lam)
