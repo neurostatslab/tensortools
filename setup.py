@@ -1,9 +1,3 @@
-try:
-    from setuptools import setup, find_packages
-except ImportError:
-    print ("The package 'setuptools' is required!")
-
-import tensortools
 
 NAME = 'tensortools'
 DESCRIPTION = 'Tools for Tensor Decomposition.'
@@ -79,10 +73,21 @@ cmdclass = {'clean': CleanCommand}
 cmdclass = { }
 ext_modules = [ ]
 
+if use_cython:
+    ext_modules += [
+	Extension("tensortools._hals_update", [ "tensortools/cp_decomposition/_hals_update.pyx" ]),
+    ]
+    cmdclass.update({ 'build_ext': build_ext })
+else:
+    ext_modules += [
+        Extension("tensortools._hals_update", [ "tensortools/cp_decomposition/_hals_update.c" ]),
+    ] 
+
 
 install_requires=[
-   'numpy',
-   'scipy'
+	'cython',
+   	'numpy',
+   	'scipy'
 ]
 
 tests_require = ['numpy',
@@ -115,7 +120,7 @@ setup(
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
 
-        'Programming Language :: Python :: 2.7',
+        #'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
