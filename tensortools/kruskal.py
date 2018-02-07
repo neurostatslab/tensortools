@@ -88,7 +88,7 @@ def standardize_factors(X, lam_ratios=None, sort_factors=True):
         return [f*np.power(lam, r) for f, r in zip(nrmfactors, lam_ratios)]
 
 
-def align_factors(A, B, penalize_lam=True):
+def align_factors(A, B, penalize_lam=False):
     """Align two kruskal tensors.
 
     aligned_A, aligned_B, score = align_factors(A, B, **kwargs)
@@ -133,13 +133,10 @@ def align_factors(A, B, penalize_lam=True):
         aligned_B, aligned_A, score = align_factors(B, A, penalize_lam=penalize_lam)
         return aligned_A, aligned_B, score
 
+    # compute inner product similarity matrix between factors
     A, lam_A = normalize_factors(A)
     B, lam_B = normalize_factors(B)
-
-    # compute dot product
     dprod = np.array([np.dot(a.T, b) for a, b in zip(A, B)])
-
-    # similarity matrix
     sim = np.multiply.reduce([np.abs(dp) for dp in dprod])
 
     # include penalty on factor lengths
@@ -149,15 +146,22 @@ def align_factors(A, B, penalize_lam=True):
             sim[i, j] *= 1 - (abs(la-lb) / max(abs(la),abs(lb)))
 
     # find permutation of factors by a greedy method
-    best_perm = -np.ones(rank_A, dtype='int')
-    score = 0
-    for r in range(rank_B):
-        i, j = np.unravel_index(np.argmax(sim), sim.shape)
-        score += sim[i,j]
-        sim[i,:] = -np.inf
-        sim[:,j] = -np.inf
-        best_perm[j] = i
-    score /= rank_B
+    best_perm = rank_A*[None]
+    for i, j in zip(np.unravel_index(np.argsort(sim.ravel()), sim.shape)):
+        if i not in best_perm:
+            best_perm[j] = i
+        elif best_perm[j] is None:
+            best_perm[j] = i
+        if None not in best_perm:
+            break
+    best_perm = np.array(best_perm)
+
+    # total similarity score. If rank_A == rank_B, this is just the mean
+    # similarity of the factors. If rank_A > rank_B, this is the mean
+    # similarity across the factors in B matched to A (i.e. extra factors in A
+    # are ignored).
+    kth = rank_A - rank_B
+    score = np.mean(np.partition(sim[np.arange(rank_A), best_perm], kth)[kth:])
 
     # Flip signs of ktensor factors for better alignment
     sgn = np.tile(np.power(lam_A, 1/ndim), (ndim,1))
@@ -186,6 +190,7 @@ def align_factors(A, B, penalize_lam=True):
     aligned_B = [np.power(lam_B, 1/ndim)*b for b in B]
 
     # permute A to align with B
+    assert np.all(best_perm > 0)
     aligned_A = [a.copy()[:,best_perm] for a in flipped_A]
     return aligned_A, aligned_B, score
 
