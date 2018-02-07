@@ -4,6 +4,7 @@ Core operations to align and score Kruskal tensors.
 
 import numpy as np
 import itertools as itr
+import ipdb
 
 def normalize_factors(X):
     """
@@ -147,11 +148,11 @@ def align_factors(A, B, penalize_lam=False):
 
     # find permutation of factors by a greedy method
     best_perm = rank_A*[None]
-    for i, j in zip(np.unravel_index(np.argsort(sim.ravel()), sim.shape)):
-        if i not in best_perm:
-            best_perm[j] = i
-        elif best_perm[j] is None:
-            best_perm[j] = i
+    for i, j in zip(*np.unravel_index(np.argsort(sim.ravel())[::-1], sim.shape)):
+        if j not in best_perm:
+            best_perm[i] = j
+        elif best_perm[i] is None:
+            best_perm[i] = j
         if None not in best_perm:
             break
     best_perm = np.array(best_perm)
@@ -190,7 +191,7 @@ def align_factors(A, B, penalize_lam=False):
     aligned_B = [np.power(lam_B, 1/ndim)*b for b in B]
 
     # permute A to align with B
-    assert np.all(best_perm > 0)
+    assert np.all(best_perm >= 0)
     aligned_A = [a.copy()[:,best_perm] for a in flipped_A]
     return aligned_A, aligned_B, score
 
