@@ -156,7 +156,8 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
             results[r]['similarity'] = [score] + (replicates-1)*[None]
 
             for r2 in range(r+2, ranks[-1]+1):
-                results[r2]['factors'][0] = [f[:,pA] for f in results[r2]['factors'][0]]
+                perm = pA + list(range(r+1, r2))
+                results[r2]['factors'][0] = [f[:,perm] for f in results[r2]['factors'][0]]
 
         # align factors within ranks
         for r in ranks:
