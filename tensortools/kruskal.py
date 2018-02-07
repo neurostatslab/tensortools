@@ -160,7 +160,7 @@ def align_factors(A, B, penalize_lam=False):
     score = np.mean(sim[prm_A, prm_B])
 
     # if rank_A > rank_B add additional factors at the end
-    prm_A += list(set(prm_A) - set(range(rank_A)))
+    prm_A += list(set(range(rank_A)) - set(prm_A))
 
     # Flip signs of ktensor factors for better alignment
     sgn = np.tile(np.power(lam_A, 1/ndim), (ndim,1))
