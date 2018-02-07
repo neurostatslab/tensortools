@@ -150,7 +150,7 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
         results[ranks[-1]]['similarity'] = [np.nan] + (replicates-1)*[None]
         for r in reversed(ranks[:-1]):
             # align best rank-r model to the best rank-(r+1) model
-            factors, _, score = align_factors(results[r]['factors'][0], results[r+1]['factors'][0])
+            _, factors, score = align_factors(results[r+1]['factors'][0], results[r]['factors'][0])
             results[r]['factors'][0] = factors
             results[r]['similarity'] = [score] + (replicates-1)*[None]
 
