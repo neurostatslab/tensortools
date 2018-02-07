@@ -7,6 +7,7 @@ from .cp_decomposition.cprand import cp_rand
 from .cp_decomposition.cp_als import cp_als
 from .cp_decomposition.cp_opt import cp_opt
 from .cp_decomposition.ncp_bcd import ncp_bcd
+from .cp_decomposition.ncp_hals import ncp_hals
 
 # randomized tensor QB decomposition
 from .compress import compress
