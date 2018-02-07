@@ -146,29 +146,25 @@ def align_factors(A, B, penalize_lam=False):
             sim[i, j] *= 1 - (abs(la-lb) / max(abs(la),abs(lb)))
 
     # find permutation of factors by a greedy method
-    best_perm = rank_A*[None]
+    prm_A = []
+    prm_B = []
+    k = 0
     for i, j in zip(*np.unravel_index(np.argsort(sim.ravel())[::-1], sim.shape)):
-        if j not in best_perm:
-            best_perm[i] = j
-        elif best_perm[i] is None:
-            best_perm[i] = j
-        if None not in best_perm:
+        if (i not in prm_A) and (j not in prm_B):
+            prm_A.append(i)
+            prm_B.append(j)
+        if len(prm_B) == rank_B:
             break
-    best_perm = np.array(best_perm)
 
-    # total similarity score. If rank_A == rank_B, this is just the mean
-    # similarity of the factors. If rank_A > rank_B, this is the mean
-    # similarity across the factors in B matched to A (i.e. extra factors in A
-    # are ignored).
-    kth = rank_A - rank_B
-    score = np.mean(np.partition(sim[np.arange(rank_A), best_perm], kth)[kth:])
+    # mean similarity score over matched factors
+    score = np.mean(sim[prm_A, prm_B])
+
+    # if rank_A > rank_B add additional factors at the end
+    prm_A += list(set(prm_A) - set(range(rank_A)))
 
     # Flip signs of ktensor factors for better alignment
     sgn = np.tile(np.power(lam_A, 1/ndim), (ndim,1))
-    for j in range(rank_B):
-
-        # factor i in A matched to factor j in B
-        i = best_perm[j]
+    for i, j in zip(prm_A, prm_B):
 
         # sort from least to most similar
         dpsrt = np.argsort(dprod[:, i, j])
@@ -185,13 +181,14 @@ def align_factors(A, B, penalize_lam=False):
                 sgn[dpsrt[z], i] *= -1
                 sgn[dpsrt[z+1], i] *= -1
 
-    # flip signs in A
+    # flip, then align A
     flipped_A = [s*a for s, a in zip(sgn, A)]
-    aligned_B = [np.power(lam_B, 1/ndim)*b for b in B]
+    aligned_A = [a[:,prm_A] for a in flipped_A]
 
-    # permute A to align with B
-    assert np.all(best_perm >= 0)
-    aligned_A = [a.copy()[:,best_perm] for a in flipped_A]
+    # align B
+    flipped_B = [np.power(lam_B, 1/ndim)*b for b in B]
+    aligned_B = [b[:,prm_B] for b in flipped_B]
+
     return aligned_A, aligned_B, score
 
 def _validate_factors(factors):
