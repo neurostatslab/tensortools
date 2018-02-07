@@ -88,7 +88,7 @@ def standardize_factors(X, lam_ratios=None, sort_factors=True):
         return [f*np.power(lam, r) for f, r in zip(nrmfactors, lam_ratios)]
 
 
-def align_factors(A, B, penalize_lam=False):
+def align_factors(A, B, penalize_lam=False, return_perms=False):
     """Align two kruskal tensors.
 
     aligned_A, aligned_B, score = align_factors(A, B, **kwargs)
@@ -189,7 +189,10 @@ def align_factors(A, B, penalize_lam=False):
     flipped_B = [np.power(lam_B, 1/ndim)*b for b in B]
     aligned_B = [b[:,prm_B] for b in flipped_B]
 
-    return aligned_A, aligned_B, score
+    if return_perms:
+        return aligned_A, aligned_B, score, prm_A, prm_B
+    else:
+        return aligned_A, aligned_B, score
 
 def _validate_factors(factors):
     """Checks that input is a valid kruskal tensor
