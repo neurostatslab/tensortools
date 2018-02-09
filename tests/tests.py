@@ -3,10 +3,10 @@ import numpy as np
 import scipy as sci
 
 
-from tensortools.cp_decomposition import cp_als, cp_opt
+from tensortools.cp_decomposition import cp_als, cp_opt, ncp_hals
 from tensortools.tensor_utils import khatri_rao, norm
 from tensortools.tensor_utils import kruskal_to_tensor, kruskal_to_unfolded
-from tensortools.data import cp_tensor
+from tensortools.data import cp_tensor, ncp_tensor
 
 
 from unittest import main, makeSuite, TestCase, TestSuite
@@ -83,30 +83,6 @@ class test_cp_als(TestCase):
         percent_error = sci.linalg.norm(kruskal_to_tensor(P.factors, lmbda=P.lmbda) - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
-#
-#******************************************************************************
-#
-class test_cp_bcd(TestCase):
-    def setUp(self):
-        np.random.seed(123)        
-        
-    def test_cp_bcd_deterministic(self):
-        I,J,K,R = 15,15,15,3
-        X = cp_tensor((I,J,K), R)         
-        X = kruskal_to_tensor(X)	
-        P = cp_bcd(X, r=R, c=False, tol=atol_float64, maxiter=150)  
-                
-        percent_error = sci.linalg.norm(kruskal_to_tensor(P.factors, lmbda=P.lmbda) - X) / sci.linalg.norm(X)
-        assert percent_error <  0.01  
-
-    def test_cp_bcd_randomized(self):
-        I,J,K,R = 15,15,15,3
-        X = cp_tensor((I,J,K), R)         
-        X = kruskal_to_tensor(X)	
-        P = cp_bcd(X, r=R, c=True, tol=atol_float64, maxiter=150)  
-                
-        percent_error = sci.linalg.norm(kruskal_to_tensor(P.factors, lmbda=P.lmbda) - X) / sci.linalg.norm(X)
-        assert percent_error < 0.01
 
 
 #
@@ -135,6 +111,27 @@ class test_cp_opt(TestCase):
         assert percent_error < 0.01
 
 
+
+
+
+#
+#******************************************************************************
+#
+class test_ncp_hals(TestCase):
+    def setUp(self):
+        np.random.seed(123)        
+        
+    def test_ncp_hals_deterministic(self):
+        I,J,K,R = 15,15,15,3
+        X = ncp_tensor((I,J,K), R, full=True)        
+        #X = kruskal_to_tensor(X)	
+        P = ncp_hals(X, r=R, tol=atol_float64, maxiter=150)  
+                
+        percent_error = sci.linalg.norm(kruskal_to_tensor(P.factors, lmbda=P.lmbda) - X) / sci.linalg.norm(X)
+        assert percent_error <  0.01  
+
+
+
 #
 #******************************************************************************
 #
@@ -145,8 +142,9 @@ def suite():
 
     s.addTest(test_cp_als('test_cp_als_deterministic'))
     s.addTest(test_cp_als('test_cp_als_randomized'))
-    s.addTest(test_cp_bcd('test_cp_bcd_deterministic'))
-    s.addTest(test_cp_bcd('test_cp_bcd_randomized'))
+    s.addTest(test_cp_opt('test_cp_opt_deterministic'))
+    s.addTest(test_cp_opt('test_cp_opt_randomized'))
+    s.addTest(test_ncp_hals('test_ncp_hals_deterministic'))
     
     return s
 
