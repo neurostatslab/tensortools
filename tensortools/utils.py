@@ -3,7 +3,7 @@ Useful helper functions, not critical to core functionality of tensortools.
 """
 
 import numpy as np
-import scipy
+import scipy.spatial
 import math
 
 
@@ -86,7 +86,7 @@ def soft_cluster_factor(factor):
 
     return cluster_ids, perm
 
-def resort_factor_tsp(factor, niter=1000, metric='euclidean', **kwargs):
+def resort_factor_tsp(factor, niter=1000, metric='euclidean', split='dummy', **kwargs):
     """Sorts the factor to (approximately) to solve the traveling
     salesperson problem, so that data elements (rows of factor)
     are placed closed to each other.
@@ -96,19 +96,28 @@ def resort_factor_tsp(factor, niter=1000, metric='euclidean', **kwargs):
     N = factor.shape[0]
     D = scipy.spatial.distance.pdist(factor, metric=metric, **kwargs)
     
-    # To solve the travelling salesperson problem with no return to the original node
-    # we add a dummy node that has distance zero connections to all other nodes. The
-    # dummy node is then removed after we've converged to a solution
-    dist = np.zeros((N+1, N+1))
-    dist[:N,:N] = scipy.spatial.distance.squareform(D)
-    
+    if split == 'dummy':
+        # To solve the traveling salesperson problem with no return to the original node
+        # we add a dummy node that has distance zero connections to all other nodes. The
+        # dummy node is then removed after we've converged to a solution
+        dist = np.zeros((N+1, N+1))
+        dist[:N,:N] = scipy.spatial.distance.squareform(D)
+    elif split == 'min':
+        dist = scipy.spatial.distance.squareform(D)
+    else:
+        raise ValueError('split parameter not recognized')
+
     # solve TSP
-    path, cost_hist = solve_tsp(D)
+    path, cost_hist = solve_tsp(dist)
     
-    # remove dummy node at position i
-    i = np.argwhere(path==N+1).ravel()[0]
-    path = np.hstack((path[(i+1):], path[:i]))
-    
+    if split == 'dummy':
+        brk = np.argwhere(path==N).ravel()[0]
+        path = np.hstack((path[(brk+1):], path[:brk]))
+    elif split == 'min':
+        m = np.argmin(np.abs(factor).sum(axis=1))
+        brk = np.argwhere(path == m).ravel()[0]
+        path = np.hstack((path[brk:], path[:brk]))
+
     return path, cost_hist
 
 
@@ -159,6 +168,7 @@ def solve_tsp(dist):
 
     # optimization loop
     node = 0
+
     while node < N:
 
         # we'll try breaking the connection i -> j
