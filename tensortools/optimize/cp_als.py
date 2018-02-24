@@ -5,14 +5,14 @@ CP decomposition by classic alternating least squares (ALS).
 import numpy as np
 import scipy as sci
 
-from functools import reduce
+from ..operations import unfold, khatri_rao
+from ..tensors import Ktensor
 
-from tensortools.operations import unfold, khatri_rao
-
-from tensortools.tensor import Ktensor
 from .optimize import FitResult
 
-def cp_als(X, r=None, options=dict()):
+from functools import reduce
+
+def cp_als(X, r=None, **options):
     """
     Randomized CP Decomposition using the Alternating Least Squares Method.
     
@@ -24,8 +24,8 @@ def cp_als(X, r=None, options=dict()):
     
     Parameters
     ----------
-    X : array_like or dtensor
-        Real tensor `X` with dimensions `(I, J, K)`.
+    X : array_like
+        Tens
     
     r : int
         `r` denotes the number of components to compute.     
@@ -75,18 +75,22 @@ def cp_als(X, r=None, options=dict()):
     if r is None:
         raise ValueError("Rank 'r' not given.")
 
-    if r < 0 or r > np.min(X.shape):
+    if r < 0:
         raise ValueError("Rank 'r' is invalid.")
     
+    # default options
+    options.setdefault('init', None)
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize Ktensor
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if init_factors is None:
-        U = Ktensor(X.shape, init='randn')
-    elif type(init_factors) is not Ktensor:
-        raise ValueError("Parameter 'init_factors' is not a Ktensor.")
+    if options['init'] is None:
+        # TODO - match the norm of the initialization to the norm of X.
+        U = Ktensor([np.random.randn(s, r) for s in X.shape])
+    elif type(options['init']) is not Ktensor:
+        raise ValueError("Optional parameter 'init' is not a Ktensor.")
     else:
-        U = init_factors
+        U = options['init']
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Init
@@ -108,14 +112,15 @@ def cp_als(X, r=None, options=dict()):
             components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices 
-            grams = [ arr.T.dot(arr) for arr in components ]             
+            grams = [ arr.T.dot(arr) for arr in components ]
 
             # ii)  Compute Khatri-Rao Pseudoinverse
             p1 = khatri_rao(components)
-            p2 = sci.linalg.pinv(reduce(sci.multiply, grams, 1.))
+            p2 = sci.linalg.pinv(np.multiply.reduce(grams))
 
-            # iii) Update component U_n            
-            U[n] = unfold(X, n).dot( p1.dot(p2) )           
+            # iii) Update component U_n
+            # TODO - give user the option to cache unfoldings
+            U[n] = unfold(X, n).dot( p1.dot(p2) )
 
             # iv) normalize U_n to prevent singularities
             U.rebalance()
@@ -123,7 +128,7 @@ def cp_als(X, r=None, options=dict()):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        result.update(U)
+        result.update(U, X)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.

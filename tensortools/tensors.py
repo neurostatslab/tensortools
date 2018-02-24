@@ -9,32 +9,58 @@ class Ktensor(object):
     def __init__(self, factors):
 
         self.factors = factors
-        self.shape = tuple([factor.shape[0] for factor in factors])
+        self.shape = tuple([f.shape[0] for f in factors])
         self.ndim = len(self.shape)
         self.size = np.prod(self.shape)
+        self.rank = factors[0].shape[1]
+
+        for f in factors[1:]:
+            if f.shape[1] != self.rank:
+                raise ValueError('Tensor factors have inconsistent rank.')
+
 
     def full(self):
         
         # Compute tensor unfolding along first mode
-        unf = np.dot(factors[0], khatri_rao(factors[1:]).T)
+        unf = np.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
 
         # Inverse unfolding along first mode
-        return fold(unf, 0, self.shape)
+        return np.reshape(unf, self.shape)
 
     def rebalance(self):
-        
+        """Rescales Ktensor so that factors have equal magnitude across modes.
+        """
+
         # Compute norms along columns for each factor matrix
         factor_norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
         
         # Multiply norms across all modes
-        lam = reduce(sci.multiply, factor_norms) ** (1 / self.ndim)
+        lam = np.multiply.reduce(factor_norms) ** (1 / self.ndim)
 
         # Update factors
         self.factors = [f * lam for f in self.factors]
         return self.factors
 
-    def __getitem__(self, key):
-        return self.factors[key]
+    def permute(self, idx):
+        """Permutes the columns of the factor matrices inplace
+        """
+        
+        # Check that input is a true permutation
+        if set(idx) != set(range(self.rank)):
+            raise ValueError('Invalid permutation specified.')
+        
+        # Update factors
+        self.factors = [f[:,idx] for f in self.factors]
+        return self.factors
+
+    def __getitem__(self, i):
+        return self.factors[i]
+
+    def __setitem__(self, i, factor):
+        factor = np.array(factor)
+        if factor.shape != (self.shape[i], self.rank):
+            raise ValueError('Dimension mismatch in Ktensor assignment.')
+        self.factors[i] = factor
 
     def __iter__(self):
         return iter(self.factors)
