@@ -47,10 +47,7 @@ def cp_als(X, rank=None, random_state=None, **options):
 
     
     Notes
-    -----  
-    
-    Examples
-    --------      
+    -----    
     
     
     References
@@ -64,6 +61,12 @@ def cp_als(X, rank=None, random_state=None, **options):
     "Tensor decompositions, alternating least squares and other tales."
     Journal of chemometrics 23 (2009): 393-405.
     http://onlinelibrary.wiley.com/doi/10.1002/cem.1236/abstract
+    
+    
+    Examples
+    --------    
+
+    
 
     """
 

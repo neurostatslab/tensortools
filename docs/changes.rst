@@ -3,9 +3,7 @@
 Change Log
 ==========
 
-Release 0.0.2 (under development)
----------------------------------
-* 
-* 
-* 
 
+Release 0.2 - (Date)
+-----------------------------------
+* What is new.
