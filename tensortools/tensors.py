@@ -1,4 +1,4 @@
-from .operations import khatri_rao
+from tensortools.operations import khatri_rao
 import numpy as np
 import scipy as sci
 
@@ -22,10 +22,11 @@ class Ktensor(object):
     def full(self):
         
         # Compute tensor unfolding along first mode
-        unf = np.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
+        unf = sci.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
+
 
         # Inverse unfolding along first mode
-        return np.reshape(unf, self.shape)
+        return sci.reshape(unf, self.shape)
 
     def rebalance(self):
         """Rescales Ktensor so that factors have equal magnitude across modes.
@@ -35,11 +36,14 @@ class Ktensor(object):
         factor_norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
         
         # Multiply norms across all modes
-        lam = np.multiply.reduce(factor_norms) ** (1 / self.ndim)
+        lam = sci.multiply.reduce(factor_norms)
 
         # Update factors
-        self.factors = [f * lam for f in self.factors]
-        return self.factors
+        self.factors = [f / lam ** (1/self.ndim)  for f in self.factors]
+        self.factors[0] *= lam
+        return (self.factors)
+    
+    
 
     def permute(self, idx):
         """Permutes the columns of the factor matrices inplace
@@ -53,11 +57,12 @@ class Ktensor(object):
         self.factors = [f[:,idx] for f in self.factors]
         return self.factors
 
+
     def __getitem__(self, i):
         return self.factors[i]
 
     def __setitem__(self, i, factor):
-        factor = np.array(factor)
+        factor = sci.array(factor)
         if factor.shape != (self.shape[i], self.rank):
             raise ValueError('Dimension mismatch in Ktensor assignment.')
         self.factors[i] = factor
