@@ -5,21 +5,19 @@ CP decomposition by classic alternating least squares (ALS).
 import numpy as np
 import scipy as sci
 
-from ..operations import unfold, khatri_rao
-from ..tensors import Ktensor
+from tensortools.operations import unfold, khatri_rao
+from tensortools.tensors import Ktensor
 
-from .optimize import FitResult
+from tensortools.optimize import FitResult
 
 from functools import reduce
 
-def cp_als(X, r=None, **options):
+
+def cp_als(X, rank=None, **options):
     """
-    Randomized CP Decomposition using the Alternating Least Squares Method.
+    CP Decomposition using the Alternating Least Squares Method.
     
-    Given a tensor X, the best rank-R CP model is estimated using the 
-    alternating least-squares method.
-    If `c=True` the input tensor is compressed using the randomized 
-    QB-decomposition.
+    Given a tensor X, the best rank-R CP model is estimated.
 
     
     Parameters
@@ -27,8 +25,8 @@ def cp_als(X, r=None, **options):
     X : array_like
         Tens
     
-    r : int
-        `r` denotes the number of components to compute.     
+    rank : int
+        `rank` denotes the number of components to compute.     
         
     options : dict, specifying fitting options.
 
@@ -51,6 +49,9 @@ def cp_als(X, r=None, **options):
     Notes
     -----  
     
+    Examples
+    --------      
+    
     
     References
     ----------
@@ -70,13 +71,13 @@ def cp_als(X, r=None, **options):
     # Error catching
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~     
     if X.ndim < 3:
-        raise ValueError("Array with ndim > 2 expected.")
+        raise ValueError("Array with X.ndim > 2 expected.")
 
-    if r is None:
-        raise ValueError("Rank 'r' not given.")
+    if rank is None:
+        raise ValueError("Rank is not specified.")
 
-    if r < 0:
-        raise ValueError("Rank 'r' is invalid.")
+    if rank < 0:
+        raise ValueError("Rank is invalid.")
     
     # default options
     options.setdefault('init', None)
@@ -86,9 +87,11 @@ def cp_als(X, r=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
-        U = Ktensor([np.random.randn(s, r) for s in X.shape])
+        U = Ktensor([np.random.randn(s, rank) for s in X.shape])
+    
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
+    
     else:
         U = options['init']
 
@@ -123,7 +126,7 @@ def cp_als(X, r=None, **options):
             U[n] = unfold(X, n).dot( p1.dot(p2) )
 
             # iv) normalize U_n to prevent singularities
-            U.rebalance()
+            #U.rebalance()
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.

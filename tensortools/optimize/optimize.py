@@ -41,8 +41,10 @@ class FitResult(object):
         # compute initial fit
         self.compute_fit(X)
 
+
     def time_elapsed(self):
         return timeit.default_timer()  - self.t0
+
 
     def update(self, Unext, X):
 
@@ -79,6 +81,7 @@ class FitResult(object):
         """
         self.fit = 1 - (self.normX / sci.linalg.norm(X - self.U.full()))
         return self.fit
+
 
     def finalize(self):
         
