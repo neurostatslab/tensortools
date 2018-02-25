@@ -7,13 +7,13 @@ import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import Ktensor
-
+from tensortools.data.random_tensor import randn_tensor
 from tensortools.optimize import FitResult
 
 from functools import reduce
 
 
-def cp_als(X, rank=None, **options):
+def cp_als(X, rank=None, random_state=None, **options):
     """
     CP Decomposition using the Alternating Least Squares Method.
     
@@ -87,8 +87,9 @@ def cp_als(X, rank=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
-        U = Ktensor([np.random.randn(s, rank) for s in X.shape])
-    
+        U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
+       
+        
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
     
