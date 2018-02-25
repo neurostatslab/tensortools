@@ -1,0 +1,6 @@
+.. -*- rst -*-
+
+License
+=======
+
+Add license.
