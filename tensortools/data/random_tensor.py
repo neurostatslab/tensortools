@@ -4,9 +4,9 @@ import numpy as np
 from tensortools.tensors import Ktensor
 
 
-def random_tensor(shape, rank, full=False, random_state=None):
+def randn_tensor(shape, rank, ktensor=False, random_state=None):
     """
-    Generates a random rank-R tensor of dimension IxJxK.
+    Generates a random rank-R tensor of shape `(IxJxK)`.
     
     Parameters
     ----------
@@ -15,23 +15,22 @@ def random_tensor(shape, rank, full=False, random_state=None):
     
     rank : int
         rank of the tensor
+        
+    ktensor : bool
+        If true, a Ktensor object is returned;
+        Otherwise an array of shape `(IxJxK)` is returned.
     
-    full : bool, optional, default is False
-        if True, a full tensor is returned
-        otherwise, the decomposed tensor is returned
-    
-    random_state : 'np.random.RandomState'
+    random_state : `np.random.RandomState`
         
     Returns
     -------
-    cp_tensor : ND-array or 2D-array list
-        ND-array : full tensor if `full` is True
-        2D-array list : list of factors otherwise
+    X : ndarray
+        Rank-R tensor of shape `(IxJxK)`.
         
     Example
     -------        
     # Create a rank-2 tensor of dimension 5x5x5:
-    X = cp_tensor((5,5,5), rank=2, full=True)
+    X = cp_tensor((5,5,5), rank=2)
  
        
     """
@@ -45,11 +44,11 @@ def random_tensor(shape, rank, full=False, random_state=None):
     else:
         raise ValueError('Seed should be None, int or np.random.RandomState')
 
-
     factors = [rns.standard_normal((i, rank)) for i in shape]
     
-    
-    if full:
+    if ktensor == False:
         return Ktensor(factors).full()
+    
     else:
-        return factors
+        return Ktensor(factors)
+

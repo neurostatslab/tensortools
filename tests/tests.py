@@ -6,7 +6,7 @@ import scipy as sci
 from tensortools.optimize import cp_als
 from tensortools.operations import khatri_rao
 from tensortools.tensors import Ktensor
-from tensortools.data import random_tensor
+from tensortools.data import randn_tensor
 
 
 from unittest import main, makeSuite, TestCase, TestSuite
@@ -64,7 +64,7 @@ class test_cp_als(TestCase):
         
     def test_cp_als_deterministic(self):
         I,J,K,R = 15,15,15,3
-        X = random_tensor((I,J,K), rank=R, full=True, random_state=random_state)         
+        X = randn_tensor((I,J,K), rank=R, random_state=random_state)         
         P = cp_als(X, rank=R, trace=False)  
                 
         percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
