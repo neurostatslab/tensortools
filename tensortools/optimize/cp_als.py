@@ -16,7 +16,7 @@ from functools import reduce
 def cp_als(X, rank=None, random_state=None, **options):
     """
     The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
-    arrays (tensors). The CP decomposition can be seen as a generalziation 
+    arrays (tensors). The CP decomposition can be seen as a generalization 
     of PCA, yet there are some important conceptual differences: (a) the CP
     decomposition allows to extract pure spectra from multi-way spectral data;
     (b) the data do not need to be unfolded. Hence, the resulting
