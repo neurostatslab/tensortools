@@ -17,10 +17,10 @@ def cp_als(X, rank=None, random_state=None, **options):
     """
     The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
     arrays (tensors). The CP decomposition can be seen as a generalziation 
-    of PCA, yet there are some important conceptutal differences: (a) the CP
+    of PCA, yet there are some important conceptual differences: (a) the CP
     decomposition allows to extract pure spectra from multi-way spectral data;
     (b) the data do not need to be unfolded. Hence, the resulting
-    factors are easier to interpret and more rebust to noise. 
+    factors are easier to interpret and more robust to noise. 
         
 
     When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``, 
