@@ -34,7 +34,12 @@ def cp_als(X, rank=None, random_state=None, **options):
     
     rank : integer
         The `rank` sets the number of components to be computed.     
-        
+
+    random_state : integer, RandomState instance or None, optional (default ``None``)
+        If integer, random_state is the seed used by the random number generator; 
+        If RandomState instance, random_state is the random number generator; 
+        If None, the random number generator is the RandomState instance used by np.random.
+
     options : dict, specifying fitting options.
 
         tol : float, optional (default ``tol=1E-5``)
