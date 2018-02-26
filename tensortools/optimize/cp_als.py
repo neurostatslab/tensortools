@@ -15,40 +15,49 @@ from functools import reduce
 
 def cp_als(X, rank=None, random_state=None, **options):
     """
-    CP Decomposition using the Alternating Least Squares Method.
-    
-    Given a tensor X, the best rank-R CP model is estimated.
+    The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
+    arrays (tensors). The CP decomposition can be seen as a generalziation 
+    of PCA, yet there are some important conceptutal differences: (a) the CP
+    decomposition allows to extract pure spectra from multi-way spectral data;
+    (b) the data do not need to be unfolded. Hence, the resulting
+    factors are easier to interpret and more rebust to noise. 
+        
+
+    When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``, 
+    where `U_i` are 2D arrays of rank R.
 
     
     Parameters
     ----------
-    X : array_like
-        Tens
+    X : (I_1, ..., I_N) array_like
+        A real array with ``X.ndim >= 3``.
     
-    rank : int
-        `rank` denotes the number of components to compute.     
+    rank : integer
+        The `rank` sets the number of components to be computed.     
         
     options : dict, specifying fitting options.
 
-        tol : float, optional (default `tol=1E-5`)
+        tol : float, optional (default ``tol=1E-5``)
             Stopping tolerance for reconstruction error.
             
-        maxiter : int, optional (default `maxiter=500`)
+        maxiter : integer, optional (default ``maxiter = 500``)
             Maximum number of iterations to perform before exiting.
 
-        trace : bool `{'True', 'False'}`, optional (default `trace=True`)
+        trace : bool ``{'True', 'False'}``, optional (default ``trace=True``)
             Display progress.
 
 
     Returns
     -------
-    P : ktensor
-        Tensor stored in decomposed form as a Kruskal operator.
+    P : FitResult object
+        Object which returens the fited results. It provides the factor matrices
+        in form of a Kruskal operator. 
 
     
     Notes
     -----    
-    
+    This implemenation is using the Alternating Least Squares Method.
+   
     
     References
     ----------
