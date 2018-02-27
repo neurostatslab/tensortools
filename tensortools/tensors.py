@@ -36,14 +36,11 @@ class Ktensor(object):
         factor_norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
         
         # Multiply norms across all modes
-        lam = sci.multiply.reduce(factor_norms)
+        lam = sci.multiply.reduce(factor_norms) ** (1/self.ndim)
 
         # Update factors
-        self.factors = [f / lam ** (1/self.ndim)  for f in self.factors]
-        self.factors[0] *= lam
-        return (self.factors)
-    
-    
+        self.factors = [f * (lam / fn) for f, fn in zip(self.factors, factor_norms)]
+        return self.factors
 
     def permute(self, idx):
         """Permutes the columns of the factor matrices inplace
