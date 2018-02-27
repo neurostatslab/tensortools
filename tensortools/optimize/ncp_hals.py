@@ -137,9 +137,12 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the HALS algorithm until convergence or maxiter is reached
     # i)   compute the N gram matrices and multiply   
-    # ii)  Compute Khatri-Rao Pseudoinverse
+    # ii)  Compute Khatri-Rao product
     # iii) Update component U_1, U_2, ... U_N
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    normX = sci.linalg.norm(X)
+    
+    
     while result.converged == False:
         violation = 0.0
 
@@ -149,14 +152,14 @@ def ncp_hals(X, rank=None, random_state=None, **options):
             components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices 
-            grams = [ arr.T.dot(arr) for arr in components ]
-            p1 = np.multiply.reduce(grams)
+            grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
 
-            # ii) compute khatri-rao product of components      
-            p2 = unfold(X, n).dot(khatri_rao(components)) 
+            # ii)  Compute Khatri-Rao product
+            kr = khatri_rao(components)    
+            p =  unfold(X, n).dot( kr )
 
             # iii) Update component U_n
-            violation += _hals_update(U[n], p1, p2 )
+            violation += _hals_update(U[n], grams, p )
             
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -181,7 +184,12 @@ def ncp_hals(X, rank=None, random_state=None, **options):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        result.update(U, X)
+        # Compute objective function
+        grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
+        obj = sci.sum(sci.sum(grams)) - 2 * sci.sum(sci.sum(U[X.ndim - 1] * p)) + normX**2
+        
+        # Update
+        result.update2(obj)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
