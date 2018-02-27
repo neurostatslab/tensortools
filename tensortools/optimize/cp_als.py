@@ -1,5 +1,7 @@
 """
 CP decomposition by classic alternating least squares (ALS).
+
+Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 """
 
 import numpy as np
@@ -10,11 +12,11 @@ from tensortools.tensors import Ktensor
 from tensortools.data.random_tensor import randn_tensor
 from tensortools.optimize import FitResult
 
-from functools import reduce
-
 
 def cp_als(X, rank=None, random_state=None, **options):
     """
+    CP Decomposition using the Alternating Least Squares (ALS) Method.
+    
     The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
     arrays (tensors). The CP decomposition can be seen as a generalization 
     of PCA, yet there are some important conceptual differences: (a) the CP
@@ -22,7 +24,6 @@ def cp_als(X, rank=None, random_state=None, **options):
     (b) the data do not need to be unfolded. Hence, the resulting
     factors are easier to interpret and more robust to noise. 
         
-
     When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``, 
     where `U_i` are 2D arrays of rank R.
 
@@ -45,9 +46,15 @@ def cp_als(X, rank=None, random_state=None, **options):
         tol : float, optional (default ``tol=1E-5``)
             Stopping tolerance for reconstruction error.
             
-        maxiter : integer, optional (default ``maxiter = 500``)
+        max_iter : integer, optional (default ``max_iter = 500``)
             Maximum number of iterations to perform before exiting.
+            
+        min_iter : integer, optional (default ``min_iter = 1``)
+            Minimum number of iterations to perform before exiting.            
 
+        max_time : integer, optional (default ``max_time = np.inf``)
+            Maximum computational time before exiting.              
+            
         trace : bool ``{'True', 'False'}``, optional (default ``trace=True``)
             Display progress.
 
@@ -96,12 +103,20 @@ def cp_als(X, rank=None, random_state=None, **options):
     if rank < 0:
         raise ValueError("Rank is invalid.")
     
-    # default options
-    options.setdefault('init', None)
+
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize Ktensor
+    
+    # Initialize components [U_1, U_2, ... U_N] using random standard normal 
+    # distributed entries. 
+    # Note that only N-1 components are required for initialization
+    # Hence, U_1 should be assigned as an empty list, i.e., U_1 = []    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # default options
+    options.setdefault('init', None)
+
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
         U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
@@ -137,7 +152,7 @@ def cp_als(X, rank=None, random_state=None, **options):
 
             # ii)  Compute Khatri-Rao Pseudoinverse
             p1 = khatri_rao(components)
-            p2 = sci.linalg.pinv(np.multiply.reduce(grams))
+            p2 = sci.linalg.pinv(sci.multiply.reduce(grams))
 
             # iii) Update component U_n
             # TODO - give user the option to cache unfoldings
