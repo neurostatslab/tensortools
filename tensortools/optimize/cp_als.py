@@ -144,7 +144,7 @@ def cp_als(X, rank=None, random_state=None, **options):
             U[n] = unfold(X, n).dot( p1.dot(p2) )
 
             # iv) normalize U_n to prevent singularities
-            #U.rebalance()
+            U.rebalance()
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
