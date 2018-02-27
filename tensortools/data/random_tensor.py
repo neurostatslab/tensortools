@@ -4,33 +4,43 @@ import numpy as np
 from tensortools.tensors import Ktensor
 
 
-def randn_tensor(shape, rank, ktensor=False, random_state=None):
+def randn_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None):
     """
-    Generates a random rank-R tensor of shape `(IxJxK)`.
+    Generates a random N-way tensor with rank R, where the entries are 
+    drawn from the standard normal distribution. 
     
     Parameters
     ----------
     shape : tuple
         shape of the tensor
     
-    rank : int
+    rank : integer
         rank of the tensor
         
+    nonnegative : bool 
+        If ``True`` a nonnegative tensor is returned, otherwise the entries are
+        standard normal distributed. 
+        
     ktensor : bool
-        If true, a Ktensor object is returned;
-        Otherwise an array of shape `(IxJxK)` is returned.
+        If true, a Ktensor object is returned, i.e., the components are in factored
+        form ``[U_1, U_2, ... U_N]``; Otherwise an N-way array is returned.
     
-    random_state : `np.random.RandomState`
+    random_state : integer, RandomState instance or None, optional (default ``None``)
+        If integer, random_state is the seed used by the random number generator; 
+        If RandomState instance, random_state is the random number generator; 
+        If None, the random number generator is the RandomState instance used by np.random.
+
         
     Returns
     -------
-    X : ndarray
-        Rank-R tensor of shape `(IxJxK)`.
+    X : (I_1, ..., I_N) array_like
+        N-way tensor with rank R.
         
     Example
     -------        
-    # Create a rank-2 tensor of dimension 5x5x5:
-    X = cp_tensor((5,5,5), rank=2)
+    >>> # Create a rank-2 tensor of dimension 5x5x5:
+    >>> import tensortools as tt
+    >>> X = tt.randn_tensor((5,5,5), rank=2)
  
        
     """
@@ -44,11 +54,15 @@ def randn_tensor(shape, rank, ktensor=False, random_state=None):
     else:
         raise ValueError('Seed should be None, int or np.random.RandomState')
 
-    factors = [rns.standard_normal((i, rank)) for i in shape]
+    if nonnegative == False:
+        factors = [rns.standard_normal((i, rank)) for i in shape]
+    
+    elif nonnegative == True:
+        factors = [sci.maximum(0.0, rns.standard_normal((i, rank))) for i in shape]
+        
     
     if ktensor == False:
         return Ktensor(factors).full()
     
     else:
         return Ktensor(factors)
-
