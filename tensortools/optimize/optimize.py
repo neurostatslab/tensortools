@@ -40,7 +40,7 @@ class FitResult(object):
 
         # compute initial fit
         self.compute_fit(X)
-
+        
 
     def time_elapsed(self):
         return timeit.default_timer()  - self.t0
@@ -58,7 +58,10 @@ class FitResult(object):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         old_fit = self.fit
         self.U = Unext
-        fit_improvement = old_fit - self.compute_fit(X)
+        new_fit = self.compute_fit(X)
+        fit_improvement = np.abs(old_fit - new_fit)
+
+
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # If desired, print progress
@@ -75,6 +78,44 @@ class FitResult(object):
             ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
 
         return self
+    
+    
+    def update2(self, fit):
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Keep track of iterations
+        #~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.iterations += 1
+
+        if self.iterations == 1:
+            self.fit = np.inf
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Compute improvement in fit
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        fit_improvement = np.abs(self.fit - fit)
+        
+        # Update fit
+        self.fit = fit
+
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # If desired, print progress
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if self.verbose:
+            p_args = self.method, self.iterations, self.fit, fit_improvement
+            print('{}: iteration {}, fit {}, improvement {}.'.format(*p_args))
+
+        #~~~~~~~~~~~~~~~~~~~~~~
+        # Check for convergence
+        #~~~~~~~~~~~~~~~~~~~~~~
+        self.converged =\
+            ( self.iterations > self.min_iter and fit_improvement < self.tol ) or\
+            ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
+
+        return self    
+    
+    
 
     def compute_fit(self, X):
         """Updates quality of fit
