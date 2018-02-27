@@ -79,7 +79,7 @@ class FitResult(object):
     def compute_fit(self, X):
         """Updates quality of fit
         """
-        self.fit = 1 - (self.normX / sci.linalg.norm(X - self.U.full()))
+        self.fit = 1 - (sci.linalg.norm(X - self.U.full()) / self.normX)
         return self.fit
 
 
