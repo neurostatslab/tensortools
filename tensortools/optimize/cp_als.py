@@ -136,10 +136,12 @@ def cp_als(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the ALS algorithm until convergence or maxiter is reached
     # i)   compute the N gram matrices and multiply   
-    # ii)  Compute Khatri-Rao Pseudoinverse
+    # ii)  Compute Khatri-Rao product
     # iii) Update component U_1, U_2, ... U_N
     # iv) Normalize columns of U_1, U_2, ... U_N to length 1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    normX = sci.linalg.norm(X)
+    
     while result.converged == False:
 
         for n in range(X.ndim):
@@ -148,24 +150,45 @@ def cp_als(X, rank=None, random_state=None, **options):
             components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices 
-            grams = [ arr.T.dot(arr) for arr in components ]
+            grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
+            
+            # ii)  Compute Khatri-Rao product
+            kr = khatri_rao(components)    
+            
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
+            # Solve the linear equations A x = b, using the pseudo inverse.
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                 
+            #grams_pinv = sci.linalg.pinv2(grams) 
+            #p =  unfold(X, n).dot( kr )
+            #U[n] = p.dot(grams_pinv) 
 
-            # ii)  Compute Khatri-Rao Pseudoinverse
-            p1 = khatri_rao(components)
-            p2 = sci.linalg.pinv(sci.multiply.reduce(grams))
-
-            # iii) Update component U_n
-            # TODO - give user the option to cache unfoldings
-            U[n] = unfold(X, n).dot( p1.dot(p2) )
+                      
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
+            # Solve the linear equations A x = b, given the Cholesky factorization of A.
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
+            c = sci.linalg.cho_factor(grams, overwrite_a=False)
+            p = unfold(X, n).dot(kr)
+            U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
 
             # iv) normalize U_n to prevent singularities
             U.rebalance()
 
+
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        result.update(U, X)
+        
+        # Compute objective function
+        grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
+        obj = sci.sum(sci.sum(grams)) - 2 * sci.sum(sci.sum(U[X.ndim - 1] * p)) + normX**2
+        
+        # Update
+        result.update2(obj)
+        
 
+
+        
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
