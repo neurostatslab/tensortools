@@ -9,7 +9,7 @@ import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import Ktensor
-from tensortools.data.random_tensor import randn_tensor
+from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
 
@@ -119,7 +119,7 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     
     
     if options['init'] is None:
-        U = randn_tensor(X.shape, rank=rank, ktensor=True, nonnegative=True, random_state=random_state)
+        U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
        
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
@@ -185,8 +185,8 @@ def ncp_hals(X, rank=None, random_state=None, **options):
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute objective function
-        grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        obj = np.sqrt(sci.trace(grams) - 2 * sci.trace(U[X.ndim - 1].T.dot(p)) + normX**2) / normX
+        grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])        
+        obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
 
         
         # Update
@@ -195,7 +195,7 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize()
+    result.finalize(X)
 
     return result    
     
