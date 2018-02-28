@@ -103,6 +103,13 @@ def ncp_hals(X, rank=None, random_state=None, **options):
 
     if rank < 0 or rank > np.min(X.shape):
         raise ValueError("Rank 'rank' is invalid.")
+
+
+    # N-way array
+    N = X.ndim
+
+    # Norm of input array
+    normX = sci.linalg.norm(X)
     
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,6 +127,7 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     
     if options['init'] is None:
         U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
+        #U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
        
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
@@ -140,16 +148,15 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     # ii)  Compute Khatri-Rao product
     # iii) Update component U_1, U_2, ... U_N
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    normX = sci.linalg.norm(X)
     
     
     while result.converged == False:
         violation = 0.0
 
-        for n in range(X.ndim):
+        for n in range(N):
             
             # Select all components, but U_n
-            components = [U[j] for j in range(X.ndim) if j != n]
+            components = [U[j] for j in range(N) if j != n]
 
             # i) compute the N-1 gram matrices 
             grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])

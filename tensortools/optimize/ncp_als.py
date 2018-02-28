@@ -96,6 +96,12 @@ def ncp_als(X, rank=None, random_state=None, **options):
         raise ValueError("Rank is invalid.")
     
 
+    # N-way array
+    N = X.ndim
+
+    # Norm of input array
+    normX = sci.linalg.norm(X)
+
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize Ktensor
@@ -112,7 +118,8 @@ def ncp_als(X, rank=None, random_state=None, **options):
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
         U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-       
+        U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+      
         
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
@@ -132,18 +139,22 @@ def ncp_als(X, rank=None, random_state=None, **options):
     # iii) Update component U_1, U_2, ... U_N
     # iv) Normalize columns of U_1, U_2, ... U_N to length 1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    normX = sci.linalg.norm(X)
+    
+    
+    #grams_cached = [U[n].T.dot(U[n]) for n in range(N)]   
     
     while result.converged == False:
 
-        for n in range(X.ndim):
+        for n in range(N):
             
             # Select all components, but U_n
-            components = [U[j] for j in range(X.ndim) if j != n]
+            components = [U[j] for j in range(N) if j != n]
 
             # i) compute the N-1 gram matrices 
+            #grams = sci.multiply.reduce([ grams_cached[j] for j in range(N) if j != n ])
             grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
-            
+ 
+           
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)    
             
@@ -165,6 +176,8 @@ def ncp_als(X, rank=None, random_state=None, **options):
             # iv) Maximum operator to enforce nonnegativity
             U[n] = sci.maximum(0.0, U[n] )
 
+            # Update cached grams
+            #grams_cached[n] = U[n].T.dot(U[n])
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
