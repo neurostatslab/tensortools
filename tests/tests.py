@@ -67,7 +67,7 @@ class test_cp(TestCase):
         X = randn_tensor((I,J,K), rank=R, random_state=random_state)         
         P = cp_als(X, rank=R, trace=False, random_state=random_state)  
                 
-        percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
 
@@ -83,10 +83,10 @@ class test_nonnegative_cp(TestCase):
         X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
         P = ncp_hals(X, rank=R, trace=False, random_state=random_state)  
 
-        NN = np.sum(P.U.full() < 0)        
+        NN = np.sum(P.factors.full() < 0)        
         assert NN == 0   
                 
-        percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
 
@@ -95,10 +95,10 @@ class test_nonnegative_cp(TestCase):
         X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
         P = ncp_als(X, rank=R, trace=False, random_state=random_state)  
         
-        NN = np.sum(P.U.full() < 0)        
+        NN = np.sum(P.factors.full() < 0)        
         assert NN == 0   
         
-        percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
 
@@ -107,10 +107,10 @@ class test_nonnegative_cp(TestCase):
         X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
         P = ncp_bcd(X, rank=R, trace=False, random_state=random_state)  
         
-        NN = np.sum(P.U.full() < 0)        
+        NN = np.sum(P.factors.full() < 0)        
         assert NN == 0   
         
-        percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
 
