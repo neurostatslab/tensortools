@@ -75,12 +75,12 @@ ext_modules = [ ]
 
 if use_cython:
     ext_modules += [
-	Extension("tensortools._hals_update", [ "tensortools/cp_decomposition/_hals_update.pyx" ]),
+	Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.pyx" ]),
     ]
     cmdclass.update({ 'build_ext': build_ext })
 else:
     ext_modules += [
-        Extension("tensortools._hals_update", [ "tensortools/cp_decomposition/_hals_update.c" ]),
+        Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.c" ]),
     ] 
 
 

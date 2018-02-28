@@ -11,20 +11,20 @@ class FitResult(object):
     Holds result of optimization
     """
 
-    def __init__(self, X, U, method, tol=1e-5, verbose=True, max_iter=500,
+    def __init__(self, X, factors, method, tol=1e-5, verbose=True, max_iter=500,
                  min_iter=1, max_time=np.inf, **kwargs):
         """
 
         Parameters
         ----------
-        U : Ktensor
+        factors : Ktensor
 
         """
 
         self.normX = sci.linalg.norm(X)
         self.fit_history = []
 
-        self.U = U
+        self.factors = factors
 
         self.method = method
 
@@ -40,11 +40,13 @@ class FitResult(object):
 
         # compute initial fit
         self.compute_fit(X)
+        
 
     def time_elapsed(self):
         return timeit.default_timer()  - self.t0
 
-    def update(self, Unext, X):
+
+    def update(self, factors_next, X):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~
         # Keep track of iterations
@@ -55,8 +57,11 @@ class FitResult(object):
         # Compute improvement in fit
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         old_fit = self.fit
-        self.U = Unext
-        fit_improvement = old_fit - self.compute_fit(X)
+        self.factors = factors_next
+        new_fit = self.compute_fit(X)
+        fit_improvement = np.abs(old_fit - new_fit) / (old_fit + 1.0) 
+
+
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # If desired, print progress
@@ -73,21 +78,60 @@ class FitResult(object):
             ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
 
         return self
+    
+    
+    def update2(self, obj):
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Keep track of iterations
+        #~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.iterations += 1
+
+        if self.iterations == 1:
+            self.obj = np.inf
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Compute improvement in fit
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        fit_improvement = np.abs(self.obj - obj) 
+        
+        # Update fit
+        self.obj = obj
+
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # If desired, print progress
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if self.verbose:
+            p_args = self.method, self.iterations, self.obj, fit_improvement
+            print('{}: iteration {}, objective {}, improvement {}.'.format(*p_args))
+
+        #~~~~~~~~~~~~~~~~~~~~~~
+        # Check for convergence
+        #~~~~~~~~~~~~~~~~~~~~~~
+        self.converged =\
+            ( self.iterations > self.min_iter and fit_improvement < self.tol ) or\
+            ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
+
+        return self    
+    
+    
 
     def compute_fit(self, X):
         """Updates quality of fit
         """
-        self.fit = 1 - (self.normX / sci.linalg.norm(X - self.U.full()))
+        self.fit = 1 - (sci.linalg.norm(X - self.factors.full()) / self.normX)
         return self.fit
 
-    def finalize(self):
+
+    def finalize(self, X):
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Set final time, final print statement
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.total_time = self.time_elapsed()
-
+        self.fit = self.compute_fit(X)
         if self.verbose:
-            print('Converged after {} iterations, {} seconds.'.format(self.iterations, self.time_elapsed))
+            print('Converged after {} iterations, {} seconds. Final fit {}.'.format(self.iterations, self.total_time, self.fit))
 
         return self

@@ -1,7 +1,7 @@
 """
 CP decomposition by classic alternating least squares (ALS).
 
-Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
+Author: N. Benjamin Erichson <erichson@uw.edu> 
 """
 
 import numpy as np
@@ -9,13 +9,20 @@ import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import Ktensor
-from tensortools.data.random_tensor import randn_tensor
+from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
 
-def cp_als(X, rank=None, random_state=None, **options):
+#import pyximport; pyximport.install()
+from .._hals_update import _hals_update
+
+
+
+
+def ncp_hals(X, rank=None, random_state=None, **options):
     """
-    CP Decomposition using the Alternating Least Squares (ALS) Method.
+    Nonnegtaive CP Decomposition using the Hierarcial Alternating Least Squares
+    (HALS) Method.
     
     The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
     arrays (tensors). The CP decomposition can be seen as a generalization 
@@ -24,14 +31,14 @@ def cp_als(X, rank=None, random_state=None, **options):
     (b) the data do not need to be unfolded. Hence, the resulting
     factors are easier to interpret and more robust to noise. 
         
+
     When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``, 
     where `U_i` are 2D arrays of rank R.
-
     
     Parameters
     ----------
     X : (I_1, ..., I_N) array_like
-        A real array with ``X.ndim >= 3``.
+        A real array with nonnegative entries and ``X.ndim >= 3``.
     
     rank : integer
         The `rank` sets the number of components to be computed.     
@@ -68,48 +75,43 @@ def cp_als(X, rank=None, random_state=None, **options):
     
     Notes
     -----    
-    This implemenation is using the Alternating Least Squares Method.
-   
+    This implemenation is using the Hierarcial Alternating Least Squares Method.
+    
     
     References
     ----------
-    Kolda, T. G. & Bader, B. W.
-    "Tensor Decompositions and Applications." 
-    SIAM Rev. 51 (2009): 455-500
-    http://epubs.siam.org/doi/pdf/10.1137/07070111X
+    Cichocki, Andrzej, and P. H. A. N. Anh-Huy. "Fast local algorithms for
+    large scale nonnegative matrix and tensor factorizations."
+    IEICE transactions on fundamentals of electronics, communications and
+    computer sciences 92.3: 708-721, 2009.
 
-    Comon, Pierre & Xavier Luciani & Andre De Almeida. 
-    "Tensor decompositions, alternating least squares and other tales."
-    Journal of chemometrics 23 (2009): 393-405.
-    http://onlinelibrary.wiley.com/doi/10.1002/cem.1236/abstract
-    
-    
     Examples
     --------    
-
     
-
+    
     """
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Error catching
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~     
+    
     if X.ndim < 3:
-        raise ValueError("Array with X.ndim > 2 expected.")
+        raise ValueError("Array with ndim > 2 expected.")
 
     if rank is None:
-        raise ValueError("Rank is not specified.")
+        raise ValueError("Rank 'rank' not given.")
 
-    if rank < 0:
-        raise ValueError("Rank is invalid.")
-    
+    if rank < 0 or rank > np.min(X.shape):
+        raise ValueError("Rank 'rank' is invalid.")
+
+
     # N-way array
     N = X.ndim
 
     # Norm of input array
     normX = sci.linalg.norm(X)
-
-
+    
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize Ktensor
     
@@ -118,35 +120,38 @@ def cp_als(X, rank=None, random_state=None, **options):
     # Note that only N-1 components are required for initialization
     # Hence, U_1 should be assigned as an empty list, i.e., U_1 = []    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+    
     # default options
-    options.setdefault('init', None)
-
+    options.setdefault('init', None)    
+    
+    
     if options['init'] is None:
-        # TODO - match the norm of the initialization to the norm of X.
-        U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
-        
+        U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
+        #U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+       
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
     
     else:
         U = options['init']
-
+    
+ 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Init
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    result = FitResult(X, U, 'CP_ALS', **options)
+    result = FitResult(X, U, 'NCP_HALS', **options)    
+    
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Iterate the ALS algorithm until convergence or maxiter is reached
+    # Iterate the HALS algorithm until convergence or maxiter is reached
     # i)   compute the N gram matrices and multiply   
     # ii)  Compute Khatri-Rao product
     # iii) Update component U_1, U_2, ... U_N
-    # iv) Normalize columns of U_1, U_2, ... U_N to length 1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
+    
     while result.converged == False:
+        violation = 0.0
 
         for n in range(N):
             
@@ -155,49 +160,51 @@ def cp_als(X, rank=None, random_state=None, **options):
 
             # i) compute the N-1 gram matrices 
             grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
-            
+
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)    
+            p =  unfold(X, n).dot( kr )
+
+            # iii) Update component U_n
+            violation += _hals_update(U[n], grams, p )
             
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            # Solve the linear equations A x = b, using the pseudo inverse.
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                 
-            #grams_pinv = sci.linalg.pinv2(grams) 
-            #p =  unfold(X, n).dot( kr )
-            #U[n] = p.dot(grams_pinv) 
 
-                      
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            # Solve the linear equations A x = b, given the Cholesky factorization of A.
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            c = sci.linalg.cho_factor(grams, overwrite_a=False)
-            p = unfold(X, n).dot(kr)
-            U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Compute stopping condition.
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-            # iv) normalize U_n to prevent singularities
-            U.rebalance()
-
+#        if itr == 0:
+#            violation_init = violation
+#    
+#        if violation_init == 0:
+#            break       
+#    
+#        fitchange = violation / violation_init
+#            
+#        if trace == True:
+#            print('Iteration: %s fit: %s, fitchange: %s' %(itr, violation, fitchange))        
+#    
+#        if fitchange <= tol:
+#            break
 
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
         # Compute objective function
-        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
+        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])        
+        #obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
         obj = sci.linalg.norm(X - U.full()) / normX
-        
+
         
         # Update
         result.update2(obj)
-        
 
-
-        
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     result.finalize(X)
 
-    return result
+    return result    
+    
+    

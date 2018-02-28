@@ -9,13 +9,13 @@ import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import Ktensor
-from tensortools.data.random_tensor import randn_tensor
+from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
 
-def cp_als(X, rank=None, random_state=None, **options):
+def ncp_als(X, rank=None, random_state=None, **options):
     """
-    CP Decomposition using the Alternating Least Squares (ALS) Method.
+    Nonnegative CP Decomposition using the Alternating Least Squares (ALS) Method.
     
     The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
     arrays (tensors). The CP decomposition can be seen as a generalization 
@@ -31,7 +31,7 @@ def cp_als(X, rank=None, random_state=None, **options):
     Parameters
     ----------
     X : (I_1, ..., I_N) array_like
-        A real array with ``X.ndim >= 3``.
+        A real array with nonnegative entries and ``X.ndim >= 3``.
     
     rank : integer
         The `rank` sets the number of components to be computed.     
@@ -73,15 +73,7 @@ def cp_als(X, rank=None, random_state=None, **options):
     
     References
     ----------
-    Kolda, T. G. & Bader, B. W.
-    "Tensor Decompositions and Applications." 
-    SIAM Rev. 51 (2009): 455-500
-    http://epubs.siam.org/doi/pdf/10.1137/07070111X
 
-    Comon, Pierre & Xavier Luciani & Andre De Almeida. 
-    "Tensor decompositions, alternating least squares and other tales."
-    Journal of chemometrics 23 (2009): 393-405.
-    http://onlinelibrary.wiley.com/doi/10.1002/cem.1236/abstract
     
     
     Examples
@@ -103,6 +95,7 @@ def cp_als(X, rank=None, random_state=None, **options):
     if rank < 0:
         raise ValueError("Rank is invalid.")
     
+
     # N-way array
     N = X.ndim
 
@@ -124,8 +117,9 @@ def cp_als(X, rank=None, random_state=None, **options):
 
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
-        U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
+        U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
         U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+      
         
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
@@ -136,7 +130,7 @@ def cp_als(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Init
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    result = FitResult(X, U, 'CP_ALS', **options)
+    result = FitResult(X, U, 'NCP_ALS', **options)
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the ALS algorithm until convergence or maxiter is reached
@@ -146,6 +140,9 @@ def cp_als(X, rank=None, random_state=None, **options):
     # iv) Normalize columns of U_1, U_2, ... U_N to length 1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
+    
+    #grams_cached = [U[n].T.dot(U[n]) for n in range(N)]   
+    
     while result.converged == False:
 
         for n in range(N):
@@ -154,8 +151,10 @@ def cp_als(X, rank=None, random_state=None, **options):
             components = [U[j] for j in range(N) if j != n]
 
             # i) compute the N-1 gram matrices 
+            #grams = sci.multiply.reduce([ grams_cached[j] for j in range(N) if j != n ])
             grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
-            
+ 
+           
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)    
             
@@ -174,10 +173,11 @@ def cp_als(X, rank=None, random_state=None, **options):
             p = unfold(X, n).dot(kr)
             U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
 
-            # iv) normalize U_n to prevent singularities
-            U.rebalance()
+            # iv) Maximum operator to enforce nonnegativity
+            U[n] = sci.maximum(0.0, U[n] )
 
-
+            # Update cached grams
+            #grams_cached[n] = U[n].T.dot(U[n])
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
@@ -187,7 +187,6 @@ def cp_als(X, rank=None, random_state=None, **options):
         #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
         #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
         obj = sci.linalg.norm(X - U.full()) / normX
-        
         
         # Update
         result.update2(obj)
