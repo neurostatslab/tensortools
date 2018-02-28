@@ -3,7 +3,7 @@ import numpy as np
 import scipy as sci
 
 
-from tensortools.optimize import cp_als, ncp_hals
+from tensortools.optimize import cp_als, ncp_hals, ncp_als
 from tensortools.operations import khatri_rao
 from tensortools.tensors import Ktensor
 from tensortools.data import randn_tensor, rand_tensor
@@ -58,7 +58,7 @@ class test_base(TestCase):
 #
 #******************************************************************************
 #
-class test_cp_als(TestCase):
+class test_cp(TestCase):
     def setUp(self):
         np.random.seed(123)        
         
@@ -74,7 +74,7 @@ class test_cp_als(TestCase):
 #
 #******************************************************************************
 #
-class test_ncp_hals(TestCase):
+class test_nonnegative_cp(TestCase):
     def setUp(self):
         np.random.seed(123)        
         
@@ -82,12 +82,24 @@ class test_ncp_hals(TestCase):
         I,J,K,R = 15,15,15,3
         X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
         P = ncp_hals(X, rank=R, trace=False, random_state=random_state)  
+
+        NN = np.sum(P.U.full() < 0)        
+        assert NN == 0   
                 
         percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
 
-
+    def test_ncp_als_deterministic(self):
+        I,J,K,R = 15,15,15,3
+        X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
+        P = ncp_als(X, rank=R, trace=False, random_state=random_state)  
+        
+        NN = np.sum(P.U.full() < 0)        
+        assert NN == 0   
+        
+        percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
+        assert percent_error < atol_float32   
 
 
 
@@ -98,7 +110,9 @@ class test_ncp_hals(TestCase):
 def suite():
     s = TestSuite()
     s.addTest(test_base('test_khatrirao'))
-    s.addTest(test_cp_als('test_cp_als_deterministic'))
+    s.addTest(test_cp('test_cp_als_deterministic'))
+    s.addTest(test_nonnegative_cp('test_ncp_hals_deterministic'))
+    s.addTest(test_nonnegative_cp('test_ncp_als_deterministic'))
 
 
     
