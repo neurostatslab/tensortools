@@ -186,7 +186,8 @@ def ncp_hals(X, rank=None, random_state=None, **options):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute objective function
         grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        obj = sci.sum(sci.sum(grams)) - 2 * sci.sum(sci.sum(U[X.ndim - 1] * p)) + normX**2
+        obj = np.sqrt(sci.trace(grams) - 2 * sci.trace(U[X.ndim - 1].T.dot(p)) + normX**2) / normX
+
         
         # Update
         result.update2(obj)
