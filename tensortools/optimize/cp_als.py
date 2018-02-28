@@ -180,8 +180,9 @@ def cp_als(X, rank=None, random_state=None, **options):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
         # Compute objective function
-        grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
+        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
+        #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
+        obj = sci.linalg.norm(X - U.full()) / normX
         
         
         # Update

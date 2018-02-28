@@ -38,7 +38,7 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     Parameters
     ----------
     X : (I_1, ..., I_N) array_like
-        A real array with ``X.ndim >= 3``.
+        A real array with nonnegative entries and ``X.ndim >= 3``.
     
     rank : integer
         The `rank` sets the number of components to be computed.     
@@ -185,8 +185,9 @@ def ncp_hals(X, rank=None, random_state=None, **options):
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute objective function
-        grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])        
-        obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
+        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])        
+        #obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
+        obj = sci.linalg.norm(X - U.full()) / normX
 
         
         # Update
