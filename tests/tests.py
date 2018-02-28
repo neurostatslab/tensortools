@@ -6,7 +6,7 @@ import scipy as sci
 from tensortools.optimize import cp_als, ncp_hals
 from tensortools.operations import khatri_rao
 from tensortools.tensors import Ktensor
-from tensortools.data import randn_tensor
+from tensortools.data import randn_tensor, rand_tensor
 
 
 from unittest import main, makeSuite, TestCase, TestSuite
@@ -80,7 +80,7 @@ class test_ncp_hals(TestCase):
         
     def test_ncp_hals_deterministic(self):
         I,J,K,R = 15,15,15,3
-        X = randn_tensor((I,J,K), rank=R, nonnegative=True, random_state=random_state)         
+        X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
         P = ncp_hals(X, rank=R, trace=False, random_state=random_state)  
                 
         percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
