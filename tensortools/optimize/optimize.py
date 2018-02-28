@@ -11,20 +11,20 @@ class FitResult(object):
     Holds result of optimization
     """
 
-    def __init__(self, X, U, method, tol=1e-5, verbose=True, max_iter=500,
+    def __init__(self, X, factors, method, tol=1e-5, verbose=True, max_iter=500,
                  min_iter=1, max_time=np.inf, **kwargs):
         """
 
         Parameters
         ----------
-        U : Ktensor
+        factors : Ktensor
 
         """
 
         self.normX = sci.linalg.norm(X)
         self.fit_history = []
 
-        self.U = U
+        self.factors = factors
 
         self.method = method
 
@@ -46,7 +46,7 @@ class FitResult(object):
         return timeit.default_timer()  - self.t0
 
 
-    def update(self, Unext, X):
+    def update(self, factors_next, X):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~
         # Keep track of iterations
@@ -57,7 +57,7 @@ class FitResult(object):
         # Compute improvement in fit
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         old_fit = self.fit
-        self.U = Unext
+        self.factors = factors_next
         new_fit = self.compute_fit(X)
         fit_improvement = np.abs(old_fit - new_fit) / (old_fit + 1.0) 
 
@@ -120,7 +120,7 @@ class FitResult(object):
     def compute_fit(self, X):
         """Updates quality of fit
         """
-        self.fit = 1 - (sci.linalg.norm(X - self.U.full()) / self.normX)
+        self.fit = 1 - (sci.linalg.norm(X - self.factors.full()) / self.normX)
         return self.fit
 
 
