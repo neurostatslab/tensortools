@@ -181,7 +181,7 @@ def cp_als(X, rank=None, random_state=None, **options):
         
         # Compute objective function
         grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        obj = np.sqrt(sci.trace(grams) - 2 * sci.trace(U[X.ndim - 1].T.dot(p)) + normX**2) / normX
+        obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
         
         
         # Update
@@ -193,6 +193,6 @@ def cp_als(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize()
+    result.finalize(X)
 
     return result

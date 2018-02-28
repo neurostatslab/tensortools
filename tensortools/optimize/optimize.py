@@ -59,7 +59,7 @@ class FitResult(object):
         old_fit = self.fit
         self.U = Unext
         new_fit = self.compute_fit(X)
-        fit_improvement = np.abs(old_fit - new_fit)
+        fit_improvement = np.abs(old_fit - new_fit) / (old_fit + 1.0) 
 
 
 
@@ -124,14 +124,14 @@ class FitResult(object):
         return self.fit
 
 
-    def finalize(self):
+    def finalize(self, X):
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Set final time, final print statement
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.total_time = self.time_elapsed()
-
+        self.fit = self.compute_fit(X)
         if self.verbose:
-            print('Converged after {} iterations, {} seconds.'.format(self.iterations, self.total_time))
+            print('Converged after {} iterations, {} seconds. Final fit {}.'.format(self.iterations, self.total_time, self.fit))
 
         return self
