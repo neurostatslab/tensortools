@@ -3,7 +3,7 @@ import numpy as np
 import scipy as sci
 
 
-from tensortools.optimize import cp_als, ncp_hals, ncp_als
+from tensortools.optimize import cp_als, ncp_hals, ncp_als, ncp_bcd
 from tensortools.operations import khatri_rao
 from tensortools.tensors import Ktensor
 from tensortools.data import randn_tensor, rand_tensor
@@ -102,6 +102,18 @@ class test_nonnegative_cp(TestCase):
         assert percent_error < atol_float32   
 
 
+    def test_ncp_bcd_deterministic(self):
+        I,J,K,R = 15,15,15,3
+        X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
+        P = ncp_bcd(X, rank=R, trace=False, random_state=random_state)  
+        
+        NN = np.sum(P.U.full() < 0)        
+        assert NN == 0   
+        
+        percent_error = sci.linalg.norm(P.U.full() - X) / sci.linalg.norm(X)
+        assert percent_error < atol_float32   
+
+
 
 #
 #******************************************************************************
@@ -113,6 +125,7 @@ def suite():
     s.addTest(test_cp('test_cp_als_deterministic'))
     s.addTest(test_nonnegative_cp('test_ncp_hals_deterministic'))
     s.addTest(test_nonnegative_cp('test_ncp_als_deterministic'))
+    s.addTest(test_nonnegative_cp('test_ncp_bcd_deterministic'))
 
 
     
