@@ -80,7 +80,7 @@ class FitResult(object):
         return self
     
     
-    def update2(self, fit):
+    def update2(self, obj):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~
         # Keep track of iterations
@@ -88,23 +88,23 @@ class FitResult(object):
         self.iterations += 1
 
         if self.iterations == 1:
-            self.fit = np.inf
+            self.obj = np.inf
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute improvement in fit
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        fit_improvement = np.abs(self.fit - fit)
+        fit_improvement = np.abs(self.obj - obj) 
         
         # Update fit
-        self.fit = fit
+        self.obj = obj
 
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # If desired, print progress
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.verbose:
-            p_args = self.method, self.iterations, self.fit, fit_improvement
-            print('{}: iteration {}, fit {}, improvement {}.'.format(*p_args))
+            p_args = self.method, self.iterations, self.obj, fit_improvement
+            print('{}: iteration {}, objective {}, improvement {}.'.format(*p_args))
 
         #~~~~~~~~~~~~~~~~~~~~~~
         # Check for convergence
@@ -132,6 +132,6 @@ class FitResult(object):
         self.total_time = self.time_elapsed()
 
         if self.verbose:
-            print('Converged after {} iterations, {} seconds.'.format(self.iterations, self.time_elapsed))
+            print('Converged after {} iterations, {} seconds.'.format(self.iterations, self.total_time))
 
         return self
