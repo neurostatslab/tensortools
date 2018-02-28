@@ -9,13 +9,13 @@ import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import Ktensor
-from tensortools.data.random_tensor import randn_tensor
+from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
 
-def cp_als(X, rank=None, random_state=None, **options):
+def ncp_bcd(X, rank=None, random_state=None, **options):
     """
-    CP Decomposition using the Alternating Least Squares (ALS) Method.
+    Nonnegative CP Decomposition using the Block Coordinate Descent (BCD) Method.
     
     The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
     arrays (tensors). The CP decomposition can be seen as a generalization 
@@ -31,7 +31,7 @@ def cp_als(X, rank=None, random_state=None, **options):
     Parameters
     ----------
     X : (I_1, ..., I_N) array_like
-        A real array with ``X.ndim >= 3``.
+        A real array with nonnegative entries and ``X.ndim >= 3``.
     
     rank : integer
         The `rank` sets the number of components to be computed.     
@@ -68,25 +68,20 @@ def cp_als(X, rank=None, random_state=None, **options):
     
     Notes
     -----    
-    This implemenation is using the Alternating Least Squares Method.
+    This implemenation is using the Block Coordinate Descent Method.
    
     
     References
     ----------
-    Kolda, T. G. & Bader, B. W.
-    "Tensor Decompositions and Applications." 
-    SIAM Rev. 51 (2009): 455-500
-    http://epubs.siam.org/doi/pdf/10.1137/07070111X
 
-    Comon, Pierre & Xavier Luciani & Andre De Almeida. 
-    "Tensor decompositions, alternating least squares and other tales."
-    Journal of chemometrics 23 (2009): 393-405.
-    http://onlinelibrary.wiley.com/doi/10.1002/cem.1236/abstract
     
     
     Examples
     --------    
-
+    Xu, Yangyang, and Wotao Yin. "A block coordinate descent method for 
+    regularized multiconvex optimization with applications to 	
+    negative tensor factorization and completion." 
+    SIAM Journal on imaging sciences 6.3 (2013): 1758-1789.
     
 
     """
@@ -103,12 +98,12 @@ def cp_als(X, rank=None, random_state=None, **options):
     if rank < 0:
         raise ValueError("Rank is invalid.")
     
+
     # N-way array
     N = X.ndim
 
     # Norm of input array
     normX = sci.linalg.norm(X)
-
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize Ktensor
@@ -124,8 +119,9 @@ def cp_als(X, rank=None, random_state=None, **options):
 
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
-        U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+        U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
+        #U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+       
         
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
@@ -136,18 +132,30 @@ def cp_als(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Init
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    result = FitResult(X, U, 'CP_ALS', **options)
+    result = FitResult(X, U, 'NCP_BCD', **options)
+    
+
+
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Iterate the ALS algorithm until convergence or maxiter is reached
-    # i)   compute the N gram matrices and multiply   
-    # ii)  Compute Khatri-Rao product
-    # iii) Update component U_1, U_2, ... U_N
-    # iv) Normalize columns of U_1, U_2, ... U_N to length 1
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Block coordinate descent 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    
+    Um = sci.copy(U.factors) # Extrapolations of compoenents    
+    #Um = Ktensor(Um)
+    
+    extraw = 1 # Used for extrapolation weight update
+    weights_U = np.ones(N) # Extrapolation weights
+    L = np.ones(N) # Lipschitz constants    
+    obj_bcd = 0.5 * normX**2 # Initial objective value                       
+    
     
     while result.converged == False:
-
+        obj_bcd_old = obj_bcd # Old objective value
+        U_old = sci.copy(U.factors) # Old updates
+        extraw_old = extraw         
+                
+        
         for n in range(N):
             
             # Select all components, but U_n
@@ -155,29 +163,25 @@ def cp_als(X, rank=None, random_state=None, **options):
 
             # i) compute the N-1 gram matrices 
             grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
+ 
+            # Update gradient Lipschnitz constant
+            L0 = L # Lipschitz constants
+            L[n] = sci.linalg.norm(grams, 2)    
+    
             
             # ii)  Compute Khatri-Rao product
-            kr = khatri_rao(components)    
+            kr = khatri_rao(components)            
+            p = unfold(X, n).dot( kr ) 
             
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            # Solve the linear equations A x = b, using the pseudo inverse.
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                 
-            #grams_pinv = sci.linalg.pinv2(grams) 
-            #p =  unfold(X, n).dot( kr )
-            #U[n] = p.dot(grams_pinv) 
-
-                      
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            # Solve the linear equations A x = b, given the Cholesky factorization of A.
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            c = sci.linalg.cho_factor(grams, overwrite_a=False)
-            p = unfold(X, n).dot(kr)
-            U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
-
-            # iv) normalize U_n to prevent singularities
-            U.rebalance()
-
-
+            # Compute Gradient
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+            grad = Um[n] .dot(grams) - p
+            
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Maximum operator to enforce nonnegativity
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
+            U[n] = sci.maximum(0.0, Um[n] - grad / L[n]) 
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
@@ -188,10 +192,29 @@ def cp_als(X, rank=None, random_state=None, **options):
         #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
         obj = sci.linalg.norm(X - U.full()) / normX
         
-        
         # Update
         result.update2(obj)
         
+        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Correction and extrapolation
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+        grams *= U[N - 1].T.dot(U[N - 1])
+        obj_bcd = 0.5 * (sci.sum(grams) - 2 * sci.sum(U[N-1] * p) + normX**2 ) 
+        
+        extraw = (1 + sci.sqrt(1 + 4 * extraw_old**2)) / 2.0
+        
+        if obj_bcd >= obj_bcd_old:
+            # restore previous A to make the objective nonincreasing
+            Um = sci.copy(U_old)
+
+        else: 
+            # apply extrapolation
+            w = (extraw_old - 1.0) / extraw # Extrapolation weight
+            for n in range(N):
+                weights_U[n] = min(w, 1.0 * sci.sqrt( L0[n] / L[n] )) # choose smaller weights for convergence
+                Um[n] = U[n] + weights_U[n] * (U[n] - U_old[n]) # extrapolation
+       
 
 
         
