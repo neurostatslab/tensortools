@@ -55,6 +55,7 @@ class FitResult(object):
         improvement = self.obj - obj
         # assert improvement > 0
         self.obj = obj
+        self.obj_hist.append(obj)
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # If desired, print progress
