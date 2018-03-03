@@ -11,7 +11,7 @@ class FitResult(object):
     Holds result of optimization
     """
 
-    def __init__(self, X, factors, method, tol=1e-5, verbose=True, max_iter=500,
+    def __init__(self, factors, method, tol=1e-5, verbose=True, max_iter=500,
                  min_iter=1, max_time=np.inf, **kwargs):
         """
 
@@ -21,11 +21,9 @@ class FitResult(object):
 
         """
 
-        self.normX = sci.linalg.norm(X)
-        self.fit_history = []
-
         self.factors = factors
-
+        self.obj = np.inf
+        self.obj_hist = []
         self.method = method
 
         self.tol = tol
@@ -38,49 +36,10 @@ class FitResult(object):
         self.converged = False
         self.t0 = timeit.default_timer()
 
-        # compute initial fit
-        self.compute_fit(X)
-        
-
     def time_elapsed(self):
         return timeit.default_timer()  - self.t0
-
-
-    def update(self, factors_next, X):
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Keep track of iterations
-        #~~~~~~~~~~~~~~~~~~~~~~~~~
-        self.iterations += 1
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute improvement in fit
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        old_fit = self.fit
-        self.factors = factors_next
-        new_fit = self.compute_fit(X)
-        fit_improvement = np.abs(old_fit - new_fit) / (old_fit + 1.0) 
-
-
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # If desired, print progress
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        if self.verbose:
-            p_args = self.method, self.iterations, self.fit, fit_improvement
-            print('{}: iteration {}, fit {}, improvement {}.'.format(*p_args))
-
-        #~~~~~~~~~~~~~~~~~~~~~~
-        # Check for convergence
-        #~~~~~~~~~~~~~~~~~~~~~~
-        self.converged =\
-            ( self.iterations > self.min_iter and fit_improvement < self.tol ) or\
-            ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
-
-        return self
     
-    
-    def update2(self, obj):
+    def update(self, obj):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~
         # Keep track of iterations
@@ -91,47 +50,37 @@ class FitResult(object):
             self.obj = np.inf
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute improvement in fit
+        # Compute improvement in objective
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        fit_improvement = np.abs(self.obj - obj) 
-        
-        # Update fit
+        improvement = self.obj - obj
+        # assert improvement > 0
         self.obj = obj
-
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # If desired, print progress
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.verbose:
-            p_args = self.method, self.iterations, self.obj, fit_improvement
+            p_args = self.method, self.iterations, self.obj, improvement
             print('{}: iteration {}, objective {}, improvement {}.'.format(*p_args))
 
         #~~~~~~~~~~~~~~~~~~~~~~
         # Check for convergence
         #~~~~~~~~~~~~~~~~~~~~~~
         self.converged =\
-            ( self.iterations > self.min_iter and fit_improvement < self.tol ) or\
+            ( self.iterations > self.min_iter and improvement < self.tol ) or\
             ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
 
         return self    
-    
-    
-
-    def compute_fit(self, X):
-        """Updates quality of fit
-        """
-        self.fit = 1 - (sci.linalg.norm(X - self.factors.full()) / self.normX)
-        return self.fit
 
 
-    def finalize(self, X):
+    def finalize(self):
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Set final time, final print statement
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.total_time = self.time_elapsed()
-        self.fit = self.compute_fit(X)
+
         if self.verbose:
-            print('Converged after {} iterations, {} seconds. Final fit {}.'.format(self.iterations, self.total_time, self.fit))
+            print('Converged after {} iterations, {} seconds. Final objective {}.'.format(self.iterations, self.total_time, self.obj))
 
         return self

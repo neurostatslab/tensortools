@@ -130,7 +130,7 @@ def ncp_als(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Init
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    result = FitResult(X, U, 'NCP_ALS', **options)
+    result = FitResult(U, 'NCP_ALS', **options)
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the ALS algorithm until convergence or maxiter is reached
@@ -185,11 +185,11 @@ def ncp_als(X, rank=None, random_state=None, **options):
         
         # Compute objective function
         #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
-        obj = sci.linalg.norm(X - U.full()) / normX
+        obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
+        # obj = sci.linalg.norm(X - U.full()) / normX
         
         # Update
-        result.update2(obj)
+        result.update(obj)
         
 
 
@@ -197,6 +197,6 @@ def ncp_als(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize(X)
+    result.finalize()
 
     return result

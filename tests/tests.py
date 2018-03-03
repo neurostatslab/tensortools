@@ -64,8 +64,8 @@ class test_cp(TestCase):
         
     def test_cp_als_deterministic(self):
         I,J,K,R = 15,15,15,3
-        X = randn_tensor((I,J,K), rank=R, random_state=random_state)         
-        P = cp_als(X, rank=R, trace=False, random_state=random_state)  
+        X = randn_tensor((I,J,K), rank=R, random_state=random_state)
+        P = cp_als(X, rank=R, trace=False, random_state=random_state)
                 
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
