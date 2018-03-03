@@ -132,7 +132,7 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Init
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    result = FitResult(X, U, 'NCP_BCD', **options)
+    result = FitResult(U, 'NCP_BCD', **options)
     
 
 
@@ -193,7 +193,7 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
         obj = sci.linalg.norm(X - U.full()) / normX
         
         # Update
-        result.update2(obj)
+        result.update(obj)
         
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -221,6 +221,6 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize(X)
+    result.finalize()
 
     return result

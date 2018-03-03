@@ -112,11 +112,8 @@ def cp_als(X, rank=None, random_state=None, **options):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize Ktensor
-    
     # Initialize components [U_1, U_2, ... U_N] using random standard normal 
     # distributed entries. 
-    # Note that only N-1 components are required for initialization
-    # Hence, U_1 should be assigned as an empty list, i.e., U_1 = []    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # default options
@@ -125,79 +122,51 @@ def cp_als(X, rank=None, random_state=None, **options):
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
         U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
-        
+
     elif type(options['init']) is not Ktensor:
         raise ValueError("Optional parameter 'init' is not a Ktensor.")
     
     else:
         U = options['init']
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Init
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    result = FitResult(X, U, 'CP_ALS', **options)
+    # initialize result
+    result = FitResult(U, 'CP_ALS', **options)
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the ALS algorithm until convergence or maxiter is reached
-    # i)   compute the N gram matrices and multiply   
-    # ii)  Compute Khatri-Rao product
-    # iii) Update component U_1, U_2, ... U_N
-    # iv) Normalize columns of U_1, U_2, ... U_N to length 1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
     while result.converged == False:
 
         for n in range(N):
-            
-            # Select all components, but U_n
+
+            # i) Normalize factors to prevent singularities
+            U.rebalance()
+
+            # ii) compute the N-1 gram matrices 
             components = [U[j] for j in range(N) if j != n]
-
-            # i) compute the N-1 gram matrices 
-            grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
+            grams = sci.multiply.reduce([sci.dot(u.T, u) for u in components])
             
-            # ii)  Compute Khatri-Rao product
-            kr = khatri_rao(components)    
+            # iii)  Compute Khatri-Rao product
+            kr = khatri_rao(components)
             
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            # Solve the linear equations A x = b, using the pseudo inverse.
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                 
-            #grams_pinv = sci.linalg.pinv2(grams) 
-            #p =  unfold(X, n).dot( kr )
-            #U[n] = p.dot(grams_pinv) 
-
-                      
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
-            # Solve the linear equations A x = b, given the Cholesky factorization of A.
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~            
+            # iv) Form normal equations and solve via Cholesky
             c = sci.linalg.cho_factor(grams, overwrite_a=False)
             p = unfold(X, n).dot(kr)
             U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
 
-            # iv) normalize U_n to prevent singularities
-            U.rebalance()
-
-
-
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
         # Compute objective function
-        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
-        obj = sci.linalg.norm(X - U.full()) / normX
+        grams *= U[-1].T.dot(U[-1])
+        obj = np.sqrt(np.sum(grams) - 2 * sci.sum(p * U[-1]) + normX**2) / normX
         
-        
-        # Update
-        result.update2(obj)
-        
-
-
-        
+        # Update result 
+        result.update(obj)
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Prepares final version of the optimization result.
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize(X)
+    result.finalize()
 
     return result
