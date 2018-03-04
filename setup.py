@@ -87,8 +87,11 @@ else:
 install_requires=[
 	'cython',
    	'numpy',
-   	'scipy'
+   	'scipy',
+	'tqdm',
+	'munkres',
 ]
+
 
 tests_require = ['numpy',
    		 'scipy']
