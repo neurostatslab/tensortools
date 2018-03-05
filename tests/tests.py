@@ -3,7 +3,7 @@ import numpy as np
 import scipy as sci
 
 
-from tensortools.optimize import cp_als, ncp_hals, ncp_als, ncp_bcd
+from tensortools.optimize import cp_als, ncp_hals, ncp_bcd, cp_opt
 from tensortools.operations import khatri_rao
 from tensortools.tensors import Ktensor
 from tensortools.data import randn_tensor, rand_tensor
@@ -71,6 +71,21 @@ class test_cp(TestCase):
         assert percent_error < atol_float32   
 
 
+    def test_cp_opt_deterministic(self):
+        I,J,K,R = 10,10,10,2
+        X = randn_tensor((I,J,K), rank=R, random_state=random_state)
+        P = cp_opt(X, rank=R, trace=False, method='BFGS', random_state=random_state)
+                
+        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
+        assert percent_error < atol_float32   
+
+
+        P = cp_opt(X, rank=R, trace=False, method='Newton-CG', random_state=random_state)
+                
+        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
+        assert percent_error < atol_float32   
+
+
 #
 #******************************************************************************
 #
@@ -89,17 +104,6 @@ class test_nonnegative_cp(TestCase):
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
         assert percent_error < atol_float32   
 
-
-    def test_ncp_als_deterministic(self):
-        I,J,K,R = 15,15,15,3
-        X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
-        P = ncp_als(X, rank=R, trace=False, random_state=random_state)  
-        
-        NN = np.sum(P.factors.full() < 0)        
-        assert NN == 0   
-        
-        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32   
 
 
     def test_ncp_bcd_deterministic(self):
@@ -124,7 +128,6 @@ def suite():
     s.addTest(test_base('test_khatrirao'))
     s.addTest(test_cp('test_cp_als_deterministic'))
     s.addTest(test_nonnegative_cp('test_ncp_hals_deterministic'))
-    s.addTest(test_nonnegative_cp('test_ncp_als_deterministic'))
     s.addTest(test_nonnegative_cp('test_ncp_bcd_deterministic'))
 
 
