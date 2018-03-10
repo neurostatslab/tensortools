@@ -8,7 +8,7 @@ import numpy as np
 import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
-from tensortools.tensors import Ktensor
+from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
@@ -113,7 +113,7 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize Ktensor
+    # Initialize KTensor
     
     # Initialize components [U_1, U_2, ... U_N] using random standard normal 
     # distributed entries. 
@@ -127,10 +127,10 @@ def ncp_hals(X, rank=None, random_state=None, **options):
     
     if options['init'] is None:
         U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        #U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+        #U = KTensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
        
-    elif type(options['init']) is not Ktensor:
-        raise ValueError("Optional parameter 'init' is not a Ktensor.")
+    elif type(options['init']) is not KTensor:
+        raise ValueError("Optional parameter 'init' is not a KTensor.")
     
     else:
         U = options['init']

@@ -1,7 +1,7 @@
 import scipy as sci
 import numpy as np
 
-from tensortools.tensors import Ktensor
+from tensortools.tensors import KTensor
 
 
 def randn_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None):
@@ -22,7 +22,7 @@ def randn_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=Non
         standard normal distributed. 
         
     ktensor : bool
-        If true, a Ktensor object is returned, i.e., the components are in factored
+        If true, a KTensor object is returned, i.e., the components are in factored
         form ``[U_1, U_2, ... U_N]``; Otherwise an N-way array is returned.
     
     random_state : integer, RandomState instance or None, optional (default ``None``)
@@ -62,10 +62,10 @@ def randn_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=Non
         
     
     if ktensor == False:
-        return Ktensor(factors).full()
+        return KTensor(factors).full()
     
     else:
-        return Ktensor(factors)
+        return KTensor(factors)
     
     
     
@@ -91,7 +91,7 @@ def rand_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None
         standard normal distributed. 
         
     ktensor : bool
-        If true, a Ktensor object is returned, i.e., the components are in factored
+        If true, a KTensor object is returned, i.e., the components are in factored
         form ``[U_1, U_2, ... U_N]``; Otherwise an N-way array is returned.
     
     random_state : integer, RandomState instance or None, optional (default ``None``)
@@ -128,7 +128,7 @@ def rand_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None
         
     
     if ktensor == False:
-        return Ktensor(factors).full()
+        return KTensor(factors).full()
     
     else:
-        return Ktensor(factors)        
+        return KTensor(factors)        

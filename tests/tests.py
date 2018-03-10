@@ -2,15 +2,15 @@ from __future__ import division
 import numpy as np
 import scipy as sci
 
-
 from tensortools.optimize import cp_als, ncp_hals, ncp_bcd, cp_opt
 from tensortools.operations import khatri_rao
-from tensortools.tensors import Ktensor
 from tensortools.data import randn_tensor, rand_tensor
-
+from tensortools.diagnostics import kruskal_align
 
 from unittest import main, makeSuite, TestCase, TestSuite
 from numpy.testing import assert_raises, assert_equal
+
+from copy import deepcopy
 
 atol_float32 = 1e-4
 atol_float64 = 1e-8
@@ -52,7 +52,19 @@ class test_base(TestCase):
         assert np.allclose(khatri_rao((A, B)), C, atol_float64)   
 
 
+#
+#******************************************************************************
+#
+class test_diagnostics(TestCase):
+    def setUp(self):
+        np.random.seed(123)
 
+    def test_align(self):
+        I,J,K = 15,15,15
+        U = randn_tensor((I,J,K), rank=3, ktensor=True)
+        V = deepcopy(U)
+
+        assert (kruskal_align(U, V) - 1) < atol_float64
      
 
 #

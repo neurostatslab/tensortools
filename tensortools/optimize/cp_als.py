@@ -8,7 +8,7 @@ import numpy as np
 import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
-from tensortools.tensors import Ktensor
+from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import randn_tensor
 from tensortools.optimize import FitResult
 
@@ -111,7 +111,7 @@ def cp_als(X, rank=None, random_state=None, **options):
 
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize Ktensor
+    # Initialize KTensor
     # Initialize components [U_1, U_2, ... U_N] using random standard normal 
     # distributed entries. 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -123,8 +123,8 @@ def cp_als(X, rank=None, random_state=None, **options):
         # TODO - match the norm of the initialization to the norm of X.
         U = randn_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
 
-    elif type(options['init']) is not Ktensor:
-        raise ValueError("Optional parameter 'init' is not a Ktensor.")
+    elif type(options['init']) is not KTensor:
+        raise ValueError("Optional parameter 'init' is not a KTensor.")
     
     else:
         U = options['init']

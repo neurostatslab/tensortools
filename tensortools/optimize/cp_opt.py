@@ -10,7 +10,7 @@ import scipy as sci
 from scipy.optimize import minimize
 
 from tensortools.operations import unfold, khatri_rao
-from tensortools.tensors import Ktensor
+from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import randn_tensor
 from tensortools.optimize import FitResult
 
@@ -115,7 +115,7 @@ def cp_opt(X, rank=None, method='Newton-CG', random_state=None, **options):
 
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize Ktensor
+    # Initialize KTensor
     # Initialize components [U_1, U_2, ... U_N] using random standard normal 
     # distributed entries. 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -129,8 +129,8 @@ def cp_opt(X, rank=None, method='Newton-CG', random_state=None, **options):
         U = [U[n] / sci.linalg.norm(U[n]) * normX**(1.0/N) for n in range(N)]     
 
 
-    elif type(options['init']) is not Ktensor:
-        raise ValueError("Optional parameter 'init' is not a Ktensor.")
+    elif type(options['init']) is not KTensor:
+        raise ValueError("Optional parameter 'init' is not a KTensor.")
     
     else:
         U = options['init']
@@ -169,7 +169,7 @@ def cp_opt(X, rank=None, method='Newton-CG', random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
     U = np.reshape(res.x, U_shape)
     
-    result.factors = Ktensor(U)
+    result.factors = KTensor(U)
 
     result.finalize()
 
@@ -185,7 +185,7 @@ def cp_opt_fun(U, X, normX, Ushape, result):
     # Reshape
     U = sci.reshape(U, Ushape)
 
-    #U = Ktensor(U)
+    #U = KTensor(U)
 
     # i) Normalize factors to prevent singularities
     #U.rebalance()

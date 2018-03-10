@@ -17,7 +17,7 @@ class FitResult(object):
 
         Parameters
         ----------
-        factors : Ktensor
+        factors : KTensor
 
         """
 

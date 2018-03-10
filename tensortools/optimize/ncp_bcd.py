@@ -8,7 +8,7 @@ import numpy as np
 import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
-from tensortools.tensors import Ktensor
+from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
@@ -106,7 +106,7 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     normX = sci.linalg.norm(X)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize Ktensor
+    # Initialize KTensor
     
     # Initialize components [U_1, U_2, ... U_N] using random standard normal 
     # distributed entries. 
@@ -120,11 +120,11 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     if options['init'] is None:
         # TODO - match the norm of the initialization to the norm of X.
         U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        #U = Ktensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
+        #U = KTensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])        
        
         
-    elif type(options['init']) is not Ktensor:
-        raise ValueError("Optional parameter 'init' is not a Ktensor.")
+    elif type(options['init']) is not KTensor:
+        raise ValueError("Optional parameter 'init' is not a KTensor.")
     
     else:
         U = options['init']
@@ -142,7 +142,7 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     
     Um = sci.copy(U.factors) # Extrapolations of compoenents    
-    #Um = Ktensor(Um)
+    #Um = KTensor(Um)
     
     extraw = 1 # Used for extrapolation weight update
     weights_U = np.ones(N) # Extrapolation weights

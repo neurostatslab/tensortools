@@ -2,7 +2,7 @@ from tensortools.operations import khatri_rao
 import numpy as np
 import scipy as sci
 
-class Ktensor(object):
+class KTensor(object):
     """Kruskal tensor object
     """
 
@@ -29,7 +29,7 @@ class Ktensor(object):
         return sci.reshape(unf, self.shape)
 
     def rebalance(self):
-        """Rescales Ktensor so that factors have equal magnitude across modes.
+        """Rescales KTensor so that factors have equal magnitude across modes.
         """
 
         # Compute norms along columns for each factor matrix
@@ -61,7 +61,7 @@ class Ktensor(object):
     def __setitem__(self, i, factor):
         factor = sci.array(factor)
         if factor.shape != (self.shape[i], self.rank):
-            raise ValueError('Dimension mismatch in Ktensor assignment.')
+            raise ValueError('Dimension mismatch in KTensor assignment.')
         self.factors[i] = factor
 
     def __iter__(self):

@@ -4,50 +4,74 @@ Diagnostic measures for CP decomposition fits
 
 import numpy as np
 from copy import deepcopy
-from scipy.spatial.distance import cdist
 from munkres import Munkres
 
-def kruskal_similarity(U, V):
-    """Returns similarity score between zero and one for two kruskal tensors
 
-    Similarity score is based on the average angle between factors
-    """
-    return kruskal_align(U, V, inplace=False)[-1]
-
-def kruskal_align(U, V, inplace=False):
-    """Permutes two KTensors to best align their factors
+def kruskal_align(U, V, permute_U=False, permute_V=False):
+    """Aligns
 
     Parameters
     ----------
-    U : Ktensor
-    V : Ktensor
+    U : KTensor
+        First kruskal tensor to align.
+    V : KTensor
+        Second kruskal tensor to align.
     inplace : bool
         If True, overwrite inputs otherwise create copies (default: False).
 
     Returns
     -------
-    U1 
+    similarity : float
+        Similarity score between zero and one.
     """
 
-    # copy U and V so that original results are not overwritten
-    if not inplace:
-        U, V = deepcopy(U), deepcopy(V)
-
     # matching cost from U to V
-    cost = np.mean([cdist(u.T, v.T, metric='cosine') for u, v in zip(U, V)], axis=0)
+    unrm = [f / np.linalg.norm(f, axis=0) for f in U.factors]
+    vnrm = [f / np.linalg.norm(f, axis=0) for f in V.factors]
+    sim_matrices = [np.dot(u.T, v) for u, v in zip(unrm, vnrm)]
+    cost = 1 - np.multiply.reduce(np.abs(sim_matrices), axis=0)
 
     # solve matching problem via Hungarian algorithm
-    indices = Munkres().compute(cost)
+    indices = Munkres().compute(cost.copy())
     prmU, prmV = zip(*indices)
 
-    # If U and V are of different ranks, add unmatched factors to end of permutation
+    # If U and V are of different ranks, add unmatched factors to end.
     if U.rank > V.rank:
-        prmU += list(set(range(U.rank)) - set(prmU))
+        prmU = np.append(prmU, list(set(range(U.rank)) - set(prmU)))
     elif U.rank < V.rank:
-        prmV += list(set(range(V.rank)) - set(prmV))
+        prmV = np.append(prmV, list(set(range(V.rank)) - set(prmV)))
 
     # compute similarity across all factors
     similarity = np.mean(1 - cost[prmU, prmV])
 
-    return U.permute(prmU), V.permute(prmV), similarity
+    # Permute U and V to order factors from most to least similar.
+    if permute_U and permute_V:
+        idx = np.argsort(cost[prmU, prmV])
+        U.permute([prmU[i] for i in reversed(idx)])
+        V.permute([prmV[i] for i in reversed(idx)])
 
+    # if permute_U is False, then only permute the factors for V
+    elif permute_V:
+        V.permute([prmV[i] for i in np.argsort(prmU)])
+
+    # if permute_V is False, then only permute the factors for U
+    elif permute_U:
+        U.permute([prmU[i] for i in np.argsort(prmV)])
+
+    # else, don't permute anything or flip signs
+    else:
+        return similarity
+
+    # FLIP SIGNS OF FACTORS
+    # ~~~~~~~~~~~~~~~~~~~~~
+    flips = np.sign([F[prmU, prmV] for F in sim_matrices])
+    flips[0] *= np.prod(flips, axis=0)  # flip an even number of factors
+    if permute_U:
+        for i, f in enumerate(flips):
+            U.factors[i] *= f
+    elif permute_V:
+        for i, f in enumerate(flips):
+            V.factors[i] *= f
+
+    # return the similarity score
+    return similarity

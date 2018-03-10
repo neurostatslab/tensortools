@@ -1,9 +1,11 @@
 from tensortools.optimize import cp_als
 from tqdm import trange
 
+
 class Ensemble(object):
 
-    def __init__(self, nonneg=False, compress=False, sketching=False, options=dict()):
+    def __init__(self, nonneg=False, compress=False, sketching=False,
+                 options=dict()):
 
         # model specification
         self.nonneg = nonneg
@@ -28,8 +30,8 @@ class Ensemble(object):
         Parameters
         ----------
         X : array_like
-            Real tensor 
-        
+            Real tensor
+
         ranks : int, or iterable
             iterable specifying number of components in each model
 
@@ -42,7 +44,7 @@ class Ensemble(object):
         if not np.iterable(ranks):
             ranks = (ranks,)
 
-        # iterate over ranks 
+        # iterate over ranks
         for r in self.ranks:
 
             if r not in self.results:
@@ -54,5 +56,3 @@ class Ensemble(object):
     def arrange(self):
         # TODO - greedy alignment of factors across ranks
         pass
-
-
