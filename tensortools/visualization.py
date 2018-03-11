@@ -11,10 +11,14 @@ __all__ = ['plot_factors', 'plot_objective', 'plot_similarity']
 def plot_objective(ensemble, partition='train', ax=None, jitter=0.1,
                    scatter_kw=dict(), line_kw=dict()):
     """Plots objective function as a function of model rank.
-    Args
-    ----
+
+    Parameters
+    ----------
     ensemble : Ensemble object
         holds optimization results across a range of model ranks
+    partition : string, one of: {'train', 'test'}
+        specifies whether to plot the objective function on the training
+        data or the held-out test set.
     ax : matplotlib axis (optional)
         axis to plot on (defaults to current axis object)
     jitter : float (optional)
@@ -36,12 +40,11 @@ def plot_objective(ensemble, partition='train', ax=None, jitter=0.1,
         raise ValueError("partition must be 'train' or 'test'.")
 
     # compile statistics for plotting
-    x, obj, sim, min_obj = [], [], [], []
+    x, obj, min_obj = [], [], []
     for rank in sorted(ensemble.results):
         # reconstruction errors for rank-r models
-        _, o, s = ensemble[rank]
+        o = ensemble.objectives(rank)
         obj.extend(o)
-        sim.extend(s)
         x.extend(np.full(len(o), rank))
         min_obj.append(min(o))
 
@@ -58,8 +61,55 @@ def plot_objective(ensemble, partition='train', ax=None, jitter=0.1,
     return ax
 
 
-def plot_similarity(ensemble):
-    pass
+def plot_similarity(ensemble, ax=None, jitter=0.1,
+                    scatter_kw=dict(), line_kw=dict()):
+    """Plots similarity across optimization runs as a function of model rank.
+
+    Parameters
+    ----------
+    ensemble : Ensemble object
+        holds optimization results across a range of model ranks
+    ax : matplotlib axis (optional)
+        axis to plot on (defaults to current axis object)
+    jitter : float (optional)
+        amount of horizontal jitter added to scatterpoints (default=0.1)
+    scatter_kw : dict (optional)
+        keyword arguments for styling the scatterpoints
+    line_kw : dict (optional)
+        keyword arguments for styling the line
+
+    References
+    ----------
+    Ulrike von Luxburg (2010). Clustering Stability: An Overview.
+    Foundations and Trends in Machine Learning.
+    https://arxiv.org/abs/1007.1075
+
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    # compile statistics for plotting
+    x, sim, mean_sim = [], [], []
+    for rank in sorted(ensemble.results):
+        # reconstruction errors for rank-r models
+        s = ensemble.similarities(rank)
+        sim.extend(s)
+        x.extend(np.full(len(s), rank))
+        mean_sim.append(np.mean(s))
+
+    # add horizontal jitter
+    ux = np.unique(x)
+    x = np.array(x) + (np.random.rand(len(x))-0.5)*jitter
+
+    # make plot
+    ax.scatter(x, sim, **scatter_kw)
+    ax.plot(ux, mean_sim, **line_kw)
+
+    ax.set_xlabel('model rank')
+    ax.set_ylabel('model similarity')
+
+    return ax
 
 
 def plot_factors(U, plots='line', fig=None, axes=None, scatter_kw=dict(),

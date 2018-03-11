@@ -14,11 +14,13 @@ X += np.random.randn(I, J, K)
 
 # fit cp decomposition across a range of ranks
 ensemble = tt.Ensemble()
-ensemble.fit(X, ranks=range(1, 8), replicates=3)
+ensemble.fit(X, ranks=range(1, 9), replicates=3)
 
 # plot similarity and error plots
+plt.figure()
 tt.plot_objective(ensemble)
 
-# tt.plot_similarity(ensemble)
+plt.figure()
+tt.plot_similarity(ensemble)
 
 plt.show()

@@ -89,12 +89,18 @@ class Ensemble(object):
             for res in self.results[rank][1:]:
                 res.similarity = kruskal_align(U, res.factors, permute_V=True)
 
-    def __getitem__(self, rank):
-        if rank not in self.results:
-            raise ValueError('No models of rank-{} have been fit.' +
-                             'Please call Ensemble.fit(...) first.')
-        else:
-            factors = [r.factors for r in self.results[rank]]
-            objective = [r.obj for r in self.results[rank]]
-            similarity = [r.similarity for r in self.results[rank]]
-            return factors, objective, similarity
+    def objectives(self, rank):
+        return [r.obj for r in self.results[rank]]
+
+    def similarities(self, rank):
+        return [r.similarity for r in self.results[rank]]
+
+    # def __getitem__(self, rank):
+    #     if rank not in self.results:
+    #         raise ValueError('No models of rank-{} have been fit.' +
+    #                          'Please call Ensemble.fit(...) first.')
+    #     else:
+    #         factors = [r.factors for r in self.results[rank]]
+    #         objective = [r.obj for r in self.results[rank]]
+    #         similarity = [r.similarity for r in self.results[rank]]
+    #         return factors, objective, similarity
