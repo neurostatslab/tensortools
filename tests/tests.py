@@ -25,12 +25,12 @@ class test_base(TestCase):
         np.random.seed(123)
 
     def test_khatrirao(self):
-        A = np.array([ 
+        A = np.array([
         [1, 2, 3],
         [4, 5, 6],
         [7, 8, 9]
         ])
-	    
+
         B = np.array([
         [1, 4, 7],
         [2, 5, 8],
@@ -49,7 +49,7 @@ class test_base(TestCase):
         [21, 48, 81]
         ])
 
-        assert np.allclose(khatri_rao((A, B)), C, atol_float64)   
+        assert np.allclose(khatri_rao((A, B)), C, atol_float64)
 
 
 #
@@ -65,37 +65,37 @@ class test_diagnostics(TestCase):
         V = deepcopy(U)
 
         assert (kruskal_align(U, V) - 1) < atol_float64
-     
+
 
 #
 #******************************************************************************
 #
 class test_cp(TestCase):
     def setUp(self):
-        np.random.seed(123)        
-        
+        np.random.seed(123)
+
     def test_cp_als_deterministic(self):
         I,J,K,R = 15,15,15,3
         X = randn_tensor((I,J,K), rank=R, random_state=random_state)
         P = cp_als(X, rank=R, trace=False, random_state=random_state)
-                
+
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32   
+        assert percent_error < atol_float32
 
 
     def test_cp_opt_deterministic(self):
         I,J,K,R = 10,10,10,2
         X = randn_tensor((I,J,K), rank=R, random_state=random_state)
         P = cp_opt(X, rank=R, trace=False, method='BFGS', random_state=random_state)
-                
+
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32   
+        assert percent_error < atol_float32
 
 
         P = cp_opt(X, rank=R, trace=False, method='Newton-CG', random_state=random_state)
-                
+
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32   
+        assert percent_error < atol_float32
 
 
 #
@@ -103,38 +103,38 @@ class test_cp(TestCase):
 #
 class test_nonnegative_cp(TestCase):
     def setUp(self):
-        np.random.seed(123)        
-        
+        np.random.seed(123)
+
     def test_ncp_hals_deterministic(self):
         I,J,K,R = 15,15,15,3
-        X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
-        P = ncp_hals(X, rank=R, trace=False, random_state=random_state)  
+        X = rand_tensor((I,J,K), rank=R, random_state=random_state)
+        P = ncp_hals(X, rank=R, trace=False, random_state=random_state)
 
-        NN = np.sum(P.factors.full() < 0)        
-        assert NN == 0   
-                
+        NN = np.sum(P.factors.full() < 0)
+        assert NN == 0
+
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32   
+        assert percent_error < atol_float32
 
 
 
     def test_ncp_bcd_deterministic(self):
         I,J,K,R = 15,15,15,3
-        X = rand_tensor((I,J,K), rank=R, random_state=random_state)         
-        P = ncp_bcd(X, rank=R, trace=False, random_state=random_state)  
-        
-        NN = np.sum(P.factors.full() < 0)        
-        assert NN == 0   
-        
+        X = rand_tensor((I,J,K), rank=R, random_state=random_state)
+        P = ncp_bcd(X, rank=R, trace=False, random_state=random_state)
+
+        NN = np.sum(P.factors.full() < 0)
+        assert NN == 0
+
         percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32   
+        assert percent_error < atol_float32
 
 
 
 #
 #******************************************************************************
 #
-        
+
 def suite():
     s = TestSuite()
     s.addTest(test_base('test_khatrirao'))
@@ -143,7 +143,7 @@ def suite():
     s.addTest(test_nonnegative_cp('test_ncp_bcd_deterministic'))
 
 
-    
+
     return s
 
 if __name__ == '__main__':
