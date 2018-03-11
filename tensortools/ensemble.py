@@ -1,5 +1,7 @@
 from tensortools.optimize import cp_als
+from tensortools.diagnostics import kruskal_align
 from tqdm import trange
+import numpy as np
 
 
 class Ensemble(object):
@@ -23,7 +25,7 @@ class Ensemble(object):
         # TODO - better way to hold all results...
         self.results = dict()
 
-    def fit(self, X, ranks, replicates):
+    def fit(self, X, ranks, replicates=1):
         """
         Fits CP tensor decompositions for different choices of rank.
 
@@ -40,19 +42,59 @@ class Ensemble(object):
 
         """
 
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+        # FIT MODELS FOR EACH RANK
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
         # make ranks iterable if necessary
         if not np.iterable(ranks):
             ranks = (ranks,)
 
-        # iterate over ranks
-        for r in self.ranks:
+        # fit models at each rank
+        for r in ranks:
 
+            # initialize result for rank-r
             if r not in self.results:
                 self.results[r] = []
 
-            for i in trange(self.replicates):
-                results[r].append(self.fitting_method(data, r, **self.options))
+            # fit multiple replicates
+            for i in trange(replicates):
+                model_fit = self.fitting_method(X, r, **self.options)
+                self.results[r].append(model_fit)
 
-    def arrange(self):
-        # TODO - greedy alignment of factors across ranks
-        pass
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ALIGN FACTORS AND COMPUTER SIMILARITIES
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ranks = sorted(self.results, reverse=True)  # iterate in reverse order
+
+        # sort models of same rank by objective function
+        for rank in ranks:
+            idx = np.argsort([r.obj for r in self.results[rank]])
+            self.results[rank] = [self.results[rank][i] for i in idx]
+
+        # align best model of rank r, to best model of next larger rank
+        for r1, r2 in zip(ranks[1:], ranks):
+            # note r1 < r2
+            U = self.results[r1][0].factors
+            V = self.results[r2][0].factors
+            kruskal_align(U, V, permute_U=True)
+
+        # for each rank, align everything to the best model
+        for rank in ranks:
+            # store best factors
+            U = self.results[rank][0].factors       # best model factors
+            self.results[rank][0].similarity = 1.0  # similarity to itself
+
+            # align lesser fit models to best models
+            for res in self.results[rank][1:]:
+                res.similarity = kruskal_align(U, res.factors, permute_V=True)
+
+    def __getitem__(self, rank):
+        if rank not in self.results:
+            raise ValueError('No models of rank-{} have been fit.' +
+                             'Please call Ensemble.fit(...) first.')
+        else:
+            factors = [r.factors for r in self.results[rank]]
+            objective = [r.obj for r in self.results[rank]]
+            similarity = [r.similarity for r in self.results[rank]]
+            return factors, objective, similarity

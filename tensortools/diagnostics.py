@@ -35,28 +35,26 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
     indices = Munkres().compute(cost.copy())
     prmU, prmV = zip(*indices)
 
-    # If U and V are of different ranks, add unmatched factors to end.
-    if U.rank > V.rank:
-        prmU = np.append(prmU, list(set(range(U.rank)) - set(prmU)))
-    elif U.rank < V.rank:
-        prmV = np.append(prmV, list(set(range(V.rank)) - set(prmV)))
-
     # compute similarity across all factors
     similarity = np.mean(1 - cost[prmU, prmV])
+
+    # If U and V are of different ranks, identify unmatched factors.
+    unmatched_U = list(set(range(U.rank)) - set(prmU))
+    unmatched_V = list(set(range(V.rank)) - set(prmV))
 
     # Permute U and V to order factors from most to least similar.
     if permute_U and permute_V:
         idx = np.argsort(cost[prmU, prmV])
-        U.permute([prmU[i] for i in reversed(idx)])
-        V.permute([prmV[i] for i in reversed(idx)])
+        U.permute([prmU[i] for i in idx] + unmatched_U)
+        V.permute([prmV[i] for i in idx] + unmatched_V)
 
     # if permute_U is False, then only permute the factors for V
     elif permute_V:
-        V.permute([prmV[i] for i in np.argsort(prmU)])
+        V.permute([prmV[i] for i in np.argsort(prmU)] + unmatched_V)
 
     # if permute_V is False, then only permute the factors for U
     elif permute_U:
-        U.permute([prmU[i] for i in np.argsort(prmV)])
+        U.permute([prmU[i] for i in np.argsort(prmV)] + unmatched_U)
 
     # else, don't permute anything or flip signs
     else:
