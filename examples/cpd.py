@@ -2,16 +2,16 @@ import tensortools as tt
 from tensortools.optimize import cp_als
 import numpy as np
 import matplotlib.pyplot as plt
-rs = 1234 # random seed
+rs = 1234  # random seed
 
 # dimensions
 I, J, K, R = 25, 25, 25, 4
 
 # make tensor
-X = tt.randn_tensor((I,J,K), rank=R)
+X = tt.randn_tensor((I, J, K), rank=R)
 
 # add noise
-X += np.random.randn(I,J,K)
+X += np.random.randn(I, J, K)
 
 # fit cp decomposition twice
 U = cp_als(X, rank=R, trace=False)
