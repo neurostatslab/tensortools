@@ -38,7 +38,7 @@ class FitResult(object):
 
     def time_elapsed(self):
         return timeit.default_timer()  - self.t0
-    
+
     def update(self, obj):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,11 +71,11 @@ class FitResult(object):
             ( self.iterations > self.min_iter and improvement < self.tol ) or\
             ( self.iterations > self.max_iter or self.time_elapsed() > self.max_time )
 
-        return self    
+        return self
 
 
     def finalize(self):
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Set final time, final print statement
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

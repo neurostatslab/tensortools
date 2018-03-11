@@ -69,11 +69,11 @@ def plot_factors(U, plots='line', fig=None, axes=None, scatter_kw=dict(),
         # make sure axes is a 2d-array
         if U.rank == 1:
             axes = axes[None, :]
-    
+
     # if axes are passed in, identify figure
     elif fig is None:
         fig = axes[0,0].get_figure()
-    
+
     # if figure is passed, identify axes
     else:
         axes = np.array(fig.get_axes(), dtype=object).reshape(U.rank, U.ndim)
