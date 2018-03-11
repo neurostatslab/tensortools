@@ -16,44 +16,44 @@ from tensortools.optimize import FitResult
 def ncp_bcd(X, rank=None, random_state=None, **options):
     """
     Nonnegative CP Decomposition using the Block Coordinate Descent (BCD) Method.
-    
-    The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order 
-    arrays (tensors). The CP decomposition can be seen as a generalization 
+
+    The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order
+    arrays (tensors). The CP decomposition can be seen as a generalization
     of PCA, yet there are some important conceptual differences: (a) the CP
     decomposition allows to extract pure spectra from multi-way spectral data;
     (b) the data do not need to be unfolded. Hence, the resulting
-    factors are easier to interpret and more robust to noise. 
-        
-    When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``, 
+    factors are easier to interpret and more robust to noise.
+
+    When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``,
     where `U_i` are 2D arrays of rank R.
 
-    
+
     Parameters
     ----------
     X : (I_1, ..., I_N) array_like
         A real array with nonnegative entries and ``X.ndim >= 3``.
-    
+
     rank : integer
-        The `rank` sets the number of components to be computed.     
+        The `rank` sets the number of components to be computed.
 
     random_state : integer, RandomState instance or None, optional (default ``None``)
-        If integer, random_state is the seed used by the random number generator; 
-        If RandomState instance, random_state is the random number generator; 
+        If integer, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
         If None, the random number generator is the RandomState instance used by np.random.
 
     options : dict, specifying fitting options.
 
         tol : float, optional (default ``tol=1E-5``)
             Stopping tolerance for reconstruction error.
-            
+
         max_iter : integer, optional (default ``max_iter = 500``)
             Maximum number of iterations to perform before exiting.
-            
+
         min_iter : integer, optional (default ``min_iter = 1``)
-            Minimum number of iterations to perform before exiting.            
+            Minimum number of iterations to perform before exiting.
 
         max_time : integer, optional (default ``max_time = np.inf``)
-            Maximum computational time before exiting.              
+            Maximum computational time before exiting.
             
         trace : bool ``{'True', 'False'}``, optional (default ``trace=True``)
             Display progress.

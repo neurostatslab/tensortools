@@ -6,8 +6,8 @@ from tensortools.tensors import KTensor
 
 def randn_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None):
     """
-    Generates a random N-way tensor with rank R, where the entries are 
-    drawn from the standard normal distribution. 
+    Generates a random N-way tensor with rank R, where the entries are
+    drawn from the standard normal distribution.
     
     Parameters
     ----------
