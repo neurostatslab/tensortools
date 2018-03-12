@@ -47,30 +47,20 @@ def randn_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=Non
 
     if random_state is None or isinstance(random_state, int):
             rns = sci.random.RandomState(random_state)
-
     elif isinstance(random_state, sci.random.RandomState):
             rns = random_state
-
     else:
         raise ValueError('Seed should be None, int or np.random.RandomState')
 
-    if nonnegative == False:
+    if nonnegative:
+        factors = [sci.maximum(0.0, rns.standard_normal((i, rank))) for i in shape]
+    else:
         factors = [rns.standard_normal((i, rank)) for i in shape]
 
-    elif nonnegative == True:
-        factors = [sci.maximum(0.0, rns.standard_normal((i, rank))) for i in shape]
-
-
-    if ktensor == False:
-        return KTensor(factors).full()
-
-    else:
+    if ktensor:
         return KTensor(factors)
-
-
-
-
-
+    else:
+        return KTensor(factors).full()
 
 
 def rand_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None):
@@ -116,19 +106,14 @@ def rand_tensor(shape, rank, nonnegative=False, ktensor=False, random_state=None
 
     if random_state is None or isinstance(random_state, int):
             rns = sci.random.RandomState(random_state)
-
     elif isinstance(random_state, sci.random.RandomState):
             rns = random_state
-
     else:
         raise ValueError('Seed should be None, int or np.random.RandomState')
 
-
     factors = [rns.uniform(0.0, 1.0, size=(i, rank)) for i in shape]
 
-
-    if ktensor == False:
-        return KTensor(factors).full()
-
-    else:
+    if ktensor:
         return KTensor(factors)
+    else:
+        return KTensor(factors).full()

@@ -108,6 +108,7 @@ def plot_similarity(ensemble, ax=None, jitter=0.1,
 
     ax.set_xlabel('model rank')
     ax.set_ylabel('model similarity')
+    ax.set_ylim([0, 1.1])
 
     return ax
 
@@ -243,7 +244,7 @@ def plot_factors(U, plots='line', fig=None, axes=None, scatter_kw=dict(),
 
     return fig, axes, plot_obj
 
-# Helper function for parsing plot options
+
 def _broadcast_arg(U, arg, argtype, name):
     """Broadcasts plotting option `arg` to all factors.
 

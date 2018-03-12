@@ -12,7 +12,7 @@ class FitResult(object):
     Holds result of optimization
     """
 
-    def __init__(self, factors, method, tol=1e-5, trace=True, max_iter=500,
+    def __init__(self, factors, method, tol=1e-5, verbose=True, max_iter=500,
                  min_iter=1, max_time=np.inf, **kwargs):
         """
 
@@ -28,7 +28,7 @@ class FitResult(object):
         self.method = method
 
         self.tol = tol
-        self.trace = trace
+        self.verbose = verbose
         self.max_iter = max_iter
         self.min_iter = min_iter
         self.max_time = max_time
@@ -61,7 +61,7 @@ class FitResult(object):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         # If desired, print progress
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-        if self.trace:
+        if self.verbose:
             p_args = self.method, self.iterations, self.obj, improvement
             s = '{}: iteration {}, objective {}, improvement {}.'
             print(s.format(*p_args))
@@ -82,7 +82,7 @@ class FitResult(object):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.total_time = self.time_elapsed()
 
-        if self.trace:
+        if self.verbose:
             s = 'Converged after {} iterations, {} seconds. Objective: {}.'
             print(s.format(self.iterations, self.total_time, self.obj))
 

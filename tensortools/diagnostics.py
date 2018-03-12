@@ -32,7 +32,7 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
     unrm = [f / np.linalg.norm(f, axis=0) for f in U.factors]
     vnrm = [f / np.linalg.norm(f, axis=0) for f in V.factors]
     sim_matrices = [np.dot(u.T, v) for u, v in zip(unrm, vnrm)]
-    cost = 1 - np.multiply.reduce(np.abs(sim_matrices), axis=0)
+    cost = 1 - np.mean(np.abs(sim_matrices), axis=0)
 
     # solve matching problem via Hungarian algorithm
     indices = Munkres().compute(cost.copy())

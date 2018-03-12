@@ -64,7 +64,7 @@ def cp_opt(X, rank=None, method='Newton-CG', random_state=None, **options):
         max_time : integer, optional (default ``max_time = np.inf``)
             Maximum computational time before exiting.
 
-        trace : bool ``{'True', 'False'}``, optional (default ``trace=True``)
+        verbose : bool ``{'True', 'False'}``, optional (default ``verbose=True``)
             Display progress.
 
 
@@ -130,7 +130,7 @@ def cp_opt(X, rank=None, method='Newton-CG', random_state=None, **options):
 
     # initialize result
     result = FitResult(U, 'CP_OPT', **options)
-    options = {'disp': result.trace, 'maxiter': result.max_iter}
+    options = {'disp': result.verbose, 'maxiter': result.max_iter}
 
     U = sci.asarray(U)
     U_shape = U.shape

@@ -20,6 +20,7 @@ class Ensemble(object):
         # TODO - good defaults for optimization options
         options.setdefault('tol', 1e-5)
         options.setdefault('max_iter', 500)
+        options.setdefault('trace', False)
         self.options = options
 
         # TODO - better way to hold all results...
@@ -58,9 +59,19 @@ class Ensemble(object):
                 self.results[r] = []
 
             # fit multiple replicates
-            for i in trange(replicates):
+            d = 'Fitting rank-{} models'.format(r)
+            for i in trange(replicates, desc=d, leave=False):
                 model_fit = self.fitting_method(X, r, **self.options)
                 self.results[r].append(model_fit)
+
+            # summary statistics
+            min_obj = min([res.obj for res in self.results[r]])
+            max_obj = max([res.obj for res in self.results[r]])
+            elapsed = sum([res.total_time for res in self.results[r]])
+
+            # print summary
+            print('Rank-{} summary:  min obj, {:.2f};  max obj, {:.2f};  '
+                  'time to fit, {:.1f}s'.format(r, min_obj, max_obj, elapsed))
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # ALIGN FACTORS AND COMPUTER SIMILARITIES

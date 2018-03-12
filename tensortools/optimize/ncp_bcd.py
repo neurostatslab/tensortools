@@ -55,7 +55,7 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
         max_time : integer, optional (default ``max_time = np.inf``)
             Maximum computational time before exiting.
 
-        trace : bool ``{'True', 'False'}``, optional (default ``trace=True``)
+        verbose : bool ``{'True', 'False'}``, optional (default ``verbose=True``)
             Display progress.
 
 
