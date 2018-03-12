@@ -150,16 +150,18 @@ def cp_als(X, rank=None, random_state=None, **options):
             kr = khatri_rao(components)
 
             # iv) Form normal equations and solve via Cholesky
-            c = sci.linalg.cho_factor(grams, overwrite_a=False)
-            p = unfold(X, n).dot(kr)
-            U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
+            # c = sci.linalg.cho_factor(grams, overwrite_a=False)
+            # p = unfold(X, n).dot(kr)
+            # U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
+            U[n] = sci.linalg.solve(grams, unfold(X, n).dot(kr).T).T
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute objective function
-        grams *= U[-1].T.dot(U[-1])
-        obj = np.sqrt(np.sum(grams) - 2*sci.sum(p*U[-1]) + normX**2) / normX
+        # grams *= U[-1].T.dot(U[-1])
+        # obj = np.sqrt(np.sum(grams) - 2*sci.sum(p*U[-1]) + normX**2) / normX
+        obj = sci.linalg.norm(U.full() - X) / normX
 
         # Update result
         result.update(obj)

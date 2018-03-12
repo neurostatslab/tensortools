@@ -93,7 +93,7 @@ def plot_similarity(ensemble, ax=None, jitter=0.1,
     x, sim, mean_sim = [], [], []
     for rank in sorted(ensemble.results):
         # reconstruction errors for rank-r models
-        s = ensemble.similarities(rank)
+        s = ensemble.similarities(rank)[1:]
         sim.extend(s)
         x.extend(np.full(len(s), rank))
         mean_sim.append(np.mean(s))

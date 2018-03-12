@@ -11,14 +11,16 @@ from unittest import main, makeSuite, TestCase, TestSuite
 from numpy.testing import assert_raises, assert_equal
 
 from copy import deepcopy
+import itertools
 
 atol_float32 = 1e-4
 atol_float64 = 1e-8
 
 random_state = 123
 
+
 #
-#******************************************************************************
+# ******************************************************************************
 #
 class test_base(TestCase):
     def setUp(self):
@@ -53,86 +55,120 @@ class test_base(TestCase):
 
 
 #
-#******************************************************************************
+# ******************************************************************************
 #
 class test_diagnostics(TestCase):
     def setUp(self):
         np.random.seed(123)
 
     def test_align(self):
-        I,J,K = 15,15,15
-        U = randn_tensor((I,J,K), rank=3, ktensor=True)
+        # test that two identical KTensors have similarity 1
+        I, J, K, R = 15, 15, 15, 4
+        U = randn_tensor((I, J, K), rank=R, ktensor=True)
+        X = U.full()
         V = deepcopy(U)
 
-        assert (kruskal_align(U, V) - 1) < atol_float64
+        for prm in itertools.permutations(range(R)):
+            V = deepcopy(U)
+            V.permute(prm)
+            assert (kruskal_align(U, V) - 1) < atol_float64
+            assert sci.linalg.norm(X - U.full()) < atol_float64
+            assert sci.linalg.norm(X - V.full()) < atol_float64
+
+        # test that second input is correctly permuted
+        for prm in itertools.permutations(range(R)):
+            V = deepcopy(U)
+            V.permute(prm)
+            kruskal_align(U, V, permute_V=True)
+            for fU, fV in zip(U, V):
+                assert sci.linalg.norm(fU - fV) < atol_float64
+                assert sci.linalg.norm(X - U.full()) < atol_float64
+                assert sci.linalg.norm(X - V.full()) < atol_float64
+
+        # test that first input is correctly permuted
+        for prm in itertools.permutations(range(R)):
+            V = deepcopy(U)
+            V.permute(prm)
+            kruskal_align(V, U, permute_U=True)
+            for fU, fV in zip(U, V):
+                assert sci.linalg.norm(fU - fV) < atol_float64
+                assert sci.linalg.norm(X - U.full()) < atol_float64
+                assert sci.linalg.norm(X - V.full()) < atol_float64
 
 
 #
-#******************************************************************************
+# ******************************************************************************
 #
 class test_cp(TestCase):
     def setUp(self):
         np.random.seed(123)
 
     def test_cp_als_deterministic(self):
-        I,J,K,R = 15,15,15,3
-        X = randn_tensor((I,J,K), rank=R, random_state=random_state)
+        I, J, K, R = 15, 15, 15, 3
+        X = randn_tensor((I, J, K), rank=R, random_state=random_state)
+        normX = sci.linalg.norm(X)
+
         P = cp_als(X, rank=R, trace=False, random_state=random_state)
 
-        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / normX
         assert percent_error < atol_float32
-
 
     def test_cp_opt_deterministic(self):
-        I,J,K,R = 10,10,10,2
-        X = randn_tensor((I,J,K), rank=R, random_state=random_state)
-        P = cp_opt(X, rank=R, trace=False, method='BFGS', random_state=random_state)
+        I, J, K, R = 10, 10, 10, 2
+        X = randn_tensor((I, J, K), rank=R, random_state=random_state)
+        normX = sci.linalg.norm(X)
 
-        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
+        # test BFGS method
+        P = cp_opt(X, rank=R, trace=False, method='BFGS',
+                   random_state=random_state)
+
+        percent_error = sci.linalg.norm(P.factors.full() - X) / normX
         assert percent_error < atol_float32
 
+        # test CG method
+        P = cp_opt(X, rank=R, trace=False, method='Newton-CG',
+                   random_state=random_state)
 
-        P = cp_opt(X, rank=R, trace=False, method='Newton-CG', random_state=random_state)
-
-        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / normX
         assert percent_error < atol_float32
 
 
 #
-#******************************************************************************
+# ******************************************************************************
 #
 class test_nonnegative_cp(TestCase):
     def setUp(self):
         np.random.seed(123)
 
     def test_ncp_hals_deterministic(self):
-        I,J,K,R = 15,15,15,3
-        X = rand_tensor((I,J,K), rank=R, random_state=random_state)
+        I, J, K, R = 15, 15, 15, 3
+        X = rand_tensor((I, J, K), rank=R, random_state=random_state)
+        normX = sci.linalg.norm(X)
+
         P = ncp_hals(X, rank=R, trace=False, random_state=random_state)
 
         NN = np.sum(P.factors.full() < 0)
         assert NN == 0
 
-        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
-        assert percent_error < atol_float32
-
-
+        err = sci.linalg.norm(P.factors.full() - X) / normX
+        assert err < atol_float32
 
     def test_ncp_bcd_deterministic(self):
-        I,J,K,R = 15,15,15,3
-        X = rand_tensor((I,J,K), rank=R, random_state=random_state)
+        I, J, K, R = 15, 15, 15, 3
+        X = rand_tensor((I, J, K), rank=R, random_state=random_state)
+        normX = sci.linalg.norm(X)
+
         P = ncp_bcd(X, rank=R, trace=False, random_state=random_state)
 
         NN = np.sum(P.factors.full() < 0)
         assert NN == 0
 
-        percent_error = sci.linalg.norm(P.factors.full() - X) / sci.linalg.norm(X)
+        percent_error = sci.linalg.norm(P.factors.full() - X) / normX
         assert percent_error < atol_float32
 
 
-
 #
-#******************************************************************************
+# ******************************************************************************
 #
 
 def suite():
@@ -141,10 +177,9 @@ def suite():
     s.addTest(test_cp('test_cp_als_deterministic'))
     s.addTest(test_nonnegative_cp('test_ncp_hals_deterministic'))
     s.addTest(test_nonnegative_cp('test_ncp_bcd_deterministic'))
-
-
-
+    s.addTest(test_diagnostics('test_align'))
     return s
 
+
 if __name__ == '__main__':
-    main(defaultTest = 'suite')
+    main(defaultTest='suite')
