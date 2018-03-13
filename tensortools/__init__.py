@@ -3,9 +3,14 @@ Tensortools
 """
 
 from .ensemble import Ensemble
-from .tensors import Ktensor
-from .diagnostics import *
+from .tensors import KTensor
+
+from .diagnostics import kruskal_align
+
+from .visualization import plot_factors, plot_objective, plot_similarity
+
 from .data.random_tensor import randn_tensor, rand_tensor
+
 from .optimize.cp_als import cp_als
 from .optimize.cp_opt import cp_opt
 from .optimize.ncp_hals import ncp_hals

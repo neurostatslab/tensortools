@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def unfold(tensor, mode):
     """Returns the mode-`mode` unfolding of `tensor`.
 
@@ -7,33 +8,35 @@ def unfold(tensor, mode):
     ----------
     tensor : ndarray
     mode : int
-    
+
     Returns
     -------
     ndarray
         unfolded_tensor of shape ``(tensor.shape[mode], -1)``
 
     Author
-    ------        
-    Jean Kossaifi <https://github.com/tensorly>   
+    ------
+    Jean Kossaifi <https://github.com/tensorly>
     """
     return np.moveaxis(tensor, mode, 0).reshape((tensor.shape[mode], -1))
 
+
 def khatri_rao(matrices):
     """Khatri-Rao product of a list of matrices.
-    
+
     Parameters
     ----------
     matrices : list of ndarray
-    
+
     Returns
     -------
     khatri_rao_product: matrix of shape ``(prod(n_i), m)``
         where ``prod(n_i) = prod([m.shape[0] for m in matrices])``
-        i.e. the product of the number of rows of all the matrices in the product.
+        i.e. the product of the number of rows of all the matrices in the
+        product.
 
     Author
-    ------        
+    ------
     Jean Kossaifi <https://github.com/tensorly>
     """
 

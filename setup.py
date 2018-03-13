@@ -10,8 +10,8 @@ LICENSE = 'MIT'
 
 
 
-      
-# Install setuptools if it isn't available:     
+
+# Install setuptools if it isn't available:
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -81,7 +81,7 @@ if use_cython:
 else:
     ext_modules += [
         Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.c" ]),
-    ] 
+    ]
 
 
 install_requires=[
@@ -133,7 +133,7 @@ setup(
 
     #packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     packages=find_packages(exclude=['tests*']),
-    test_suite='nose.collector',	
+    test_suite='nose.collector',
 
     # cythonize
     cmdclass = cmdclass,
