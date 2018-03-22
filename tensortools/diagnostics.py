@@ -9,7 +9,7 @@ import pdb
 
 
 def kruskal_align(U, V, permute_U=False, permute_V=False):
-    """Aligns
+    """Aligns two KTensors and returns a similarity score.
 
     Parameters
     ----------

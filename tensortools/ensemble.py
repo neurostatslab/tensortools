@@ -54,7 +54,7 @@ class Ensemble(object):
         # fit models at each rank
         for r in ranks:
 
-            # initialize result for rank-r
+            # initialize result for rank-r models
             if r not in self.results:
                 self.results[r] = []
 
@@ -83,11 +83,10 @@ class Ensemble(object):
             idx = np.argsort([r.obj for r in self.results[rank]])
             self.results[rank] = [self.results[rank][i] for i in idx]
 
-        # align best model of rank r, to best model of next larger rank
-        for r1, r2 in zip(ranks[1:], ranks):
-            # note r1 < r2
-            U = self.results[r1][0].factors
-            V = self.results[r2][0].factors
+        # align best model within each rank to best model of next larger rank
+        for i in range(len(ranks)-1):
+            U = self.results[ranks[i]][0].factors
+            V = self.results[ranks[i+1]][0].factors
             kruskal_align(U, V, permute_U=True)
 
         # for each rank, align everything to the best model
