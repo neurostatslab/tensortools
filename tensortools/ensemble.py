@@ -68,6 +68,11 @@ def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
     [2] Battaglino C, Ballard G, Kolda TG (2017). A Practical Randomized CP Tensor Decomposition.
     """
 
+    # Warn user if they are about to do something suspicious
+    if np.any(tensor < 0) and nonneg:
+        import warnings
+        warnings.warn('Fitting a nonnegative model to tensor with negative entries.')
+    
     # Treat nans as missing data
     nanmask = np.isfinite(tensor)
     if nanmask.sum() == nanmask.size:
