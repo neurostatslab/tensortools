@@ -20,6 +20,7 @@ OPTIONS = {
     'tol': 1e-6
 }
 
+
 def cp_direct(tensor, rank, M=None, l1=None, l2=None, nonneg=False,
               init=None, options=OPTIONS):
     """ Fit CP decomposition by alternating least-squares.
@@ -164,15 +165,16 @@ def cp_direct(tensor, rank, M=None, l1=None, l2=None, nonneg=False,
 def _cp_initialize(tensor, rank, init):
     """ Parameter initialization methods for CP decomposition
     """
-    if rank <=0:
-        raise ValueError('Trying to fit a rank-{} model. Rank must be a positive integer.'.format(rank))
+    if rank <= 0:
+        raise ValueError('Trying to fit a rank-{} model. Rank must be a '
+                         'positive integer.'.format(rank))
 
     # initial factors were provided by user
     if isinstance(init, list):
         _validate_factors(init)
         factors = [fctr.copy() for fctr in init]
         return factors
-    
+
     # initialize factors randomly
     if init is 'randn':
         factors = [np.random.randn(tensor.shape[i], rank) for i in range(tensor.ndim)]
@@ -180,7 +182,7 @@ def _cp_initialize(tensor, rank, init):
         factors = [np.random.rand(tensor.shape[i], rank) for i in range(tensor.ndim)]
     else:
         raise ValueError('initialization method not recognized')
-    
+
     # make sure that the norm of the tensor is close to the norm of our initialization
     # first, draw a random sample of entries from the tensor
     idx = np.random.randint(0, tensor.size, size=2**10)
@@ -189,7 +191,7 @@ def _cp_initialize(tensor, rank, init):
     # second, find our initial estimate for those entries
     est = np.ones((len(idx), rank))
     for i, f in enumerate(factors):
-        est *= f[sub[:,i]]
+        est *= f[sub[:, i]]
 
     # rescale factors so that the reconstruction matches norm of tensor
     scale = (np.linalg.norm(tensor.ravel()[idx]) / np.linalg.norm(est.sum(axis=1))) ** (1/tensor.ndim)

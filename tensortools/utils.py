@@ -5,6 +5,17 @@ Useful helper functions, not critical to core functionality of tensortools.
 import numpy as np
 import scipy.spatial
 import math
+import scipy as sci
+from .tensor_utils import unfold
+
+
+def multilinear_pr(tensor):
+    prs = []
+    for m in range(tensor.ndim):
+        M = unfold(tensor, m)
+        lam = np.linalg.svd(M - M.mean(axis=-1, keepdims=True), compute_uv=False, full_matrices=False) ** 2
+        prs.append(np.sum(lam)**2 / np.sum(lam**2))
+    return prs
 
 
 def coarse_grain_1d(tensor, factor, axis=0, reducer=np.sum,
@@ -34,14 +45,15 @@ def coarse_grain_1d(tensor, factor, axis=0, reducer=np.sum,
     # pad tensor if necessary
     pad_width = factor*new_shape[axis] - tensor.shape[axis]
     if pad_width > 0:
-        pw = [pad_width if a==axis else 0 for a in range(tensor.ndim)]
+        pw = [pad_width if (a == axis) else 0 for a in range(tensor.ndim)]
         tensor = np.pad(tensor, pw, pad_mode, **pad_kwargs)
 
     # sanity check
     assert pad_width >= 0
-    
+
     # coarse-grain
     return reducer(tensor.reshape(*new_shape), axis=axis+1)
+
 
 def coarse_grain(tensor, factors, **kwargs):
     """Coarse grains a large tensor along all modes by specified factors
@@ -50,6 +62,7 @@ def coarse_grain(tensor, factors, **kwargs):
         tensor = coarse_grain_1d(tensor, factor, axis=axis, **kwargs)
 
     return tensor
+
 
 def soft_cluster_factor(factor):
     """Returns soft-clustering of data based on CP decomposition results.
@@ -66,17 +79,13 @@ def soft_cluster_factor(factor):
     perm : ndarray of ints
         Permutation that groups rows by clustering and factor magnitude
     """
-    
+
     # copy factor of interest
     f = np.copy(factor)
 
     # cluster based on score of maximum absolute value
     cluster_ids = np.argmax(np.abs(f), axis=1)
     scores = f[range(f.shape[0]), cluster_ids]
-
-    # resort based on cluster assignment
-    #i0 = np.argsort(cluster_ids)
-    #f, scores = f[i0], scores[i0]
 
     # resort within each cluster
     perm = []
@@ -86,7 +95,23 @@ def soft_cluster_factor(factor):
 
     return cluster_ids, perm
 
-def resort_factor_tsp(factor, niter=1000, metric='euclidean', split='dummy', **kwargs):
+
+def resort_factor_hclust(U):
+    """Sorts the rows of a matrix by hierarchical clustering
+
+    Parameters:
+        U (ndarray) : matrix of data
+
+    Returns:
+        prm (ndarray) : permutation of the rows
+    """
+
+    from scipy.cluster import hierarchy
+    Z = hierarchy.ward(U)
+    return hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, U))
+
+
+def resort_factor_tsp(factor, niter=100000, metric='euclidean', split='dummy', **kwargs):
     """Sorts the factor to (approximately) to solve the traveling
     salesperson problem, so that data elements (rows of factor)
     are placed closed to each other.
@@ -95,7 +120,7 @@ def resort_factor_tsp(factor, niter=1000, metric='euclidean', split='dummy', **k
     # Compute pairwise distances between all datapoints
     N = factor.shape[0]
     D = scipy.spatial.distance.pdist(factor, metric=metric, **kwargs)
-    
+
     if split == 'dummy':
         # To solve the traveling salesperson problem with no return to the original node
         # we add a dummy node that has distance zero connections to all other nodes. The
@@ -108,8 +133,8 @@ def resort_factor_tsp(factor, niter=1000, metric='euclidean', split='dummy', **k
         raise ValueError('split parameter not recognized')
 
     # solve TSP
-    path, cost_hist = solve_tsp(dist)
-    
+    path, cost_hist = _solve_tsp(dist, niter)
+
     if split == 'dummy':
         brk = np.argwhere(path==N).ravel()[0]
         path = np.hstack((path[(brk+1):], path[:brk]))
@@ -135,13 +160,14 @@ def reverse_segment(path, n1, n2):
         q[:(n2+1)] = seg[brk:]
         return q
 
-def solve_tsp(dist):
+
+def _solve_tsp(dist, niter):
     """Solve travelling salesperson problem (TSP) by two-opt swapping.
-    
+
     Params
     ------
     dist (ndarray) : distance matrix
-    
+
     Returns
     -------
     path (ndarray) : permutation of nodes in graph (rows of dist matrix)
@@ -162,46 +188,51 @@ def solve_tsp(dist):
     path = np.random.permutation(N)
     idx = np.argsort(path)
     cost = np.sum(dist[path[ii], path[jj]])
-    
+
     # keep track of objective function over time
     cost_hist = [cost]
 
     # optimization loop
     node = 0
+    itercount = 0
+    n = 0
 
-    while node < N:
+    while n < N and itercount < niter:
+
+        # count iterations
+        itercount += 1
 
         # we'll try breaking the connection i -> j
         i = path[node]
         j = path[(node+1) % N]
-        
-        # since we are breaking i -> j we can remove the cost of that connection
+
+        # We are breaking i -> j so we can remove the cost of that connection.
         c = cost - dist[i, j]
 
-        # search over nodes k that are closer to j than i
+        # Search over nodes k that are closer to j than i.
         for k in dsort[j]:
-            # can safely continue if dist[i,j] < dist[k,j] for the remaining k
+            # Can safely continue if dist[i,j] < dist[k,j] for the remaining k.
             if k == i:
-                node += 1
+                n += 1
                 break
 
-            # break connection k -> p
-            # add connection j -> p
-            # add connection i -> k
+            # Break connection k -> p.
+            # Add connection j -> p.
+            # Add connection i -> k.
             p = path[(idx[k]+1) % N]
-            new_cost = c - dist[k,p] + dist[j,p] + dist[i,k]
+            new_cost = c - dist[k, p] + dist[j, p] + dist[i, k]
 
-            # if this swap improves the cost, implement it and move to next i
+            # If this swap improves the cost, implement it and move to next i.
             if new_cost < cost:
                 path = reverse_segment(path, idx[j], idx[k])
                 idx = np.argsort(path)
-                # make sure that we didn't screw up
-                assert np.abs(np.sum(dist[path[ii], path[jj]]) - new_cost) < 1e-6
                 cost = new_cost
-                # restart from the begining of the graph
+                # Restart from the begining of the graph.
                 cost_hist.append(cost)
-                node = 0
+                n = 0
                 break
 
-    return path, cost_hist
+        # move to next node
+        node = (node + 1) % N
 
+    return path, cost_hist

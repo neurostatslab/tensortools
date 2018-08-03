@@ -12,6 +12,7 @@ from .plots import plot_factors, plot_error, plot_similarity
 from .kruskal import normalize_factors, standardize_factors, align_factors
 
 # useful, non-critical functions
+from .tensor_utils import unfold
 from . import utils
 
 __version__ = '0.0.1'
