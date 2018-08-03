@@ -12,11 +12,7 @@ from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult
 
-
-#import pyximport; pyximport.install()
 from .._hals_update import _hals_update
-
-
 
 
 def ncp_hals(X, rank=None, random_state=None, **options):
