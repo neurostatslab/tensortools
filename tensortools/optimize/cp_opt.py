@@ -1,5 +1,8 @@
 """
-CP decomposition by classic alternating least squares (ALS).
+CP decomposition by scikit learn optimization methods.
+
+Note that this is mostly included as a baseline method. Generally speaking,
+this method will converge more slowly that alternating least squares.
 
 Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 """
@@ -140,6 +143,7 @@ def cp_opt(X, rank=None, method='Newton-CG', random_state=None, **options):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Optimize until convergence or maxiter is reached
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # TODO - can we compute hess or hessp efficiently?
         res = minimize(cp_opt_fun, np.ravel(U),
                        args=(X, normX, U_shape, result), method=method,
                        jac=True, hess=None, hessp=None, bounds=None,

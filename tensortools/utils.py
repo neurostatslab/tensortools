@@ -4,13 +4,16 @@ Miscellaneous functions for interpreting low-dimensional models and data.
 
 import numpy as np
 import scipy.spatial
+import math
+import scipy as sci
+from .tensor_utils import unfold
 
 
-def soft_cluster(data):
-    """Soft-clusters nonnegative data based on largest feature
+def soft_cluster_factor(factor):
+    """Returns soft-clustering of data based on CP decomposition results.
 
-    Args
-    ----
+    Parameters
+    ----------
     data : ndarray, N x R matrix of nonnegative data
         Datapoints are held in rows, features are held in columns
 
@@ -22,6 +25,9 @@ def soft_cluster(data):
         Permutation / ordering of the rows of data induced by the soft
         clustering.
     """
+
+    # copy factor of interest
+    f = np.copy(factor)
 
     # cluster based on score of maximum absolute value
     cluster_ids = np.argmax(np.abs(f), axis=1)
@@ -66,13 +72,28 @@ def tsp_linearize(data, niter=1000, metric='euclidean', **kwargs):
     dist[:N, :N] = scipy.spatial.distance.squareform(D)
 
     # solve TSP
-    perm, cost_hist = solve_tsp(dist)
+    perm, cost_hist = _solve_tsp(dist)
 
     # remove dummy node at position i
     i = np.argwhere(perm == N).ravel()[0]
     perm = np.hstack((perm[(i+1):], perm[:i]))
 
     return perm
+
+
+def hclust_linearize(U):
+    """Sorts the rows of a matrix by hierarchical clustering.
+
+    Parameters:
+        U (ndarray) : matrix of data
+
+    Returns:
+        prm (ndarray) : permutation of the rows
+    """
+
+    from scipy.cluster import hierarchy
+    Z = hierarchy.ward(U)
+    return hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, U))
 
 
 def reverse_segment(path, n1, n2):
@@ -90,7 +111,7 @@ def reverse_segment(path, n1, n2):
         return q
 
 
-def solve_tsp(dist):
+def _solve_tsp(dist, niter):
     """Solve travelling salesperson problem (TSP) by two-opt swapping.
 
     Params
@@ -124,38 +145,46 @@ def solve_tsp(dist):
 
     # optimization loop
     node = 0
-    while node < N:
+    itercount = 0
+    n = 0
+
+    while n < N and itercount < niter:
+
+        # count iterations
+        itercount += 1
 
         # we'll try breaking the connection i -> j
         i = path[node]
         j = path[(node+1) % N]
 
-        # remove the cost of the connection i -> j
+        # We are breaking i -> j so we can remove the cost of that connection.
         c = cost - dist[i, j]
 
-        # search over nodes k that are closer to j than i
+        # Search over nodes k that are closer to j than i.
         for k in dsort[j]:
-            # can safely prune if dist[i,j] < dist[k,j] for the remaining k
+
+            # Can safely continue if dist[i,j] < dist[k,j] for the remaining k.
             if k == i:
-                node += 1
+                n += 1
                 break
 
-            # break connection k -> p
-            # add connection j -> p
-            # add connection i -> k
+            # Break connection k -> p.
+            # Add connection j -> p.
+            # Add connection i -> k.
             p = path[(idx[k]+1) % N]
             new_cost = c - dist[k, p] + dist[j, p] + dist[i, k]
 
-            # if this swap improves the cost, implement it and move to next i
+            # If this swap improves the cost, implement it and move to next i.
             if new_cost < cost:
                 path = reverse_segment(path, idx[j], idx[k])
                 idx = np.argsort(path)
-                # make sure that we didn't screw up
-                assert np.abs(np.sum(dist[path[ii], path[jj]]) - new_cost) < 1e-6
                 cost = new_cost
-                # restart from the begining of the graph
+                # Restart from the begining of the graph.
                 cost_hist.append(cost)
-                node = 0
+                n = 0
                 break
+
+        # move to next node
+        node = (node + 1) % N
 
     return path, cost_hist

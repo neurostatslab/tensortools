@@ -4,10 +4,24 @@ import scipy as sci
 
 
 class KTensor(object):
-    """Kruskal tensor object
+    """Kruskal tensor object.
+
+    Attributes
+    ----------
+    factors
+    shape
+    size
+    rank
     """
 
     def __init__(self, factors):
+        """Initializes KTensor.
+
+        Parameters
+        ----------
+        factors : list of ndarray
+            Factor matrices.
+        """
 
         self.factors = factors
         self.shape = tuple([f.shape[0] for f in factors])
@@ -30,7 +44,7 @@ class KTensor(object):
         return sci.reshape(unf, self.shape)
 
     def rebalance(self):
-        """Rescales factors across modes so that all norms match
+        """Rescales factors across modes so that all norms match.
         """
 
         # Compute norms along columns for each factor matrix

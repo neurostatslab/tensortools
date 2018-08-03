@@ -86,23 +86,16 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
 
     """
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Error catching
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Check inputs.
     if X.ndim < 3:
         raise ValueError("Array with X.ndim > 2 expected.")
-
     if rank is None:
         raise ValueError("Rank is not specified.")
-
     if rank < 0:
         raise ValueError("Rank is invalid.")
 
-
-    # N-way array
+    # Store tensor order/dimension and norm.
     N = X.ndim
-
-    # Norm of input array
     normX = sci.linalg.norm(X)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
