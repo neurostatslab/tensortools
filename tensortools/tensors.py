@@ -1,6 +1,7 @@
 from tensortools.operations import khatri_rao
 import numpy as np
 import scipy as sci
+from copy import deepcopy
 
 
 class KTensor(object):
@@ -34,8 +35,7 @@ class KTensor(object):
                 raise ValueError('Tensor factors have inconsistent rank.')
 
     def full(self):
-        """Converts KTensor to a dense ndarray.
-        """
+        """Converts KTensor to a dense ndarray."""
 
         # Compute tensor unfolding along first mode
         unf = sci.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
@@ -68,6 +68,9 @@ class KTensor(object):
         # Update factors
         self.factors = [f[:, idx] for f in self.factors]
         return self.factors
+
+    def copy(self):
+        return deepcopy(self)
 
     def __getitem__(self, i):
         return self.factors[i]

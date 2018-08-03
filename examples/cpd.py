@@ -14,8 +14,8 @@ X = tt.randn_tensor((I, J, K), rank=R)
 X += np.random.randn(I, J, K)
 
 # fit cp decomposition twice
-U = cp_als(X, rank=R, trace=False)
-V = cp_als(X, rank=R, trace=False)
+U = cp_als(X, rank=R, verbose=True)
+V = cp_als(X, rank=R, verbose=True)
 
 # compare results
 fig, ax, po = tt.plot_factors(U.factors)

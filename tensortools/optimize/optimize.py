@@ -9,18 +9,44 @@ import timeit
 
 class FitResult(object):
     """
-    Holds result of optimization
+    Holds result of optimization.
+
+    Attributes
+    ----------
+    total_time: float
+        Number of seconds spent before stopping optimization.
+    obj : float
+        Objective value of optimization (at current parameters).
+    obj_hist : list of floats
+        Objective values at each iteration.
     """
 
     def __init__(self, factors, method, tol=1e-5, verbose=True, max_iter=500,
-                 min_iter=1, max_time=np.inf, **kwargs):
-        """
+                 min_iter=1, max_time=np.inf):
+        """Initializes FitResult.
 
         Parameters
         ----------
         factors : KTensor
-
+            Initial guess for tensor decomposition.
+        method : str
+            Name of optimization method (used for printing).
+        tol : float
+            Stopping criterion.
+        verbose : bool
+            Whether to print progress of optimization.
+        max_iter : int
+            Maximum number of iterations before quitting early.
+        min_iter : int
+            Minimum number of iterations before stopping due to convergence.
+        max_time : float
+            Maximum number of seconds before quitting early.
         """
+
+        if min_iter < 1:
+            raise ValueError("'min_iter' must be at least one.")
+        elif max_iter < min_iter:
+            raise ValueError("'max_iter' must be greater than 'min_iter'.")
 
         self.factors = factors
         self.obj = np.inf
@@ -36,50 +62,47 @@ class FitResult(object):
         self.iterations = 0
         self.converged = False
         self.t0 = timeit.default_timer()
+        self.total_time = None
+
+    @property
+    def still_optimizing(self):
+        """True unless converged or maximum iterations/time exceeded."""
+
+        # Always optimize for at least 'min_iter' iterations.
+        if self.iterations < self.min_iter:
+            return True
+
+        # Check if we need to give up on optimizing.
+        elif (self.iterations > self.max_iter) or (self.time_elapsed() > self.max_time):
+            return False
+
+        # Check convergence.
+        else:
+            self.converged = self.improvement < self.tol
+            return False if self.converged else True
 
     def time_elapsed(self):
         return timeit.default_timer() - self.t0
 
     def update(self, obj):
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-        # Keep track of iterations
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
+        # Keep track of iterations.
         self.iterations += 1
 
-        if self.iterations == 1:
-            self.obj = np.inf
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute improvement in objective
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        improvement = self.obj - obj
-        # assert improvement > 0
+        # Compute improvement in objective.
+        self.improvement = self.obj - obj
         self.obj = obj
         self.obj_hist.append(obj)
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # If desired, print progress
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # If desired, print progress.
         if self.verbose:
-            p_args = self.method, self.iterations, self.obj, improvement
+            p_args = self.method, self.iterations, self.obj, self.improvement
             s = '{}: iteration {}, objective {}, improvement {}.'
             print(s.format(*p_args))
 
-        # ~~~~~~~~~~~~~~~~~~~~~~
-        # Check for convergence
-        # ~~~~~~~~~~~~~~~~~~~~~~
-        self.converged =\
-            (self.iterations > self.min_iter and improvement < self.tol) or\
-            (self.iterations > self.max_iter or self.time_elapsed() > self.max_time)
-
-        return self
-
     def finalize(self):
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Set final time, final print statement
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.total_time = self.time_elapsed()
 
         if self.verbose:

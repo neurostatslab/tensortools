@@ -13,7 +13,7 @@ from tensortools.data.random_tensor import randn_tensor
 from tensortools.optimize import FitResult
 
 
-def cp_als(X, rank=None, random_state=None, **options):
+def cp_als(X, rank=None, random_state=None, init='randn', **options):
     """
     CP Decomposition using the Alternating Least Squares (ALS) Method.
 
@@ -40,6 +40,11 @@ def cp_als(X, rank=None, random_state=None, **options):
         If integer, sets the seed of the random number generator;
         If RandomState instance, random_state is the random number generator;
         If None, use the RandomState instance used by ``numpy.random``.
+
+    init : str, or KTensor, optional (default ``'randn'``).
+        Specifies initial guess for KTensor factor matrices.
+        If 'randn', Gaussian random numbers are used.
+        If KTensor instance, a copy is made to initialize the optimization.
 
     options : dict, specifying fitting options.
 
@@ -115,19 +120,18 @@ def cp_als(X, rank=None, random_state=None, **options):
     # distributed entries.
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # default options
-    options.setdefault('init', None)
-
-    if options['init'] is None:
+    if init == 'randn':
         # TODO - match the norm of the initialization to the norm of X.
         U = randn_tensor(X.shape, rank, ktensor=True,
                          random_state=random_state)
 
-    elif type(options['init']) is not KTensor:
-        raise ValueError("Optional parameter 'init' is not a KTensor.")
+    elif isinstance(init, KTensor):
+        U = init.copy()
 
     else:
-        U = options['init']
+        raise ValueError("Expected 'init' to either be a KTensor or a string "
+                         "specifying how to initialize optimization (valid "
+                         "strings are 'randn').")
 
     # initialize result
     result = FitResult(U, 'CP_ALS', **options)
@@ -135,7 +139,7 @@ def cp_als(X, rank=None, random_state=None, **options):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the ALS algorithm until convergence or maxiter is reached
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    while result.converged is False:
+    while result.still_optimizing:
 
         for n in range(N):
 

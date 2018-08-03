@@ -1,3 +1,10 @@
+"""
+Simple tensor operations and utility functions.
+
+Some of these functions were ported with minor modifications
+from the tensorly package, https://tensorly.github.io/, distributed
+under a BSD clause 3 license.
+"""
 import numpy as np
 
 

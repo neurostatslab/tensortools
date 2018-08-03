@@ -1,5 +1,5 @@
 """
-CP decomposition by scikit learn optimization methods.
+CP decomposition by scipy optimization methods.
 
 Note that this is mostly included as a baseline method. Generally speaking,
 this method will converge more slowly that alternating least squares.
