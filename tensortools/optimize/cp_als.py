@@ -9,8 +9,7 @@ import scipy as sci
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
-from tensortools.data.random_tensor import randn_tensor
-from tensortools.optimize import FitResult
+from tensortools.optimize import FitResult, optim_utils
 
 
 def cp_als(X, rank=None, random_state=None, init='randn', **options):
@@ -43,7 +42,8 @@ def cp_als(X, rank=None, random_state=None, init='randn', **options):
 
     init : str, or KTensor, optional (default ``'randn'``).
         Specifies initial guess for KTensor factor matrices.
-        If 'randn', Gaussian random numbers are used.
+        If ``'randn'``, Gaussian random numbers are used to initialize.
+        If ``'rand'``, uniform random numbers are used to initialize.
         If KTensor instance, a copy is made to initialize the optimization.
 
     options : dict, specifying fitting options.
@@ -101,56 +101,30 @@ def cp_als(X, rank=None, random_state=None, init='randn', **options):
 
     """
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Error catching
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if X.ndim < 3:
-        raise ValueError("Array with X.ndim > 2 expected.")
+    # Check inputs.
+    optim_utils._check_cpd_inputs(X, rank)
 
-    if rank <= 0:
-        raise ValueError("Rank is invalid.")
-
-    # store dimensions and norm of X
-    N = X.ndim
+    # Store norm of X for computing objective function.
     normX = sci.linalg.norm(X)
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize KTensor
-    # Initialize components [U_1, U_2, ... U_N] using random standard normal
-    # distributed entries.
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    if init == 'randn':
-        # TODO - match the norm of the initialization to the norm of X.
-        U = randn_tensor(X.shape, rank, ktensor=True,
-                         random_state=random_state)
-
-    elif isinstance(init, KTensor):
-        U = init.copy()
-
-    else:
-        raise ValueError("Expected 'init' to either be a KTensor or a string "
-                         "specifying how to initialize optimization (valid "
-                         "strings are 'randn').")
-
-    # initialize result
+    # Initialize problem.
+    U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
     result = FitResult(U, 'CP_ALS', **options)
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Iterate the ALS algorithm until convergence or maxiter is reached
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Main optimization loop.
     while result.still_optimizing:
 
-        for n in range(N):
+        # Iterate over each tensor mode.
+        for n in range(X.ndim):
 
-            # i) Normalize factors to prevent singularities
+            # i) Normalize factors to prevent singularities.
             U.rebalance()
 
-            # ii) compute the N-1 gram matrices
-            components = [U[j] for j in range(N) if j != n]
+            # ii) Compute the N-1 gram matrices.
+            components = [U[j] for j in range(X.ndim) if j != n]
             grams = sci.multiply.reduce([sci.dot(u.T, u) for u in components])
 
-            # iii)  Compute Khatri-Rao product
+            # iii)  Compute Khatri-Rao product.
             kr = khatri_rao(components)
 
             # iv) Form normal equations and solve via Cholesky

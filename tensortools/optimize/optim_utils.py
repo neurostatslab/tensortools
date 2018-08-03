@@ -4,7 +4,55 @@ Optimization objects
 
 import numpy as np
 import scipy as sci
+from tensortools.tensors import KTensor
 import timeit
+from tensortools.data.random_tensor import randn_tensor, rand_tensor
+
+
+def _check_cpd_inputs(X, rank):
+    """Checks that inputs to optimization function are appropriate.
+
+    Parameters
+    ----------
+    X : ndarray
+        Tensor used for fitting CP decomposition.
+    rank : int
+        Rank of low rank decomposition.
+
+    Raises
+    ------
+    ValueError: If inputs are not suited for CP decomposition.
+    """
+    if X.ndim < 3:
+        raise ValueError("Array with X.ndim > 2 expected.")
+    if rank <= 0 or not isinstance(rank, int):
+        raise ValueError("Rank is invalid.")
+
+
+def _get_initial_ktensor(init, X, rank, random_state):
+    """
+    Returns
+    -------
+    KTensor
+        Initial factor matrices used optimization.
+    """
+    if init == 'randn':
+        # TODO - match the norm of the initialization to the norm of X.
+        return randn_tensor(X.shape, rank, ktensor=True,
+                            random_state=random_state)
+
+    elif init == 'rand':
+        # TODO - match the norm of the initialization to the norm of X.
+        return rand_tensor(X.shape, rank, ktensor=True,
+                           random_state=random_state)
+
+    elif isinstance(init, KTensor):
+        return init.copy()
+
+    else:
+        raise ValueError("Expected 'init' to either be a KTensor or a string "
+                         "specifying how to initialize optimization. Valid "
+                         "strings are ('randn', 'rand').")
 
 
 class FitResult(object):

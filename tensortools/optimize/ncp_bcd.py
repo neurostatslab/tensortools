@@ -10,7 +10,7 @@ import scipy as sci
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import rand_tensor
-from tensortools.optimize import FitResult
+from tensortools.optimize import FitResult, optim_utils
 
 
 def ncp_bcd(X, rank=None, random_state=None, **options):
@@ -87,48 +87,14 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     """
 
     # Check inputs.
-    if X.ndim < 3:
-        raise ValueError("Array with X.ndim > 2 expected.")
-    if rank is None:
-        raise ValueError("Rank is not specified.")
-    if rank < 0:
-        raise ValueError("Rank is invalid.")
+    optim_utils._check_cpd_inputs(X, rank)
 
-    # Store tensor order/dimension and norm.
-    N = X.ndim
+    # Store norm of X for computing objective function.
     normX = sci.linalg.norm(X)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize KTensor
-
-    # Initialize components [U_1, U_2, ... U_N] using random standard normal
-    # distributed entries.
-    # Note that only N-1 components are required for initialization
-    # Hence, U_1 should be assigned as an empty list, i.e., U_1 = []
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    # default options
-    options.setdefault('init', None)
-
-    if options['init'] is None:
-        # TODO - match the norm of the initialization to the norm of X.
-        U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        #U = KTensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])
-
-
-    elif type(options['init']) is not KTensor:
-        raise ValueError("Optional parameter 'init' is not a KTensor.")
-
-    else:
-        U = options['init']
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Init
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result = FitResult(U, 'NCP_BCD', **options)
-
-
-
+    # Initialize problem.
+    U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
+    result = FitResult(U, 'CP_ALS', **options)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Block coordinate descent
