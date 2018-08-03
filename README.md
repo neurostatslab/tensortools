@@ -2,17 +2,16 @@
 
 TensorTools is a bare bones Python package for fitting and visualizing [canonical polyadic (CP) tensor decompositions](https://en.wikipedia.org/wiki/Tensor_rank_decomposition) of higher-order data arrays.
 Check out the [`examples/`](./examples) folder for usage.
-It handles several important practical steps:
 
 #### Fitting an ensemble of models
 
-Since CP decompositions can be caught in local minima during optimization **[2]**.
+CP decompositions can be caught in local minima during optimization **[2]**.
 If our data is held in `data_tensor` (a multi-dimensional numpy array), we can fit an ensemble of models with:
 
 ```python
 from tensortools import fit_ensemble
 
-# fit models with 1-10 components, and fit each from 3 random initializations 
+# Fit models with 1-10 components. For each model rank, fit from 3 random initializations. 
 results = fit_ensemble(data_tensor, range(1,11), replicates=3)
 ```
 
