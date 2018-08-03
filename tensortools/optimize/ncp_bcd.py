@@ -100,18 +100,16 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     # Block coordinate descent
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    Um = sci.copy(U.factors) # Extrapolations of compoenents
-    #Um = KTensor(Um)
+    Um = U.copy()  # Extrapolations of compoenents
+    extraw = 1  # Used for extrapolation weight update
+    weights_U = np.ones(N)  # Extrapolation weights
+    L = np.ones(N)  # Lipschitz constants
+    obj_bcd = 0.5 * normX**2  # Initial objective value
 
-    extraw = 1 # Used for extrapolation weight update
-    weights_U = np.ones(N) # Extrapolation weights
-    L = np.ones(N) # Lipschitz constants
-    obj_bcd = 0.5 * normX**2 # Initial objective value
-
-
-    while result.converged == False:
-        obj_bcd_old = obj_bcd # Old objective value
-        U_old = sci.copy(U.factors) # Old updates
+    # Main optimization loop.
+    while result.still_optimizing:
+        obj_bcd_old = obj_bcd  # Old objective value
+        U_old = U.copy()
         extraw_old = extraw
 
 
@@ -121,43 +119,29 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
             components = [U[j] for j in range(N) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
+            grams = sci.multiply.reduce([arr.T.dot(arr) for arr in components])
 
             # Update gradient Lipschnitz constant
-            L0 = L # Lipschitz constants
+            L0 = L  # Lipschitz constants
             L[n] = sci.linalg.norm(grams, 2)
-
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
             p = unfold(X, n).dot( kr )
 
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Compute Gradient
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Compute Gradient.
             grad = Um[n] .dot(grams) - p
 
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Maximum operator to enforce nonnegativity
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Enforce nonnegativity (project onto nonnegative orthant).
             U[n] = sci.maximum(0.0, Um[n] - grad / L[n])
 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Update the optimization result, checks for convergence.
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Compute objective function
-        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        #obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
+        # Compute objective function and update optimization result.
+        # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
+        # obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
         obj = sci.linalg.norm(X - U.full()) / normX
-
-        # Update
         result.update(obj)
 
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Correction and extrapolation
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Correction and extrapolation.
         grams *= U[N - 1].T.dot(U[N - 1])
         obj_bcd = 0.5 * (sci.sum(grams) - 2 * sci.sum(U[N-1] * p) + normX**2 )
 
@@ -174,12 +158,5 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
                 weights_U[n] = min(w, 1.0 * sci.sqrt( L0[n] / L[n] )) # choose smaller weights for convergence
                 Um[n] = U[n] + weights_U[n] * (U[n] - U_old[n]) # extrapolation
 
-
-
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Prepares final version of the optimization result.
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize()
-
-    return result
+    # Finalize and return the optimization result.
+    return result.finalize()

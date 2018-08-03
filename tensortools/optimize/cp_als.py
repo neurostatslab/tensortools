@@ -144,9 +144,5 @@ def cp_als(X, rank=None, random_state=None, init='randn', **options):
         # Update result
         result.update(obj)
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Prepares final version of the optimization result.
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize()
-
-    return result
+    # Finalize and return the optimization result.
+    return result.finalize()
