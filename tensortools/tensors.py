@@ -9,10 +9,14 @@ class KTensor(object):
 
     Attributes
     ----------
-    factors
-    shape
-    size
-    rank
+    factors : list of ndarray
+        Factor matrices.
+    shape : tuple
+        Dimensions of full tensor.
+    size : int
+        Number of elements in full tensor.
+    rank : int
+        Dimensionality of low-rank factor matrices.
     """
 
     def __init__(self, factors):

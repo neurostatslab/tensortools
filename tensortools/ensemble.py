@@ -1,32 +1,51 @@
-from tensortools.optimize import cp_als
+from tensortools.optimize import cp_als, ncp_bcd
 from tensortools.diagnostics import kruskal_align
 from tqdm import trange
+import collections
 import numpy as np
 
 
 class Ensemble(object):
+    """
+    Represents an ensemble of fitted tensor decompositions.
+    """
 
-    def __init__(self, nonneg=False, compress=False, sketching=False,
-                 options=dict()):
+    def __init__(self, nonneg=False, fit_method=None, fit_options=dict()):
+        """Initializes Ensemble.
 
-        # model specification
-        self.nonneg = nonneg
-        self.compress = compress
-        self.sketching = sketching
+        Parameters
+        ----------
+        nonneg : bool
+            If True, constrains low-rank factor matrices to be nonnegative.
+        fit_method : None or callable, optional (default: None)
+            Method for fitting a tensor decomposition. If None, a reasonable
+            default method is chosen.
+        fit_options : dict
+            Holds optional arguments for fitting method.
+        """
 
-        # TODO - automatic selection of backend method
-        self.fitting_method = cp_als
+        # Model parameters
+        self._nonneg = nonneg
 
-        # TODO - good defaults for optimization options
-        options.setdefault('tol', 1e-5)
-        options.setdefault('max_iter', 500)
-        options.setdefault('trace', False)
-        self.options = options
+        # Determinine optimization method. If user input is None, try to use a
+        # reasonable default. Otherwise check that it is callable.
+        if fit_method is None:
+            self._fit_method = ncp_bcd if nonneg else cp_als
+        elif callable(fit_method):
+            self._fit_method = fit_method
+        else:
+            raise ValueError("Expected 'fit_method' to be callable.")
+
+        # Try to pick reasonable defaults for optimization options.
+        fit_options.setdefault('tol', 1e-5)
+        fit_options.setdefault('max_iter', 500)
+        fit_options.setdefault('verbose', False)
+        self._fit_options = fit_options
 
         # TODO - better way to hold all results...
         self.results = dict()
 
-    def fit(self, X, ranks, replicates=1):
+    def fit(self, X, ranks, replicates=1, verbose=True):
         """
         Fits CP tensor decompositions for different choices of rank.
 
@@ -34,92 +53,102 @@ class Ensemble(object):
         ----------
         X : array_like
             Real tensor
-
         ranks : int, or iterable
             iterable specifying number of components in each model
-
         replicates: int
             number of models to fit at each rank
-
+        verbose : bool
+            If True, prints summaries and optimization progress.
         """
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-        # FIT MODELS FOR EACH RANK
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # make ranks iterable if necessary
-        if not np.iterable(ranks):
+        # Make ranks iterable if necessary.
+        if not isinstance(ranks, collections.Iterable):
             ranks = (ranks,)
 
-        # fit models at each rank
+        # Iterate over model ranks, optimize multiple replicates at each rank.
         for r in ranks:
 
-            # initialize result for rank-r models
+            # Initialize storage
             if r not in self.results:
                 self.results[r] = []
 
-            # fit multiple replicates
-            d = 'Fitting rank-{} models'.format(r)
-            for i in trange(replicates, desc=d, leave=False):
-                model_fit = self.fitting_method(X, r, **self.options)
+            # Display fitting progress.
+            if verbose:
+                itr = trange(replicates,
+                             desc='Fitting rank-{} models'.format(r),
+                             leave=False)
+            else:
+                itr = range(replicates)
+
+            # Fit replicates.
+            for i in itr:
+                model_fit = self._fit_method(X, r, **self._fit_options)
                 self.results[r].append(model_fit)
 
-            # summary statistics
-            min_obj = min([res.obj for res in self.results[r]])
-            max_obj = max([res.obj for res in self.results[r]])
-            elapsed = sum([res.total_time for res in self.results[r]])
+            # Print summary of results.
+            if verbose:
+                min_obj = min([res.obj for res in self.results[r]])
+                max_obj = max([res.obj for res in self.results[r]])
+                elapsed = sum([res.total_time for res in self.results[r]])
+                print('Rank-{} models:  min obj, {:.2f};  '
+                      'max obj, {:.2f};  time to fit, '
+                      '{:.1f}s'.format(r, min_obj, max_obj, elapsed))
 
-            # print summary
-            print('Rank-{} summary:  min obj, {:.2f};  max obj, {:.2f};  '
-                  'time to fit, {:.1f}s'.format(r, min_obj, max_obj, elapsed))
+        # Sort results from lowest to largest loss.
+        for r in ranks:
+            idx = np.argsort([result.obj for result in self.results[r]])
+            self.results[r] = [self.results[r][i] for i in idx]
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # ALIGN FACTORS AND COMPUTER SIMILARITIES
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        ranks = sorted(self.results, reverse=True)  # iterate in reverse order
-
-        # sort models of same rank by objective function
-        for rank in ranks:
-            idx = np.argsort([r.obj for r in self.results[rank]])
-            self.results[rank] = [self.results[rank][i] for i in idx]
-
-        # align best model within each rank to best model of next larger rank
-        for i in range(len(ranks)-1):
-            U = self.results[ranks[i]][0].factors
-            V = self.results[ranks[i+1]][0].factors
+        # Align best model within each rank to best model of next larger rank.
+        # Here r0 is the rank of the lower-dimensional model and r1 is the rank
+        # of the high-dimensional model.
+        for i in reversed(range(1, len(ranks))):
+            r0, r1 = ranks[i-1], ranks[i]
+            U = self.results[r0][0].factors
+            V = self.results[r1][0].factors
             kruskal_align(U, V, permute_U=True)
 
-        # for each rank, align everything to the best model
-        for rank in ranks:
+        # For each rank, align everything to the best model
+        for r in ranks:
             # store best factors
-            U = self.results[rank][0].factors       # best model factors
-            self.results[rank][0].similarity = 1.0  # similarity to itself
+            U = self.results[r][0].factors       # best model factors
+            self.results[r][0].similarity = 1.0  # similarity to itself
 
             # align lesser fit models to best models
-            for res in self.results[rank][1:]:
+            for res in self.results[r][1:]:
                 res.similarity = kruskal_align(U, res.factors, permute_V=True)
 
     def objectives(self, rank):
-        """Returns objective values of models with specified rank
+        """Returns objective values of models with specified rank.
         """
         self._check_rank(rank)
-        return [r.obj for r in self.results[rank]]
+        return [result.obj for result in self.results[rank]]
 
     def similarities(self, rank):
-        """Returns similarity scores for models with specified rank
+        """Returns similarity scores for models with specified rank.
         """
         self._check_rank(rank)
-        return [r.similarity for r in self.results[rank]]
+        return [result.similarity for result in self.results[rank]]
 
     def factors(self, rank):
-        """Returns KTensor factors for models with specified rank
+        """Returns KTensor factors for models with specified rank.
         """
         self._check_rank(rank)
-        return [r.factors for r in self.results[rank]]
+        return [result.factors for result in self.results[rank]]
 
     def _check_rank(self, rank):
         """Checks if specified rank has been fit.
+
+        Parameters
+        ----------
+        rank : int
+            Rank of the models that were queried.
+
+        Raises
+        ------
+        ValueError: If no models of rank ``rank`` have been fit yet.
         """
         if rank not in self.results:
-            raise ValueError('No models of rank-{} have been fit.' +
-                             'Please call Ensemble.fit(...) first.')
+            raise ValueError('No models of rank-{} have been fit.'
+                             'Call Ensemble.fit(tensor, rank={}, ...) '
+                             'to fit these models.'.format(rank))

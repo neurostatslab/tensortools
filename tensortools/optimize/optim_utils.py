@@ -1,6 +1,4 @@
-"""
-Optimization objects
-"""
+"""Utilities for summarizing and setting up optimization."""
 
 import numpy as np
 import scipy as sci

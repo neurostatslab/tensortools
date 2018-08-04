@@ -13,7 +13,7 @@ from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def ncp_bcd(X, rank=None, random_state=None, **options):
+def ncp_bcd(X, rank, random_state=None, init='rand', **options):
     """
     Nonnegative CP Decomposition using the Block Coordinate Descent (BCD) Method.
 
@@ -40,6 +40,12 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
         If integer, random_state is the seed used by the random number generator;
         If RandomState instance, random_state is the random number generator;
         If None, the random number generator is the RandomState instance used by np.random.
+
+    init : str, or KTensor, optional (default ``'randn'``).
+        Specifies initial guess for KTensor factor matrices.
+        If ``'randn'``, Gaussian random numbers are used to initialize.
+        If ``'rand'``, uniform random numbers are used to initialize.
+        If KTensor instance, a copy is made to initialize the optimization.
 
     options : dict, specifying fitting options.
 
@@ -90,15 +96,16 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
     optim_utils._check_cpd_inputs(X, rank)
 
     # Store norm of X for computing objective function.
+    N = X.ndim
     normX = sci.linalg.norm(X)
 
     # Initialize problem.
     U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
     result = FitResult(U, 'CP_ALS', **options)
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Block coordinate descent
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Um = U.copy()  # Extrapolations of compoenents
     extraw = 1  # Used for extrapolation weight update
@@ -111,7 +118,6 @@ def ncp_bcd(X, rank=None, random_state=None, **options):
         obj_bcd_old = obj_bcd  # Old objective value
         U_old = U.copy()
         extraw_old = extraw
-
 
         for n in range(N):
 

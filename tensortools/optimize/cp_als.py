@@ -12,7 +12,7 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def cp_als(X, rank=None, random_state=None, init='randn', **options):
+def cp_als(X, rank, random_state=None, init='randn', **options):
     """
     CP Decomposition using the Alternating Least Squares (ALS) Method.
 
