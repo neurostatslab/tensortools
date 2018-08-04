@@ -6,6 +6,7 @@ Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 
 import numpy as np
 import scipy as sci
+from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
@@ -15,18 +16,8 @@ from tensortools.optimize import FitResult, optim_utils
 
 def ncp_bcd(X, rank, random_state=None, init='rand', **options):
     """
-    Nonnegative CP Decomposition using the Block Coordinate Descent (BCD) Method.
-
-    The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order
-    arrays (tensors). The CP decomposition can be seen as a generalization
-    of PCA, yet there are some important conceptual differences: (a) the CP
-    decomposition allows to extract pure spectra from multi-way spectral data;
-    (b) the data do not need to be unfolded. Hence, the resulting
-    factors are easier to interpret and more robust to noise.
-
-    When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``,
-    where `U_i` are 2D arrays of rank R.
-
+    Fits nonnegative CP Decomposition using the Block Coordinate Descent (BCD)
+    Method.
 
     Parameters
     ----------
@@ -41,7 +32,7 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
         If RandomState instance, random_state is the random number generator;
         If None, the random number generator is the RandomState instance used by np.random.
 
-    init : str, or KTensor, optional (default ``'randn'``).
+    init : str, or KTensor, optional (default ``'rand'``).
         Specifies initial guess for KTensor factor matrices.
         If ``'randn'``, Gaussian random numbers are used to initialize.
         If ``'rand'``, uniform random numbers are used to initialize.
@@ -67,9 +58,9 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
 
     Returns
     -------
-    P : FitResult object
-        Object which returens the fited results. It provides the factor matrices
-        in form of a Kruskal operator.
+    result : FitResult instance
+        Object which holds the fitted results. It provides the factor matrices
+        in form of a KTensor, ``result.factors``.
 
 
     Notes
@@ -79,16 +70,14 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
 
     References
     ----------
-
-
-
-    Examples
-    --------
     Xu, Yangyang, and Wotao Yin. "A block coordinate descent method for
     regularized multiconvex optimization with applications to
     negative tensor factorization and completion."
     SIAM Journal on imaging sciences 6.3 (2013): 1758-1789.
 
+
+    Examples
+    --------
 
     """
 
@@ -97,11 +86,11 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
 
     # Store norm of X for computing objective function.
     N = X.ndim
-    normX = sci.linalg.norm(X)
+    normX = linalg.norm(X)
 
     # Initialize problem.
     U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
-    result = FitResult(U, 'CP_ALS', **options)
+    result = FitResult(U, 'NCP_BCD', **options)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Block coordinate descent
@@ -129,7 +118,7 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
 
             # Update gradient Lipschnitz constant
             L0 = L  # Lipschitz constants
-            L[n] = sci.linalg.norm(grams, 2)
+            L[n] = linalg.norm(grams, 2)
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
@@ -144,7 +133,7 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
         # Compute objective function and update optimization result.
         # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
         # obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
-        obj = sci.linalg.norm(X - U.full()) / normX
+        obj = linalg.norm(X - U.full()) / normX
         result.update(obj)
 
         # Correction and extrapolation.

@@ -1,4 +1,4 @@
-from tensortools.optimize import cp_als, ncp_bcd
+from tensortools import optimize
 from tensortools.diagnostics import kruskal_align
 from tqdm import trange
 import collections
@@ -17,8 +17,10 @@ class Ensemble(object):
         ----------
         nonneg : bool
             If True, constrains low-rank factor matrices to be nonnegative.
-        fit_method : None or callable, optional (default: None)
-            Method for fitting a tensor decomposition. If None, a reasonable
+        fit_method : None, str, callable, optional (default: None)
+            Method for fitting a tensor decomposition. If input is callable,
+            it is used directly. If input is a string then method is taken
+            from tensortools.optimize using ``getattr``. If None, a reasonable
             default method is chosen.
         fit_options : dict
             Holds optional arguments for fitting method.
@@ -30,11 +32,18 @@ class Ensemble(object):
         # Determinine optimization method. If user input is None, try to use a
         # reasonable default. Otherwise check that it is callable.
         if fit_method is None:
-            self._fit_method = ncp_bcd if nonneg else cp_als
+            self._fit_method = optimize.ncp_bcd if nonneg else optimize.cp_als
+        elif isinstance(fit_method, str):
+            try:
+                self._fit_method = getattr(optimize, fit_method)
+            except AttributeError:
+                raise ValueError("Did not recognize method 'fit_method' "
+                                 "{}".format(fit_method))
         elif callable(fit_method):
             self._fit_method = fit_method
         else:
-            raise ValueError("Expected 'fit_method' to be callable.")
+            raise ValueError("Expected 'fit_method' to be a string or "
+                             "callable.")
 
         # Try to pick reasonable defaults for optimization options.
         fit_options.setdefault('tol', 1e-5)

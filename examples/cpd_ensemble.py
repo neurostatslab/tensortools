@@ -1,31 +1,71 @@
 import tensortools as tt
 import numpy as np
 import matplotlib.pyplot as plt
-rs = 1234  # random seed
 
-# dimensions
+# Make dataset.
 I, J, K, R = 100, 100, 100, 4
+X = tt.rand_tensor((I, J, K), rank=R)
 
-# make tensor
-X = tt.randn_tensor((I, J, K), rank=R)
+# Add noise.
+Xn = np.maximum(0, X + .1*np.random.randn(I, J, K))
 
-# add noise
-Xn = X + np.random.randn(I, J, K)
+# Fit ensemble of unconstrained tensor decompositions.
+methods = (
+  'cp_als',
+  'ncp_bcd',
+  # 'ncp_hals',
+)
 
-# fit cp decomposition across a range of ranks
-options = {
-    'tol': 1e-6,
+
+ensembles = {}
+for m in methods:
+    ensembles[m] = tt.Ensemble(fit_method=m, fit_options=dict(tol=1e-4))
+    ensembles[m].fit(Xn, ranks=range(1, 9), replicates=3)
+
+# Plotting options for the unconstrained and nonnegative models.
+plot_options = {
+  'cp_als': {
+    'line_kw': {
+      'color': 'black',
+      'label': 'cp_als',
+    },
+    'scatter_kw': {
+      'color': 'black',
+    },
+  },
+  # 'ncp_hals': {
+  #   'line_kw': {
+  #     'color': 'blue',
+  #     'alpha': 0.5,
+  #     'label': 'ncp_hals',
+  #   },
+  #   'scatter_kw': {
+  #     'color': 'blue',
+  #     'alpha': 0.5,
+  #   },
+  # },
+  'ncp_bcd': {
+    'line_kw': {
+      'color': 'red',
+      'alpha': 0.5,
+      'label': 'ncp_bcd',
+    },
+    'scatter_kw': {
+      'color': 'red',
+      'alpha': 0.5,
+    },
+  },
 }
-ensemble = tt.Ensemble(options=options)
-ensemble.fit(Xn, ranks=range(1, 9), replicates=3)
 
-# plot similarity and error plots
+# Plot similarity and error plots.
 plt.figure()
-tt.plot_objective(ensemble)
-plt.axhline(np.linalg.norm(X - Xn) / np.linalg.norm(Xn),
-            dashes=[2, 2], color='k', zorder=-1, alpha=.7)
+for m in methods:
+    tt.plot_objective(ensembles[m], **plot_options[m])
+plt.legend()
 
 plt.figure()
-tt.plot_similarity(ensemble)
+for m in methods:
+    tt.plot_similarity(ensembles[m], **plot_options[m])
+plt.legend()
 
 plt.show()

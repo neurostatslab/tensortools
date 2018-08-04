@@ -6,6 +6,7 @@ Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 
 import numpy as np
 import scipy as sci
+from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
@@ -14,18 +15,7 @@ from tensortools.optimize import FitResult, optim_utils
 
 def cp_als(X, rank, random_state=None, init='randn', **options):
     """
-    CP Decomposition using the Alternating Least Squares (ALS) Method.
-
-    The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order
-    arrays (tensors). The CP decomposition can be seen as a generalization
-    of PCA, yet there are some important conceptual differences: (a) the CP
-    decomposition allows to extract pure spectra from multi-way spectral data;
-    (b) the data do not need to be unfolded. Hence, the resulting
-    factors are easier to interpret and more robust to noise.
-
-    When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``,
-    where `U_i` are 2D arrays of rank R.
-
+    Fits CP Decomposition using the Alternating Least Squares (ALS).
 
     Parameters
     ----------
@@ -66,9 +56,9 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
 
     Returns
     -------
-    P : FitResult object
-        Object which returns the fited results. It provides the factor matrices
-        in form of a Kruskal operator.
+    result : FitResult instance
+        Object which holds the fitted results. It provides the factor matrices
+        in form of a KTensor, ``result.factors``.
 
 
     Notes
@@ -105,7 +95,7 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
     optim_utils._check_cpd_inputs(X, rank)
 
     # Store norm of X for computing objective function.
-    normX = sci.linalg.norm(X)
+    normX = linalg.norm(X)
 
     # Initialize problem.
     U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
@@ -128,10 +118,10 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
             kr = khatri_rao(components)
 
             # iv) Form normal equations and solve via Cholesky
-            # c = sci.linalg.cho_factor(grams, overwrite_a=False)
+            # c = linalg.cho_factor(grams, overwrite_a=False)
             # p = unfold(X, n).dot(kr)
-            # U[n] = sci.linalg.cho_solve(c, p.T, overwrite_b=False).T
-            U[n] = sci.linalg.solve(grams, unfold(X, n).dot(kr).T).T
+            # U[n] = linalg.cho_solve(c, p.T, overwrite_b=False).T
+            U[n] = linalg.solve(grams, unfold(X, n).dot(kr).T).T
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
@@ -139,7 +129,7 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
         # Compute objective function
         # grams *= U[-1].T.dot(U[-1])
         # obj = np.sqrt(np.sum(grams) - 2*sci.sum(p*U[-1]) + normX**2) / normX
-        obj = sci.linalg.norm(U.full() - X) / normX
+        obj = linalg.norm(U.full() - X) / normX
 
         # Update result
         result.update(obj)

@@ -6,30 +6,20 @@ Author: N. Benjamin Erichson <erichson@uw.edu>
 
 import numpy as np
 import scipy as sci
+from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
 from tensortools.data.random_tensor import rand_tensor
-from tensortools.optimize import FitResult
+from tensortools.optimize import FitResult, optim_utils
 
 from .._hals_update import _hals_update
 
 
-def ncp_hals(X, rank=None, random_state=None, **options):
+def ncp_hals(X, rank, random_state=None, init='rand', **options):
     """
-    Nonnegtaive CP Decomposition using the Hierarcial Alternating Least Squares
-    (HALS) Method.
-
-    The CP (CANDECOMP/PARAFAC) method  is a decomposition for higher order
-    arrays (tensors). The CP decomposition can be seen as a generalization
-    of PCA, yet there are some important conceptual differences: (a) the CP
-    decomposition allows to extract pure spectra from multi-way spectral data;
-    (b) the data do not need to be unfolded. Hence, the resulting
-    factors are easier to interpret and more robust to noise.
-
-
-    When `X` is a N-way array, it is factorized as ``[U_1, ...., U_N]``,
-    where `U_i` are 2D arrays of rank R.
+    Fits nonnegtaive CP Decomposition using the Hierarcial Alternating Least
+    Squares (HALS) Method.
 
     Parameters
     ----------
@@ -43,6 +33,12 @@ def ncp_hals(X, rank=None, random_state=None, **options):
         If integer, random_state is the seed used by the random number generator;
         If RandomState instance, random_state is the random number generator;
         If None, the random number generator is the RandomState instance used by np.random.
+
+    init : str, or KTensor, optional (default ``'rand'``).
+        Specifies initial guess for KTensor factor matrices.
+        If ``'randn'``, Gaussian random numbers are used to initialize.
+        If ``'rand'``, uniform random numbers are used to initialize.
+        If KTensor instance, a copy is made to initialize the optimization.
 
     options : dict, specifying fitting options.
 
@@ -64,9 +60,9 @@ def ncp_hals(X, rank=None, random_state=None, **options):
 
     Returns
     -------
-    P : FitResult object
-        Object which returens the fited results. It provides the factor matrices
-        in form of a Kruskal operator.
+    result : FitResult instance
+        Object which holds the fitted results. It provides the factor matrices
+        in form of a KTensor, ``result.factors``.
 
 
     Notes
@@ -87,49 +83,19 @@ def ncp_hals(X, rank=None, random_state=None, **options):
 
     """
 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Error catching
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Check inputs.
+    optim_utils._check_cpd_inputs(X, rank)
 
-    if X.ndim < 3:
-        raise ValueError("Array with ndim > 2 expected.")
+    # Store norm of X for computing objective function.
+    normX = linalg.norm(X)
 
-    if rank is None:
-        raise ValueError("Rank 'rank' not given.")
+    # Initialize problem.
+    U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
+    result = FitResult(U, 'NCP_HALS', **options)
 
-    if rank < 0 or rank > np.min(X.shape):
-        raise ValueError("Rank 'rank' is invalid.")
-
-
-    # N-way array
+    # Store problem dimensions.
     N = X.ndim
-
-    # Norm of input array
-    normX = sci.linalg.norm(X)
-
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize KTensor
-
-    # Initialize components [U_1, U_2, ... U_N] using random standard normal
-    # distributed entries.
-    # Note that only N-1 components are required for initialization
-    # Hence, U_1 should be assigned as an empty list, i.e., U_1 = []
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    # default options
-    options.setdefault('init', None)
-
-
-    if options['init'] is None:
-        U = rand_tensor(X.shape, rank=rank, ktensor=True, random_state=random_state)
-        #U = KTensor([U[n] / sci.linalg.norm(U[n]) * normX**(1.0 / N ) for n in range(N)])
-
-    elif type(options['init']) is not KTensor:
-        raise ValueError("Optional parameter 'init' is not a KTensor.")
-
-    else:
-        U = options['init']
+    normX = linalg.norm(X)
 
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -190,7 +156,7 @@ def ncp_hals(X, rank=None, random_state=None, **options):
         # Compute objective function
         #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
         #obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
-        obj = sci.linalg.norm(X - U.full()) / normX
+        obj = linalg.norm(X - U.full()) / normX
 
 
         # Update
