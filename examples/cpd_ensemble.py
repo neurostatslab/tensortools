@@ -13,7 +13,7 @@ Xn = np.maximum(0, X + .1*np.random.randn(I, J, K))
 methods = (
   'cp_als',
   'ncp_bcd',
-  # 'ncp_hals',
+  'ncp_hals',
 )
 
 
@@ -33,17 +33,17 @@ plot_options = {
       'color': 'black',
     },
   },
-  # 'ncp_hals': {
-  #   'line_kw': {
-  #     'color': 'blue',
-  #     'alpha': 0.5,
-  #     'label': 'ncp_hals',
-  #   },
-  #   'scatter_kw': {
-  #     'color': 'blue',
-  #     'alpha': 0.5,
-  #   },
-  # },
+  'ncp_hals': {
+    'line_kw': {
+      'color': 'blue',
+      'alpha': 0.5,
+      'label': 'ncp_hals',
+    },
+    'scatter_kw': {
+      'color': 'blue',
+      'alpha': 0.5,
+    },
+  },
   'ncp_bcd': {
     'line_kw': {
       'color': 'red',

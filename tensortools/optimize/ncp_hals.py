@@ -94,79 +94,41 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
     result = FitResult(U, 'NCP_HALS', **options)
 
     # Store problem dimensions.
-    N = X.ndim
     normX = linalg.norm(X)
 
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Init
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result = FitResult(U, 'NCP_HALS', **options)
-
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the HALS algorithm until convergence or maxiter is reached
     # i)   compute the N gram matrices and multiply
     # ii)  Compute Khatri-Rao product
     # iii) Update component U_1, U_2, ... U_N
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    while result.still_optimizing:
 
-    while result.converged == False:
         violation = 0.0
 
-        for n in range(N):
+        for n in range(X.ndim):
 
             # Select all components, but U_n
-            components = [U[j] for j in range(N) if j != n]
+            components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = sci.multiply.reduce([ arr.T.dot(arr) for arr in components ])
+            grams = sci.multiply.reduce([arr.T.dot(arr) for arr in components])
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
-            p =  unfold(X, n).dot( kr )
+            p = unfold(X, n).dot(kr)
 
             # iii) Update component U_n
-            violation += _hals_update(U[n], grams, p )
+            violation += _hals_update(U[n], grams, p)
 
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute stopping condition.
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-#        if itr == 0:
-#            violation_init = violation
-#
-#        if violation_init == 0:
-#            break
-#
-#        fitchange = violation / violation_init
-#
-#        if verbose == True:
-#            print('Iteration: %s fit: %s, fitchange: %s' %(itr, violation, fitchange))
-#
-#        if fitchange <= tol:
-#            break
-
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute objective function
-        #grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        #obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
-        obj = linalg.norm(X - U.full()) / normX
+        # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
+        # obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
+        result.update(linalg.norm(X - U.full()) / normX)
 
-
-        # Update
-        result.update(obj)
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Prepares final version of the optimization result.
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    result.finalize()
-
-    return result
-
-
+    # end optimization loop, return result.
+    return result.finalize()
