@@ -10,7 +10,6 @@ from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
-from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult, optim_utils
 
 
@@ -86,10 +85,9 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
 
     # Store norm of X for computing objective function.
     N = X.ndim
-    normX = linalg.norm(X)
 
     # Initialize problem.
-    U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
+    U, normX = optim_utils._get_initial_ktensor(init, X, rank, random_state)
     result = FitResult(U, 'NCP_BCD', **options)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

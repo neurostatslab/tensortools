@@ -1,6 +1,3 @@
-"""
-Routines to create data
-"""
+"""Routines to create data."""
 
-from .random_tensor import randn_tensor, rand_tensor
-
+from .random_tensor import randn_ktensor, rand_ktensor

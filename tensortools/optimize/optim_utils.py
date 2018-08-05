@@ -2,9 +2,10 @@
 
 import numpy as np
 import scipy as sci
+from scipy import linalg
 from tensortools.tensors import KTensor
 import timeit
-from tensortools.data.random_tensor import randn_tensor, rand_tensor
+from tensortools.data.random_tensor import randn_ktensor, rand_ktensor
 
 
 def _check_cpd_inputs(X, rank):
@@ -29,28 +30,33 @@ def _check_cpd_inputs(X, rank):
 
 def _get_initial_ktensor(init, X, rank, random_state):
     """
+
     Returns
     -------
-    KTensor
+    U : KTensor
         Initial factor matrices used optimization.
+    normX : float
+        Frobenious norm of tensor data.
     """
+    normX = linalg.norm(X)
+
     if init == 'randn':
         # TODO - match the norm of the initialization to the norm of X.
-        return randn_tensor(X.shape, rank, ktensor=True,
-                            random_state=random_state)
+        U = randn_ktensor(X.shape, rank, norm=normX, random_state=random_state)
 
     elif init == 'rand':
         # TODO - match the norm of the initialization to the norm of X.
-        return rand_tensor(X.shape, rank, ktensor=True,
-                           random_state=random_state)
+        U = rand_ktensor(X.shape, rank, norm=normX, random_state=random_state)
 
     elif isinstance(init, KTensor):
-        return init.copy()
+        U = init.copy()
 
     else:
         raise ValueError("Expected 'init' to either be a KTensor or a string "
                          "specifying how to initialize optimization. Valid "
                          "strings are ('randn', 'rand').")
+
+    return U, normX
 
 
 class FitResult(object):

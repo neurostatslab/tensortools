@@ -59,7 +59,7 @@ class KTensor(object):
 
         # Update factors
         self.factors = [f * (lam / fn) for f, fn in zip(self.factors, norms)]
-        return self.factors
+        return self
 
     def permute(self, idx):
         """Permutes the columns of the factor matrices inplace

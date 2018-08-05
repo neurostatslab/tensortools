@@ -10,7 +10,6 @@ from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
-from tensortools.data.random_tensor import rand_tensor
 from tensortools.optimize import FitResult, optim_utils
 
 from .._hals_update import _hals_update
@@ -86,11 +85,8 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
     # Check inputs.
     optim_utils._check_cpd_inputs(X, rank)
 
-    # Store norm of X for computing objective function.
-    normX = linalg.norm(X)
-
     # Initialize problem.
-    U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
+    U, normX = optim_utils._get_initial_ktensor(init, X, rank, random_state)
     result = FitResult(U, 'NCP_HALS', **options)
 
     # Store problem dimensions.

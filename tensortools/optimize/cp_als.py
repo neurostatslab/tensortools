@@ -94,11 +94,8 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
     # Check inputs.
     optim_utils._check_cpd_inputs(X, rank)
 
-    # Store norm of X for computing objective function.
-    normX = linalg.norm(X)
-
     # Initialize problem.
-    U = optim_utils._get_initial_ktensor(init, X, rank, random_state)
+    U, normX = optim_utils._get_initial_ktensor(init, X, rank, random_state)
     result = FitResult(U, 'CP_ALS', **options)
 
     # Main optimization loop.
