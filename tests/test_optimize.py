@@ -5,7 +5,7 @@ from scipy import linalg
 
 import tensortools as tt
 
-deterministic_tol = 1e-2
+deterministic_tol = 1e-3
 
 
 def _get_data(rank, order, nonneg):
@@ -23,12 +23,12 @@ def _get_data(rank, order, nonneg):
     X : ndarray
         Low-rank tensor
     """
-    np.random.seed(123)
+    np.random.seed(0)
     shape = np.full(order, 15)
     if nonneg:
-        X = tt.rand_ktensor(shape, rank=rank).full()
+        X = tt.rand_ktensor(shape, rank=rank, random_state=0).full()
     else:
-        X = tt.randn_ktensor(shape, rank=rank).full()
+        X = tt.randn_ktensor(shape, rank=rank, random_state=0).full()
     return X, linalg.norm(X)
 
 
