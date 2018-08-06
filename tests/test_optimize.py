@@ -2,78 +2,34 @@
 import pytest
 import numpy as np
 from scipy import linalg
-
+import itertools
 import tensortools as tt
 
-deterministic_tol = 1e-3
+obj_decreased_tol = 1e-3
+data_seed = 0
+alg_seed = 100
+
+algnames = ['cp_als', 'ncp_hals', 'ncp_bcd']
+shapes = [(10, 11, 12), (10, 11, 12, 13), (100, 101, 102)]
+ranks = [1, 2, 5]
 
 
-def _get_data(rank, order, nonneg):
-    """Sets random seed and creates low rank tensor.
+@pytest.mark.parametrize(
+    "algname,shape,rank",
+    itertools.product(algnames, shapes, ranks)
+)
+def test_objective_decreases(algname, shape, rank):
 
-    Parameters
-    ----------
-    rank : int
-        Rank of the synthetic tensor.
-    nonneg : bool
-        If True, returns nonnegative data. Otherwise data is not constrained.
-
-    Returns
-    -------
-    X : ndarray
-        Low-rank tensor
-    """
-    np.random.seed(0)
-    shape = np.full(order, 15)
-    if nonneg:
-        X = tt.rand_ktensor(shape, rank=rank, random_state=0).full()
+    # Generate data. If algorithm is made for nonnegative tensor decomposition
+    # then generate nonnegative data.
+    if algname in ['ncp_hals, ncp_bcd']:
+        X = tt.rand_ktensor(shape, rank=rank, random_state=data_seed).full()
     else:
-        X = tt.randn_ktensor(shape, rank=rank, random_state=0).full()
-    return X, linalg.norm(X)
-
-
-def test_cp_als_deterministic():
-    rank, order = 4, 3
-    # Create dataset.
-    X, normX = _get_data(rank, order, nonneg=False)
+        X = tt.randn_ktensor(shape, rank=rank, random_state=data_seed).full()
 
     # Fit model.
-    P = tt.cp_als(X, rank=rank, verbose=False, tol=1e-6)
+    f = getattr(tt, algname)
+    result = f(X, rank=rank, verbose=False, tol=1e-6, random_state=alg_seed)
 
-    # Check that error is low.
-    percent_error = linalg.norm(P.factors.full() - X) / normX
-    assert percent_error < deterministic_tol
-
-
-def test_ncp_hals_deterministic():
-    rank, order = 4, 3
-    # Create dataset.
-    X, normX = _get_data(rank, order, nonneg=True)
-
-    # Fit model.
-    P = tt.ncp_hals(X, rank=rank, verbose=False, tol=1e-6)
-
-    # Check that result is nonnegative.
-    for factor in P.factors:
-        assert np.all(factor >= 0)
-
-    # Check that error is low.
-    percent_error = linalg.norm(P.factors.full() - X) / normX
-    assert percent_error < deterministic_tol
-
-
-def test_ncp_bcd_deterministic():
-    rank, order = 4, 3
-    # Create dataset.
-    X, normX = _get_data(rank, order, nonneg=True)
-
-    # Fit model.
-    P = tt.ncp_bcd(X, rank=rank, verbose=False, tol=1e-6)
-
-    # Check that result is nonnegative.
-    for factor in P.factors:
-        assert np.all(factor >= 0)
-
-    # Check that error is low.
-    percent_error = linalg.norm(P.factors.full() - X) / normX
-    assert percent_error < deterministic_tol
+    # Test that objective function monotonically decreases.
+    assert np.all(np.diff(result.obj_hist) < obj_decreased_tol)
