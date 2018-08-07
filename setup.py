@@ -1,9 +1,18 @@
+from distutils.command.clean import clean as Clean
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Build import cythonize
+
+# To use a consistent encoding
+from codecs import open
+from os import path
+
 
 NAME = 'tensortools'
 DESCRIPTION = 'Tools for Tensor Decomposition.'
 AUTHOR = 'Alex Williams and N. Benjamin Erichson'
 EMAIL = 'alex.h.willia@gmail.com'
-VERSION = "0.2"
+VERSION = "0.1"
 URL = 'https://github.com/ahwillia/tensortools'
 LICENSE = 'MIT'
 
@@ -13,22 +22,13 @@ try:
 except ImportError:
     print("The package 'setuptools' is required!")
 
-from distutils.command.clean import clean as Clean
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Build import cythonize
-
+# Set up Cython
 try:
     from Cython.Distutils import build_ext
 except ImportError:
     use_cython = False
 else:
     use_cython = True
-
-
-# To use a consistent encoding
-from codecs import open
-from os import path
 
 here = path.abspath(path.dirname(__file__))
 
@@ -65,19 +65,18 @@ class CleanCommand(Clean):
 
 cmdclass = {'clean': CleanCommand}
 
-cmdclass = { }
-ext_modules = [ ]
+cmdclass = {}
+ext_modules = []
 
 if use_cython:
     ext_modules += [
-    Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.pyx" ]),
+        Extension("tensortools._hals_update", ["tensortools/optimize/_hals_update.pyx"]),
     ]
-    cmdclass.update({ 'build_ext': build_ext })
+    cmdclass.update({'build_ext': build_ext})
 else:
     ext_modules += [
-        Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.c" ]),
+        Extension("tensortools._hals_update", ["tensortools/optimize/_hals_update.c"]),
     ]
-
 
 install_requires = [
     'cython',
@@ -86,7 +85,6 @@ install_requires = [
     'tqdm',
     'munkres',
 ]
-
 
 tests_require = ['pytest', 'numpy', 'scipy']
 setup_requires = ['pytest-runner']
@@ -109,7 +107,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        #'Development Status :: 4 - Beta',
+        # 'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
@@ -123,7 +121,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='tensor decomposition, canonical decomposition, parallel factors, higher order singular value decomposition',
+    keywords='tensor decomposition, canonical decomposition, parallel factors',
 
     packages=find_packages(exclude=['tests*']),
 
