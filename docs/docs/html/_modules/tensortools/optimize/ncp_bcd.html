@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>tensortools.optimize.ncp_bcd &#8212; TensorTools 0.2 documentation</title>
+    <link rel="stylesheet" href="../../../_static/bootstrap-sphinx.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="../../../_static/js/jquery-1.11.0.min.js"></script>
+    <script type="text/javascript" src="../../../_static/js/jquery-fix.js"></script>
+    <script type="text/javascript" src="../../../_static/bootstrap-3.3.7/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="../../../_static/bootstrap-sphinx.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../../index.html">
+          tensortools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.2</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../../installation.html">Getting Started</a></li>
+                <li><a href="../../../algorithms.html">Algorithms</a></li>
+                <li><a href="../../../info.html">Package Info</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"><ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../info.html">Package Information</a></li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12 content">
+      
+  <h1>Source code for tensortools.optimize.ncp_bcd</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">CP decomposition by classic alternating least squares (ALS).</span>
+
+<span class="sd">Author: N. Benjamin Erichson &lt;erichson@uw.edu&gt; and Alex H. Williams</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span> <span class="k">as</span> <span class="nn">sci</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">linalg</span>
+
+<span class="kn">from</span> <span class="nn">tensortools.operations</span> <span class="k">import</span> <span class="n">unfold</span><span class="p">,</span> <span class="n">khatri_rao</span>
+<span class="kn">from</span> <span class="nn">tensortools.tensors</span> <span class="k">import</span> <span class="n">KTensor</span>
+<span class="kn">from</span> <span class="nn">tensortools.optimize</span> <span class="k">import</span> <span class="n">FitResult</span><span class="p">,</span> <span class="n">optim_utils</span>
+
+
+<div class="viewcode-block" id="ncp_bcd"><a class="viewcode-back" href="../../../algorithms/tensortools.ncp_bcd.html#tensortools.ncp_bcd">[docs]</a><span class="k">def</span> <span class="nf">ncp_bcd</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="s1">&#39;rand&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fits nonnegative CP Decomposition using the Block Coordinate Descent (BCD)</span>
+<span class="sd">    Method.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : (I_1, ..., I_N) array_like</span>
+<span class="sd">        A real array with nonnegative entries and ``X.ndim &gt;= 3``.</span>
+
+<span class="sd">    rank : integer</span>
+<span class="sd">        The `rank` sets the number of components to be computed.</span>
+
+<span class="sd">    random_state : integer, RandomState instance or None, optional (default ``None``)</span>
+<span class="sd">        If integer, random_state is the seed used by the random number generator;</span>
+<span class="sd">        If RandomState instance, random_state is the random number generator;</span>
+<span class="sd">        If None, the random number generator is the RandomState instance used by np.random.</span>
+
+<span class="sd">    init : str, or KTensor, optional (default ``&#39;rand&#39;``).</span>
+<span class="sd">        Specifies initial guess for KTensor factor matrices.</span>
+<span class="sd">        If ``&#39;randn&#39;``, Gaussian random numbers are used to initialize.</span>
+<span class="sd">        If ``&#39;rand&#39;``, uniform random numbers are used to initialize.</span>
+<span class="sd">        If KTensor instance, a copy is made to initialize the optimization.</span>
+
+<span class="sd">    options : dict, specifying fitting options.</span>
+
+<span class="sd">        tol : float, optional (default ``tol=1E-5``)</span>
+<span class="sd">            Stopping tolerance for reconstruction error.</span>
+
+<span class="sd">        max_iter : integer, optional (default ``max_iter = 500``)</span>
+<span class="sd">            Maximum number of iterations to perform before exiting.</span>
+
+<span class="sd">        min_iter : integer, optional (default ``min_iter = 1``)</span>
+<span class="sd">            Minimum number of iterations to perform before exiting.</span>
+
+<span class="sd">        max_time : integer, optional (default ``max_time = np.inf``)</span>
+<span class="sd">            Maximum computational time before exiting.</span>
+
+<span class="sd">        verbose : bool ``{&#39;True&#39;, &#39;False&#39;}``, optional (default ``verbose=True``)</span>
+<span class="sd">            Display progress.</span>
+
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    result : FitResult instance</span>
+<span class="sd">        Object which holds the fitted results. It provides the factor matrices</span>
+<span class="sd">        in form of a KTensor, ``result.factors``.</span>
+
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This implemenation is using the Block Coordinate Descent Method.</span>
+
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Xu, Yangyang, and Wotao Yin. &quot;A block coordinate descent method for</span>
+<span class="sd">    regularized multiconvex optimization with applications to</span>
+<span class="sd">    negative tensor factorization and completion.&quot;</span>
+<span class="sd">    SIAM Journal on imaging sciences 6.3 (2013): 1758-1789.</span>
+
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Check inputs.</span>
+    <span class="n">optim_utils</span><span class="o">.</span><span class="n">_check_cpd_inputs</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">rank</span><span class="p">)</span>
+
+    <span class="c1"># Store norm of X for computing objective function.</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span>
+
+    <span class="c1"># Initialize problem.</span>
+    <span class="n">U</span><span class="p">,</span> <span class="n">normX</span> <span class="o">=</span> <span class="n">optim_utils</span><span class="o">.</span><span class="n">_get_initial_ktensor</span><span class="p">(</span><span class="n">init</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">FitResult</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="s1">&#39;NCP_BCD&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="c1"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span>
+    <span class="c1"># Block coordinate descent</span>
+    <span class="c1"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span>
+
+    <span class="n">Um</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># Extrapolations of compoenents</span>
+    <span class="n">extraw</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Used for extrapolation weight update</span>
+    <span class="n">weights_U</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>  <span class="c1"># Extrapolation weights</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>  <span class="c1"># Lipschitz constants</span>
+    <span class="n">obj_bcd</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">normX</span><span class="o">**</span><span class="mi">2</span>  <span class="c1"># Initial objective value</span>
+
+    <span class="c1"># Main optimization loop.</span>
+    <span class="k">while</span> <span class="n">result</span><span class="o">.</span><span class="n">still_optimizing</span><span class="p">:</span>
+        <span class="n">obj_bcd_old</span> <span class="o">=</span> <span class="n">obj_bcd</span>  <span class="c1"># Old objective value</span>
+        <span class="n">U_old</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">extraw_old</span> <span class="o">=</span> <span class="n">extraw</span>
+
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+
+            <span class="c1"># Select all components, but U_n</span>
+            <span class="n">components</span> <span class="o">=</span> <span class="p">[</span><span class="n">U</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="k">if</span> <span class="n">j</span> <span class="o">!=</span> <span class="n">n</span><span class="p">]</span>
+
+            <span class="c1"># i) compute the N-1 gram matrices</span>
+            <span class="n">grams</span> <span class="o">=</span> <span class="n">sci</span><span class="o">.</span><span class="n">multiply</span><span class="o">.</span><span class="n">reduce</span><span class="p">([</span><span class="n">arr</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">components</span><span class="p">])</span>
+
+            <span class="c1"># Update gradient Lipschnitz constant</span>
+            <span class="n">L0</span> <span class="o">=</span> <span class="n">L</span>  <span class="c1"># Lipschitz constants</span>
+            <span class="n">L</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">grams</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+            <span class="c1"># ii)  Compute Khatri-Rao product</span>
+            <span class="n">kr</span> <span class="o">=</span> <span class="n">khatri_rao</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">unfold</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span> <span class="n">kr</span> <span class="p">)</span>
+
+            <span class="c1"># Compute Gradient.</span>
+            <span class="n">grad</span> <span class="o">=</span> <span class="n">Um</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">grams</span><span class="p">)</span> <span class="o">-</span> <span class="n">p</span>
+
+            <span class="c1"># Enforce nonnegativity (project onto nonnegative orthant).</span>
+            <span class="n">U</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">sci</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">Um</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">-</span> <span class="n">grad</span> <span class="o">/</span> <span class="n">L</span><span class="p">[</span><span class="n">n</span><span class="p">])</span>
+
+        <span class="c1"># Compute objective function and update optimization result.</span>
+        <span class="c1"># grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])</span>
+        <span class="c1"># obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">U</span><span class="o">.</span><span class="n">full</span><span class="p">())</span> <span class="o">/</span> <span class="n">normX</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+        <span class="c1"># Correction and extrapolation.</span>
+        <span class="n">grams</span> <span class="o">*=</span> <span class="n">U</span><span class="p">[</span><span class="n">N</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">U</span><span class="p">[</span><span class="n">N</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">obj_bcd</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">sci</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">grams</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">sci</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">U</span><span class="p">[</span><span class="n">N</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">p</span><span class="p">)</span> <span class="o">+</span> <span class="n">normX</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span>
+
+        <span class="n">extraw</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">sci</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">extraw_old</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="mf">2.0</span>
+
+        <span class="k">if</span> <span class="n">obj_bcd</span> <span class="o">&gt;=</span> <span class="n">obj_bcd_old</span><span class="p">:</span>
+            <span class="c1"># restore previous A to make the objective nonincreasing</span>
+            <span class="n">Um</span> <span class="o">=</span> <span class="n">sci</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">U_old</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># apply extrapolation</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="p">(</span><span class="n">extraw_old</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">extraw</span> <span class="c1"># Extrapolation weight</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+                <span class="n">weights_U</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="n">sci</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span> <span class="n">L0</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">/</span> <span class="n">L</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="p">))</span> <span class="c1"># choose smaller weights for convergence</span>
+                <span class="n">Um</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">U</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">+</span> <span class="n">weights_U</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">U</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">-</span> <span class="n">U_old</span><span class="p">[</span><span class="n">n</span><span class="p">])</span> <span class="c1"># extrapolation</span>
+
+    <span class="c1"># Finalize and return the optimization result.</span></div>
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+      
+    </p>
+    <p>
+        &copy; Copyright 2018, Alex Williams and N. Benjamin Erichson.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
