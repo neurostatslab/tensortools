@@ -1,6 +1,5 @@
 from distutils.command.clean import clean as Clean
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension, find_packages
 from Cython.Build import cythonize
 
 # To use a consistent encoding
@@ -16,11 +15,7 @@ VERSION = "0.1"
 URL = 'https://github.com/ahwillia/tensortools'
 LICENSE = 'MIT'
 
-# Install setuptools if it isn't available:
-try:
-    from setuptools import setup, find_packages
-except ImportError:
-    print("The package 'setuptools' is required!")
+
 
 # Set up Cython
 try:
