@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 # C extensions
+tensortools/optimize/_hals_update.c
+*.c
 *.so
 *.py~
 
@@ -72,3 +74,9 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+# Mac
+.DS_Store
+
+# pytest
+.pytest_cache

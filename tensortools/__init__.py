@@ -1,17 +1,12 @@
-# main fitting function
-from .ensemble import fit_ensemble
+from .ensemble import Ensemble
+from .tensors import KTensor
 
-# solvers for fitting a single tensor decomposition
-from .cpdirect import cp_direct
-from .cprand import cp_rand
+from .diagnostics import kruskal_align
 
-# visualization tools
-from .plots import plot_factors, plot_error, plot_similarity
+from .visualization import plot_factors, plot_objective, plot_similarity
 
-# functions for manipulating tensor decompositions
-from .kruskal import normalize_factors, standardize_factors, align_factors
+from .data.random_tensor import randn_ktensor, rand_ktensor
 
-# useful, non-critical functions
-from . import utils
-
-__version__ = '0.0.1'
+from .optimize.cp_als import cp_als
+from .optimize.ncp_hals import ncp_hals
+from .optimize.ncp_bcd import ncp_bcd

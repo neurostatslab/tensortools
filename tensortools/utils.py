@@ -1,81 +1,37 @@
 """
-Useful helper functions, not critical to core functionality of tensortools.
+Miscellaneous functions for interpreting low-dimensional models and data.
 """
 
 import numpy as np
-import scipy
+import scipy.spatial
 import math
+import scipy as sci
+from .tensor_utils import unfold
 
-def coarse_grain_1d(tensor, factor, axis=0, reducer=np.sum,
-                    pad_mode='constant', pad_kwargs=dict(constant_values=0)):
-    """Coarse grains a large tensor along axis by factor
-
-    Args
-    ----
-    tensor : ndarray
-    factor : int
-        multiplicat
-    axis : int
-        mode to coarse grain (default=0)
-    reducer : function
-        reducing function to implement coarse-graining
-    """
-    if not isinstance(factor, int):
-        raise ValueError('coarse-graining factor must be an integer.')
-    if axis < 0 or axis >= tensor.ndim:
-        raise ValueError('invalid axis for coarse-graining.')
-
-    # compute reshaping dimensions
-    new_shape = [s for s in tensor.shape]
-    new_shape[axis] = math.ceil(new_shape[axis]/factor)
-    new_shape.insert(axis+1, factor)
-
-    # pad tensor if necessary
-    pad_width = factor*new_shape[axis] - tensor.shape[axis]
-    if pad_width > 0:
-        pw = [pad_width if a==axis else 0 for a in range(tensor.ndim)]
-        tensor = np.pad(tensor, pw, pad_mode, **pad_kwargs)
-
-    # sanity check
-    assert pad_width >= 0
-    
-    # coarse-grain
-    return reducer(tensor.reshape(*new_shape), axis=axis+1)
-
-def coarse_grain(tensor, factors, **kwargs):
-    """Coarse grains a large tensor along all modes by specified factors
-    """
-    for axis, factor in enumerate(factors):
-        tensor = coarse_grain_1d(tensor, factor, axis=axis, **kwargs)
-
-    return tensor
 
 def soft_cluster_factor(factor):
     """Returns soft-clustering of data based on CP decomposition results.
 
-    Args
-    ----
-    factors : ndarray
-        Matrix holding low-dimensional CP factors in columns
+    Parameters
+    ----------
+    data : ndarray, N x R matrix of nonnegative data
+        Datapoints are held in rows, features are held in columns
 
     Returns
     -------
-    cluster_ids : ndarray of ints
-        List of cluster assignments for each row of factor matrix
-    perm : ndarray of ints
-        Permutation that groups rows by clustering and factor magnitude
+    cluster_ids : ndarray, vector of N integers in range(0, R)
+        List of soft cluster assignments for each row of data matrix
+    perm : ndarray, vector of N integers
+        Permutation / ordering of the rows of data induced by the soft
+        clustering.
     """
-    
+
     # copy factor of interest
     f = np.copy(factor)
 
     # cluster based on score of maximum absolute value
     cluster_ids = np.argmax(np.abs(f), axis=1)
     scores = f[range(f.shape[0]), cluster_ids]
-
-    # resort based on cluster assignment
-    #i0 = np.argsort(cluster_ids)
-    #f, scores = f[i0], scores[i0]
 
     # resort within each cluster
     perm = []
@@ -85,30 +41,59 @@ def soft_cluster_factor(factor):
 
     return cluster_ids, perm
 
-def resort_factor_tsp(factor, niter=1000, metric='euclidean', **kwargs):
-    """Sorts the factor to (approximately) to solve the traveling
-    salesperson problem, so that data elements (rows of factor)
-    are placed closed to each other.
+
+def tsp_linearize(data, niter=1000, metric='euclidean', **kwargs):
+    """Sorts a matrix dataset to (approximately) solve the traveling
+    salesperson problem. The matrix can be re-sorted so that sequential rows
+    represent datapoints that are close to each other based on some
+    user-defined distance metric. Uses 2-opt local search algorithm.
+
+    Args
+    ----
+    data : ndarray, N x R matrix of data
+        Datapoints are held in rows, features are held in columns
+
+    Returns
+    -------
+    perm : ndarray, vector of N integers
+        Permutation / ordering of the rows of data that approximately
+        solves the travelling salesperson problem.
     """
 
     # Compute pairwise distances between all datapoints
-    N = factor.shape[0]
-    D = scipy.spatial.distance.pdist(factor, metric=metric, **kwargs)
-    
-    # To solve the travelling salesperson problem with no return to the original node
-    # we add a dummy node that has distance zero connections to all other nodes. The
-    # dummy node is then removed after we've converged to a solution
+    N = data.shape[0]
+    D = scipy.spatial.distance.pdist(data, metric=metric, **kwargs)
+
+    # To solve the travelling salesperson problem with no return to the
+    # original node we add a dummy node that has distance zero connections
+    # to all other nodes. The dummy node is then removed after we've converged
+    # to a solution.
     dist = np.zeros((N+1, N+1))
-    dist[:N,:N] = scipy.spatial.distance.squareform(D)
-    
+    dist[:N, :N] = scipy.spatial.distance.squareform(D)
+
     # solve TSP
-    path, cost_hist = solve_tsp(D)
-    
+    perm, cost_hist = _solve_tsp(dist)
+
     # remove dummy node at position i
-    i = np.argwhere(path==N+1).ravel()[0]
-    path = np.hstack((path[(i+1):], path[:i]))
-    
-    return path, cost_hist
+    i = np.argwhere(perm == N).ravel()[0]
+    perm = np.hstack((perm[(i+1):], perm[:i]))
+
+    return perm
+
+
+def hclust_linearize(U):
+    """Sorts the rows of a matrix by hierarchical clustering.
+
+    Parameters:
+        U (ndarray) : matrix of data
+
+    Returns:
+        prm (ndarray) : permutation of the rows
+    """
+
+    from scipy.cluster import hierarchy
+    Z = hierarchy.ward(U)
+    return hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, U))
 
 
 def reverse_segment(path, n1, n2):
@@ -125,13 +110,14 @@ def reverse_segment(path, n1, n2):
         q[:(n2+1)] = seg[brk:]
         return q
 
-def solve_tsp(dist):
+
+def _solve_tsp(dist, niter):
     """Solve travelling salesperson problem (TSP) by two-opt swapping.
-    
+
     Params
     ------
     dist (ndarray) : distance matrix
-    
+
     Returns
     -------
     path (ndarray) : permutation of nodes in graph (rows of dist matrix)
@@ -144,7 +130,8 @@ def solve_tsp(dist):
     ii = np.arange(N)
     jj = np.hstack((np.arange(1, N), 0))
 
-    # for each node, a sorted list of closest nodes
+    # for each node, cache a sorted list of all other nodes in order of
+    # increasing distance.
     dsort = [np.argsort(d) for d in dist]
     dsort = [d[d != i] for i, d in enumerate(dsort)]
 
@@ -152,44 +139,52 @@ def solve_tsp(dist):
     path = np.random.permutation(N)
     idx = np.argsort(path)
     cost = np.sum(dist[path[ii], path[jj]])
-    
+
     # keep track of objective function over time
     cost_hist = [cost]
 
     # optimization loop
     node = 0
-    while node < N:
+    itercount = 0
+    n = 0
+
+    while n < N and itercount < niter:
+
+        # count iterations
+        itercount += 1
 
         # we'll try breaking the connection i -> j
         i = path[node]
         j = path[(node+1) % N]
-        
-        # since we are breaking i -> j we can remove the cost of that connection
+
+        # We are breaking i -> j so we can remove the cost of that connection.
         c = cost - dist[i, j]
 
-        # search over nodes k that are closer to j than i
+        # Search over nodes k that are closer to j than i.
         for k in dsort[j]:
-            # can safely continue if dist[i,j] < dist[k,j] for the remaining k
+
+            # Can safely continue if dist[i,j] < dist[k,j] for the remaining k.
             if k == i:
-                node += 1
+                n += 1
                 break
 
-            # break connection k -> p
-            # add connection j -> p
-            # add connection i -> k
+            # Break connection k -> p.
+            # Add connection j -> p.
+            # Add connection i -> k.
             p = path[(idx[k]+1) % N]
-            new_cost = c - dist[k,p] + dist[j,p] + dist[i,k]
+            new_cost = c - dist[k, p] + dist[j, p] + dist[i, k]
 
-            # if this swap improves the cost, implement it and move to next i
+            # If this swap improves the cost, implement it and move to next i.
             if new_cost < cost:
                 path = reverse_segment(path, idx[j], idx[k])
                 idx = np.argsort(path)
-                # make sure that we didn't screw up
-                assert np.abs(np.sum(dist[path[ii], path[jj]]) - new_cost) < 1e-6
                 cost = new_cost
-                # restart from the begining of the graph
+                # Restart from the begining of the graph.
                 cost_hist.append(cost)
-                node = 0
+                n = 0
                 break
+
+        # move to next node
+        node = (node + 1) % N
 
     return path, cost_hist

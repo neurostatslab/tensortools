@@ -1,173 +1,163 @@
-"""
-Main interface to solvers, fits an ensemble of tensor decompositions
-over a specified range of tensor ranks.
-"""
-
+from tensortools import optimize
+from tensortools.diagnostics import kruskal_align
+from tqdm import trange
+import collections
 import numpy as np
-from time import time
-from .cpdirect import cp_direct
-from .cprand import cp_rand
-from .kruskal import align_factors
-from .tensor_utils import norm
-
-# dictionary holding various optimization algorithms
-fitting_methods = {
-    'direct': cp_direct,
-    'randomized': cp_rand
-}
-
-def fit_ensemble(tensor, ranks, l1=None, l2=None, nonneg=False,
-                 replicates=1, p_holdout=0, method='direct', options={}):
-    """ Helper function that fits a bunch of CP decomposition models
-
-    Args
-    ----
-    tensor : ndarray
-            Data to be approximated by CP decomposition
-    ranks : iterable or int
-            Specifies a range of model ranks to search over.
-    l1 : float (optional)
-            Strength of l1 regularization. Ignored if None (default).
-    l2 : float (optional)
-            Strength of l2 regularization. Ignored if None (default).
-    nonneg : bool (optional)
-            If True, constrain CP decomposition factors to be nonnegative.
-            If False, CP factors are unconstrained (default).
-    replicates : int (optional)
-            Number of randomly initialized optimization runs for each
-            model rank (default, 1).
-    p_holdout : float (optional)
-            Probability of holding out an element of the tensor (at random).
-            Useful for cross-validation purposes (default, 0).
-    method : str (optional)
-            Specifies optimization algorithm. Current options are:
-                'direct' (default) : alternating least squares (ALS), reviewed in ref [1]
-                'randomized' (default) : randomized ALS, ref [2]
-
-    options : dict (optional)
-            Dictionary specifying other options for cp_solver.
-                'min_time' : optimize for at least this many seconds (default, 0)
-                'max_time' : optimize for at most this many seconds (default, np.inf)
-                'n_iter_max' : max number of iterations (default, 1000)
-                'print_every' : how often to display progress (default, 0.3s)
-                'prepend_print': a string preprended to display (default, '\r')
-                'append_print' : a string appended to dispay (default, '')
-                'tol' : sets convergence criteria for optimization.
-
-    Returns
-    -------
-    factors : list of ndarray
-        estimated low-rank decomposition (in kruskal tensor format)
-    info : dict
-        information about the fit / optimization convergence
 
 
-    References
-    ----------
-    [1] Kolda TG, Bader BW (2009). Tensor Decompositions and Applications. SIAM Review.
-    [2] Battaglino C, Ballard G, Kolda TG (2017). A Practical Randomized CP Tensor Decomposition.
+class Ensemble(object):
+    """
+    Represents an ensemble of fitted tensor decompositions.
     """
 
-    # Warn user if they are about to do something suspicious
-    if np.any(tensor < 0) and nonneg:
-        import warnings
-        warnings.warn('Fitting a nonnegative model to tensor with negative entries.')
-    
-    # Treat nans as missing data
-    nanmask = np.isfinite(tensor)
-    if nanmask.sum() == nanmask.size:
-        nanmask = None
+    def __init__(self, nonneg=False, fit_method=None, fit_options=dict()):
+        """Initializes Ensemble.
 
-    # if rank is input as a single int, wrap it in a list
-    if isinstance(ranks, int):
-        ranks = [ranks]
+        Parameters
+        ----------
+        nonneg : bool
+            If True, constrains low-rank factor matrices to be nonnegative.
+        fit_method : None, str, callable, optional (default: None)
+            Method for fitting a tensor decomposition. If input is callable,
+            it is used directly. If input is a string then method is taken
+            from tensortools.optimize using ``getattr``. If None, a reasonable
+            default method is chosen.
+        fit_options : dict
+            Holds optional arguments for fitting method.
+        """
 
-    # compile optimization results into dict indexed by model rank
-    keys = ['factors', 'ranks', 'err_hist', 'err_final',
-            'test_err', 't_hist', 'converged', 'iterations']
-    results = {r: {k: [] for k in keys} for r in ranks}
+        # Model parameters
+        self._nonneg = nonneg
 
-    # if true, print progress
-    verbose = 'print_every' not in options.keys() or options['print_every'] >= 0
-    if verbose:
-        t0 = time()
+        # Determinine optimization method. If user input is None, try to use a
+        # reasonable default. Otherwise check that it is callable.
+        if fit_method is None:
+            self._fit_method = optimize.ncp_bcd if nonneg else optimize.cp_als
+        elif isinstance(fit_method, str):
+            try:
+                self._fit_method = getattr(optimize, fit_method)
+            except AttributeError:
+                raise ValueError("Did not recognize method 'fit_method' "
+                                 "{}".format(fit_method))
+        elif callable(fit_method):
+            self._fit_method = fit_method
+        else:
+            raise ValueError("Expected 'fit_method' to be a string or "
+                             "callable.")
 
-    # determine optimization method
-    if method not in fitting_methods:
-        raise ValueError('Specified method ({}) not recognized. Available options are: {}'.format(method, list(fitting_methods.keys())))
-    else:
-        fit_cpd = fitting_methods[method]
+        # Try to pick reasonable defaults for optimization options.
+        fit_options.setdefault('tol', 1e-5)
+        fit_options.setdefault('max_iter', 500)
+        fit_options.setdefault('verbose', False)
+        self._fit_options = fit_options
 
-    # fit ensemble of models for each rank
-    for r in ranks:
+        # TODO - better way to hold all results...
+        self.results = dict()
 
-        if verbose:
-            print('Optimizing rank-{} models.'.format(r))
-            t0_inner = time()
+    def fit(self, X, ranks, replicates=1, verbose=True):
+        """
+        Fits CP tensor decompositions for different choices of rank.
 
-        for s in range(replicates):
+        Parameters
+        ----------
+        X : array_like
+            Real tensor
+        ranks : int, or iterable
+            iterable specifying number of components in each model
+        replicates: int
+            number of models to fit at each rank
+        verbose : bool
+            If True, prints summaries and optimization progress.
+        """
 
-            # create mask for held out data
-            M, cvmask = _hold_out_data(tensor, nanmask, p_holdout)
+        # Make ranks iterable if necessary.
+        if not isinstance(ranks, collections.Iterable):
+            ranks = (ranks,)
 
-            # fit cpd
-            options['prepend_print'] = '\r   fitting replicate: {}/{}    '.format(s+1, replicates)
-            factors, info = fit_cpd(tensor, r, M=M, l1=l1, l2=l2, nonneg=nonneg, options=options)
+        # Iterate over model ranks, optimize multiple replicates at each rank.
+        for r in ranks:
 
-            # store results
-            results[r]['factors'].append(factors)
-            results[r]['ranks'].append(r)
-            for k in info.keys():
-                results[r][k].append(info[k])
+            # Initialize storage
+            if r not in self.results:
+                self.results[r] = []
 
-            # compute test error
-            if cvmask is None:
-                results[r]['test_err'].append(-1)
+            # Display fitting progress.
+            if verbose:
+                itr = trange(replicates,
+                             desc='Fitting rank-{} models'.format(r),
+                             leave=False)
             else:
-                resid = tensor - np.einsum('ir,jr,kr->ijk', *factors)
-                test_err = norm(resid[~cvmask], 2) / norm(tensor[~cvmask], 2)
-                results[r]['test_err'].append(test_err)
+                itr = range(replicates)
 
-        # summarize the fits for rank-r models
-        if verbose:
-            summary = '\r   {0:d}/{1:d} converged, min error = {2:.4f}, max error = {3:.4f}, mean error = {4:.4f}, time to fit = {5:.4f}s'
-            n_converged = np.sum(results[r]['converged'])
-            min_err = np.min(results[r]['err_final'])
-            max_err = np.max(results[r]['err_final'])
-            mean_err = np.mean(results[r]['err_final'])
-            print(summary.format(n_converged, replicates, min_err, max_err, mean_err, time()-t0_inner))
+            # Fit replicates.
+            for i in itr:
+                model_fit = self._fit_method(X, r, **self._fit_options)
+                self.results[r].append(model_fit)
 
-        # sort results by final reconstruction error
-        idx = np.argsort(results[r]['err_final'])
-        for k in results[r].keys():
-            results[r][k] = [results[r][k][i] for i in idx]
+            # Print summary of results.
+            if verbose:
+                min_obj = min([res.obj for res in self.results[r]])
+                max_obj = max([res.obj for res in self.results[r]])
+                elapsed = sum([res.total_time for res in self.results[r]])
+                print('Rank-{} models:  min obj, {:.2f};  '
+                      'max obj, {:.2f};  time to fit, '
+                      '{:.1f}s'.format(r, min_obj, max_obj, elapsed))
 
-        # calculate similarity score of each model to the best fitting model
-        best_model = results[r]['factors'][0]
-        results[r]['similarity'] = [1.0] + (replicates-1)*[None]
-        for s in range(1, replicates):
-            aligned_factors, _, score = align_factors(results[r]['factors'][s], best_model)
-            results[r]['similarity'][s] = score
-            results[r]['factors'][s] = aligned_factors
+        # Sort results from lowest to largest loss.
+        for r in ranks:
+            idx = np.argsort([result.obj for result in self.results[r]])
+            self.results[r] = [self.results[r][i] for i in idx]
 
-    if verbose:
-        print('Total time to fit models: {0:.4f}s'.format(time()-t0))
+        # Align best model within each rank to best model of next larger rank.
+        # Here r0 is the rank of the lower-dimensional model and r1 is the rank
+        # of the high-dimensional model.
+        for i in reversed(range(1, len(ranks))):
+            r0, r1 = ranks[i-1], ranks[i]
+            U = self.results[r0][0].factors
+            V = self.results[r1][0].factors
+            kruskal_align(U, V, permute_U=True)
 
-    return results
+        # For each rank, align everything to the best model
+        for r in ranks:
+            # store best factors
+            U = self.results[r][0].factors       # best model factors
+            self.results[r][0].similarity = 1.0  # similarity to itself
 
-def _hold_out_data(tensor, nanmask, p_holdout):
-    """ Create cross-validation mask
-    """
-    cvmask = np.random.rand(*tensor.shape) > p_holdout if (p_holdout > 0) else None
-    
-    if nanmask is None and cvmask is None:
-        M = None
-    elif nanmask is not None and cvmask is not None:
-        M = cvmask | nanmask
-        cvmask[nanmask] = 0
-    elif cvmask is None:
-        M = nanmask.copy()
-    else:
-        M = cvmask.copy()
+            # align lesser fit models to best models
+            for res in self.results[r][1:]:
+                res.similarity = kruskal_align(U, res.factors, permute_V=True)
 
-    return M, cvmask
+    def objectives(self, rank):
+        """Returns objective values of models with specified rank.
+        """
+        self._check_rank(rank)
+        return [result.obj for result in self.results[rank]]
+
+    def similarities(self, rank):
+        """Returns similarity scores for models with specified rank.
+        """
+        self._check_rank(rank)
+        return [result.similarity for result in self.results[rank]]
+
+    def factors(self, rank):
+        """Returns KTensor factors for models with specified rank.
+        """
+        self._check_rank(rank)
+        return [result.factors for result in self.results[rank]]
+
+    def _check_rank(self, rank):
+        """Checks if specified rank has been fit.
+
+        Parameters
+        ----------
+        rank : int
+            Rank of the models that were queried.
+
+        Raises
+        ------
+        ValueError: If no models of rank ``rank`` have been fit yet.
+        """
+        if rank not in self.results:
+            raise ValueError('No models of rank-{} have been fit.'
+                             'Call Ensemble.fit(tensor, rank={}, ...) '
+                             'to fit these models.'.format(rank))
