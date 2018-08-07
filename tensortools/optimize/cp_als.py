@@ -14,8 +14,7 @@ from tensortools.optimize import FitResult, optim_utils
 
 
 def cp_als(X, rank, random_state=None, init='randn', **options):
-    """
-    Fits CP Decomposition using the Alternating Least Squares (ALS).
+    """Fits CP Decomposition using the Alternating Least Squares (ALS).
 
     Parameters
     ----------
@@ -86,9 +85,8 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
     import tensortools as tt
     I, J, K, R = 20, 20, 20, 4
     X = tt.randn_tensor(I, J, K, rank=R)
-    tt.optimize.cp_als(X, rank=R)
-
-
+    tt.cp_als(X, rank=R)
+    ```
     """
 
     # Check inputs.

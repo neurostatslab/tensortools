@@ -19,8 +19,8 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
 import sphinx_bootstrap_theme
+sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ------------------------------------------------
 
@@ -32,14 +32,18 @@ import sphinx_bootstrap_theme
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.doctest',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages']
+extensions = ['sphinx.ext.autosummary',
+              'sphinx.ext.autodoc',
+              'sphinx.ext.napoleon',
+              'sphinx.ext.doctest',
+              'sphinx.ext.todo',
+              'sphinx.ext.coverage',
+              'sphinx.ext.mathjax',
+              'sphinx.ext.viewcode',
+              'sphinx.ext.githubpages']
+
+
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -102,13 +106,13 @@ html_theme = 'bootstrap'
 
 html_theme_options = {
     # Navigation bar title. (Default: ``project`` value)
-    'navbar_title': "TensorTools",
+    'navbar_title': "tensortools",
 
     # Tab name for entire site. (Default: "Site")
-    'navbar_site_name': "TensorTools",
+    # 'navbar_site_name': "Contents",
 
-    # Tab name for the current pages TOC. (Default: "Page")
-    'navbar_pagenav_name': "TensorTools",
+    # Tab name for current page.
+    # 'navbar_pagenav_name': "On This Page",
 
     # A list of tuples containing pages or urls to link to.
     # Valid tuples should be in the following forms:
@@ -117,14 +121,15 @@ html_theme_options = {
     #    (name, "http://example.com", True) # arbitrary absolute url
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
-    # 'navbar_links': [
-    #     ("Examples", "examples"),
-    #     ("Link", "http://example.com", True),
-    # ],
+    'navbar_links': [
+        ("Getting Started", "installation"),
+        ("Algorithms", "algorithms"),
+        ("Package Info", "info"),
+    ],
 
     # Global TOC depth for "site" navbar tab. (Default: 1)
     # Switching to -1 shows all levels.
-    'globaltoc_depth': 2,
+    'globaltoc_depth': 1,
 
     # Include hidden TOCs in Site navbar?
     #
@@ -138,6 +143,8 @@ html_theme_options = {
     # HTML navbar class (Default: "navbar") to attach to <div> element.
     # For black navbar, do "navbar navbar-inverse"
     'navbar_class': "navbar",
+    'navbar_pagenav': False,
+    'navbar_sidebarrel': False,
 
     # Fix navigation bar to top of page?
     # Values: "true" (default) or "false"
@@ -145,7 +152,7 @@ html_theme_options = {
 
     # Location of link to source.
     # Options are "nav" (default), "footer" or anything else to exclude.
-    'source_link_position': "nav",
+    'source_link_position': "footer",
 
     # Bootswatch (http://bootswatch.com/) theme.
     #
@@ -157,7 +164,7 @@ html_theme_options = {
     # * sandstone (v3 only)
     # * united
     # * yeti (v3 only)
-    'bootswatch_theme': "sandstone",
+    'bootswatch_theme': "cosmo",
 
     # Choose Bootstrap version.
     # Values: "3" (default) or "2" (in quotes)

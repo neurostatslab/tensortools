@@ -1,30 +1,27 @@
 import tensortools as tt
-from tensortools.optimize import cp_als
 import numpy as np
 import matplotlib.pyplot as plt
-rs = 1234  # random seed
 
-# dimensions
-I, J, K, R = 25, 25, 25, 4
-
-# make tensor
-X = tt.randn_tensor((I, J, K), rank=R)
-
-# add noise
+# Make synthetic dataset.
+I, J, K, R = 25, 25, 25, 4  # dimensions and rank
+X = tt.randn_ktensor((I, J, K), rank=R).full()
 X += np.random.randn(I, J, K)
 
-# fit cp decomposition twice
-U = cp_als(X, rank=R, verbose=True)
-V = cp_als(X, rank=R, verbose=True)
+# Fit CP tensor decomposition (two times).
+U = tt.cp_als(X, rank=R, verbose=True)
+V = tt.cp_als(X, rank=R, verbose=True)
 
-# compare results
+# Compare the low-dimensional factors from the two fits.
 fig, ax, po = tt.plot_factors(U.factors)
 tt.plot_factors(V.factors, fig=fig)
 
+# Align the two fits and print a similarity score.
 sim = tt.kruskal_align(U.factors, V.factors, permute_U=True, permute_V=True)
 print(sim)
 
-# compare results
+# Plot the results again to see alignment.
 fig, ax, po = tt.plot_factors(U.factors)
 tt.plot_factors(V.factors, fig=fig)
+
+# Show plots.
 plt.show()

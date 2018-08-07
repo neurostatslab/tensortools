@@ -1,10 +1,3 @@
-"""
-Tensortools
-===========
-tensortools is a library for fitting and visualizing simple tensor
-decomposition problems.
-"""
-
 from .ensemble import Ensemble
 from .tensors import KTensor
 

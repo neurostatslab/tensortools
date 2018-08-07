@@ -1,15 +1,11 @@
 
 NAME = 'tensortools'
 DESCRIPTION = 'Tools for Tensor Decomposition.'
-AUTHER = 'Alex Williams and N. Benjamin Erichson'
+AUTHOR = 'Alex Williams and N. Benjamin Erichson'
 EMAIL = 'alex.h.willia@gmail.com'
 VERSION = "0.2"
 URL = 'https://github.com/ahwillia/tensortools'
 LICENSE = 'MIT'
-
-
-
-
 
 # Install setuptools if it isn't available:
 try:
@@ -69,13 +65,12 @@ class CleanCommand(Clean):
 
 cmdclass = {'clean': CleanCommand}
 
-
 cmdclass = { }
 ext_modules = [ ]
 
 if use_cython:
     ext_modules += [
-	Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.pyx" ]),
+    Extension("tensortools._hals_update", [ "tensortools/optimize/_hals_update.pyx" ]),
     ]
     cmdclass.update({ 'build_ext': build_ext })
 else:
@@ -84,29 +79,29 @@ else:
     ]
 
 
-install_requires=[
-	'cython',
-   	'numpy',
-   	'scipy',
-	'tqdm',
-	'munkres',
+install_requires = [
+    'cython',
+    'numpy',
+    'scipy',
+    'tqdm',
+    'munkres',
 ]
 
 
-tests_require = ['numpy',
-   		 'scipy']
-
+tests_require = ['pytest', 'numpy', 'scipy']
+setup_requires = ['pytest-runner']
 
 setup(
-    name = NAME,
-    version = VERSION,
-    description = DESCRIPTION,
-    url = URL,
-    author = AUTHER,
-    author_email = EMAIL,
-    license = LICENSE,
-    install_requires = install_requires,
-    tests_require = tests_require,
+    name=NAME,
+    version=VERSION,
+    description=DESCRIPTION,
+    url=URL,
+    author=AUTHOR,
+    author_email=EMAIL,
+    license=LICENSE,
+    install_requires=install_requires,
+    tests_require=tests_require,
+    setup_requires=setup_requires,
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -121,9 +116,8 @@ setup(
         'Topic :: Scientific/Engineering :: Mathematics',
 
         # Pick your license as you wish (should match "license" above)
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'License :: OSI Approved :: MIT License',
 
-        #'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
@@ -131,11 +125,9 @@ setup(
     # What does your project relate to?
     keywords='tensor decomposition, canonical decomposition, parallel factors, higher order singular value decomposition',
 
-    #packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     packages=find_packages(exclude=['tests*']),
-    test_suite='nose.collector',
 
     # cythonize
-    cmdclass = cmdclass,
-    ext_modules = ext_modules
+    cmdclass=cmdclass,
+    ext_modules=ext_modules
 )

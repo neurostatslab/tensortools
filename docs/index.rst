@@ -1,27 +1,30 @@
-.. TensorTools documentation master file, created by
-   sphinx-quickstart on Sun Feb 25 14:48:53 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+TensorTools
+===========
 
-Welcome to TensorTools's documentation!
-=======================================
+TensorTools is a bare bones Python package for fitting and visualizing canonical polyadic (CP) tensor decompositions of higher-order data arrays. These pages contain documentation for its basic functionality.
 
 .. toctree::
    :maxdepth: 2
 
-   introduction
    installation
-   tutorial
-   references
-   authors
-   license
-   changes
+   algorithms
+   info
 
+Other Tensor Libraries
+----------------------
 
+In addition to TensorTools, we encourage interested users to check out these other projects:
 
-Indices and tables
-==================
+**Python**
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+* `TensorLy <http://tensorly.org/stable/index.html>`_
+
+**R**
+
+* `Multiway <https://www.rdocumentation.org/packages/multiway>`_
+
+**MATLAB**
+
+* `Tensor Toolbox <https://www.tensortoolbox.org/>`_
+
+* `Tensorlab <https://www.tensorlab.net/>`_
