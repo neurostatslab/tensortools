@@ -11,11 +11,9 @@ NAME = 'tensortools'
 DESCRIPTION = 'Tools for Tensor Decomposition.'
 AUTHOR = 'Alex Williams and N. Benjamin Erichson'
 EMAIL = 'alex.h.willia@gmail.com'
-VERSION = "0.1"
+VERSION = "0.3"
 URL = 'https://github.com/ahwillia/tensortools'
 LICENSE = 'MIT'
-
-
 
 # Set up Cython
 try:
