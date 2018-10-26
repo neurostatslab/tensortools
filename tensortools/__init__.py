@@ -7,6 +7,4 @@ from .visualization import plot_factors, plot_objective, plot_similarity
 
 from .data.random_tensor import randn_ktensor, rand_ktensor
 
-from .optimize.cp_als import cp_als
-from .optimize.ncp_hals import ncp_hals
-from .optimize.ncp_bcd import ncp_bcd
+from .optimize import cp_als, mcp_als, ncp_hals, ncp_bcd

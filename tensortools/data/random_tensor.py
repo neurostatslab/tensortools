@@ -37,7 +37,7 @@ def _check_random_state(random_state):
 def _rescale_tensor(factors, norm):
     # Rescale the tensor to match the specified norm.
     if norm is None:
-        return factors
+        return factors.rebalance()
     else:
         # Compute rescaling factor for tensor
         factors[0] *= norm / linalg.norm(factors.full())
@@ -133,5 +133,4 @@ def rand_ktensor(shape, rank, norm=None, random_state=None):
 
     # Randomize low-rank factor matrices i.i.d. uniform random elements.
     factors = KTensor([rns.uniform(0.0, 1.0, size=(i, rank)) for i in shape])
-
     return _rescale_tensor(factors, norm)
