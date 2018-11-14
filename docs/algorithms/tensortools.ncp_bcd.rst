@@ -1,4 +1,4 @@
-Nonnegative CP Tensor Decomposition by Alternating Least Squares (BCD)
+Nonnegative CP Tensor Decomposition by Block Coordinate Descent (BCD)
 ======================================================================
 
 .. currentmodule:: tensortools
