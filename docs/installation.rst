@@ -9,7 +9,7 @@ The latest version of ``tensortools`` can be found on `GitHub <https://github.co
 
 .. code-block:: bash
     
-    pip install tensortools
+    pip install git+https://github.com/ahwillia/tensortools
 
 
 Quick Example
