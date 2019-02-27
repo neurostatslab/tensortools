@@ -1,0 +1,6 @@
+sphinx_bootstrap_theme
+numpy
+scipy
+matplotlib
+munkres
+Cython

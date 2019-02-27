@@ -28,8 +28,20 @@ def _check_cpd_inputs(X, rank):
         raise ValueError("Rank is invalid.")
 
 
-def _get_initial_ktensor(init, X, rank, random_state):
+def _get_initial_ktensor(init, X, rank, random_state, scale_norm=True):
     """
+    Parameters
+    ----------
+    init : str
+        Specifies type of initializations ('randn', 'rand')
+    X : ndarray
+        Tensor that the decomposition is fit to.
+    rank : int
+        Rank of decomposition
+    random_state : RandomState or int
+        Specifies seed for random number generator
+    scale_norm : bool
+        If True, norm is scaled to match X (default: True)
 
     Returns
     -------
@@ -38,7 +50,7 @@ def _get_initial_ktensor(init, X, rank, random_state):
     normX : float
         Frobenious norm of tensor data.
     """
-    normX = linalg.norm(X)
+    normX = linalg.norm(X) if scale_norm else None
 
     if init == 'randn':
         # TODO - match the norm of the initialization to the norm of X.
@@ -94,12 +106,6 @@ class FitResult(object):
         max_time : float
             Maximum number of seconds before quitting early.
         """
-
-        if min_iter < 1:
-            raise ValueError("'min_iter' must be at least one.")
-        elif max_iter < min_iter:
-            raise ValueError("'max_iter' must be greater than 'min_iter'.")
-
         self.factors = factors
         self.obj = np.inf
         self.obj_hist = []
@@ -120,13 +126,13 @@ class FitResult(object):
     def still_optimizing(self):
         """True unless converged or maximum iterations/time exceeded."""
 
-        # Always optimize for at least 'min_iter' iterations.
-        if self.iterations < self.min_iter:
-            return True
-
         # Check if we need to give up on optimizing.
-        elif (self.iterations > self.max_iter) or (self.time_elapsed() > self.max_time):
+        if (self.iterations > self.max_iter) or (self.time_elapsed() > self.max_time):
             return False
+
+        # Always optimize for at least 'min_iter' iterations.
+        elif not hasattr(self, 'improvement') or (self.iterations < self.min_iter):
+            return True
 
         # Check convergence.
         else:

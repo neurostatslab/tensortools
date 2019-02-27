@@ -1,4 +1,4 @@
-Nonnegative CP Tensor Decomposition by Heirarchical Alternating Least Squares (HALS)
+Nonnegative CP Tensor Decomposition by Hierarchical Alternating Least Squares (HALS)
 ====================================================================================
 
 .. currentmodule:: tensortools

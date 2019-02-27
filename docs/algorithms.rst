@@ -14,3 +14,5 @@ Algorithms
    ncp_bcd
 
    ncp_hals
+
+   mcp_als

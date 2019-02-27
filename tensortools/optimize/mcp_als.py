@@ -13,8 +13,8 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def cp_als(X, rank, random_state=None, init='randn', **options):
-    """Fits CP Decomposition using Alternating Least Squares (ALS).
+def mcp_als(X, rank, mask, random_state=None, init='randn', **options):
+    """Fits CP Decomposition with missing data using Alternating Least Squares (ALS).
 
     Parameters
     ----------
@@ -23,6 +23,12 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
 
     rank : integer
         The `rank` sets the number of components to be computed.
+
+    mask : (I_1, ..., I_N) array_like
+        A binary tensor with the same shape as ``X``. All entries equal to zero
+        correspond to held out or missing data in ``X``. All entries equal to
+        one correspond to observed entries in ``X`` and the decomposition is
+        fit to these datapoints.
 
     random_state : integer, ``RandomState``, or ``None``, optional (default ``None``)
         If integer, sets the seed of the random number generator;
@@ -62,40 +68,23 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
 
     Notes
     -----
-    Alternating Least Squares (ALS) is a very old and reliable method for
-    fitting CP decompositions. This is likely a good first algorithm to try.
-
+    Fitting CP decompositions with missing data can be exploited to perform
+    cross-validation.
 
     References
     ----------
-    Kolda, T. G. & Bader, B. W.
-    "Tensor Decompositions and Applications."
-    SIAM Rev. 51 (2009): 455-500
-    http://epubs.siam.org/doi/pdf/10.1137/07070111X
-
-    Comon, Pierre & Xavier Luciani & Andre De Almeida.
-    "Tensor decompositions, alternating least squares and other tales."
-    Journal of chemometrics 23 (2009): 393-405.
-    http://onlinelibrary.wiley.com/doi/10.1002/cem.1236/abstract
-
-
-    Examples
-    --------
-
-    ```
-    import tensortools as tt
-    I, J, K, R = 20, 20, 20, 4
-    X = tt.randn_tensor(I, J, K, rank=R)
-    tt.cp_als(X, rank=R)
-    ```
+    Williams, A. H.
+    "Solving Least-Squares Regression with Missing Data."
+    http://alexhwilliams.info/itsneuronalblog/2018/02/26/censored-lstsq/
     """
 
     # Check inputs.
     optim_utils._check_cpd_inputs(X, rank)
 
     # Initialize problem.
-    U, normX = optim_utils._get_initial_ktensor(init, X, rank, random_state)
-    result = FitResult(U, 'CP_ALS', **options)
+    U, _ = optim_utils._get_initial_ktensor(init, X, rank, random_state, scale_norm=False)
+    result = FitResult(U, 'MCP_ALS', **options)
+    normX = np.linalg.norm((X * mask))
 
     # Main optimization loop.
     while result.still_optimizing:
@@ -106,18 +95,22 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
             # i) Normalize factors to prevent singularities.
             U.rebalance()
 
-            # ii) Compute the N-1 gram matrices.
+            # ii) Unfold data and mask along the nth mode.
+            unf = unfold(X, n)  # i_n x N
+            m = unfold(mask, n)  # i_n x N
+
+            # iii) Form Khatri-Rao product of factors matrices.
             components = [U[j] for j in range(X.ndim) if j != n]
-            grams = sci.multiply.reduce([sci.dot(u.T, u) for u in components])
+            krt = khatri_rao(components).T  # N x r
 
-            # iii)  Compute Khatri-Rao product.
-            kr = khatri_rao(components)
+            # iv) Broadcasted solve of linear systems.
+            # Left hand side of equations, R x R x X.shape[n]
+            # Right hand side of equations, X.shape[n] x R x 1
+            lhs_stack = np.matmul(m[:, None, :] * krt[None, :, :], krt.T[None, :, :])
+            rhs_stack = np.dot(unf * m, krt.T)[:, :, None]
 
-            # iv) Form normal equations and solve via Cholesky
-            c = linalg.cho_factor(grams, overwrite_a=False)
-            p = unfold(X, n).dot(kr)
-            U[n] = linalg.cho_solve(c, p.T, overwrite_b=False).T
-            # U[n] = linalg.solve(grams, unfold(X, n).dot(kr).T).T
+            # vi) Update factor.
+            U[n] = np.linalg.solve(lhs_stack, rhs_stack).reshape(X.shape[n], rank)
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
@@ -125,7 +118,7 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
         # Compute objective function
         # grams *= U[-1].T.dot(U[-1])
         # obj = np.sqrt(np.sum(grams) - 2*sci.sum(p*U[-1]) + normX**2) / normX
-        obj = linalg.norm(U.full() - X) / normX
+        obj = linalg.norm(mask * (U.full() - X)) / normX
 
         # Update result
         result.update(obj)
