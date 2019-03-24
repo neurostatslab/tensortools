@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # Make dataset.
 I, J, K, R = 100, 100, 100, 4
-X = tt.rand_tensor((I, J, K), rank=R)
+X = tt.rand_ktensor((I, J, K), rank=R).full()
 
 # Add noise.
 Xn = np.maximum(0, X + .1*np.random.randn(I, J, K))
