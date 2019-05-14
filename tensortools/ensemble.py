@@ -96,12 +96,14 @@ class Ensemble(object):
 
             # Print summary of results.
             if verbose:
+                itr.close()
+                itr.refresh()
                 min_obj = min([res.obj for res in self.results[r]])
                 max_obj = max([res.obj for res in self.results[r]])
                 elapsed = sum([res.total_time for res in self.results[r]])
                 print('Rank-{} models:  min obj, {:.2f};  '
                       'max obj, {:.2f};  time to fit, '
-                      '{:.1f}s'.format(r, min_obj, max_obj, elapsed))
+                      '{:.1f}s'.format(r, min_obj, max_obj, elapsed), flush=True)
 
         # Sort results from lowest to largest loss.
         for r in ranks:

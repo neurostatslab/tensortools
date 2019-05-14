@@ -1,7 +1,7 @@
 """
 Nonnegative CP decomposition by Hierarchical alternating least squares (HALS).
 
-Author: N. Benjamin Erichson <erichson@uw.edu>
+With support for missing data.
 """
 
 import numpy as np
@@ -15,10 +15,10 @@ from tensortools.optimize import FitResult, optim_utils
 from .._hals_update import _hals_update
 
 
-def ncp_hals(X, rank, random_state=None, init='rand', **options):
+def mncp_hals(X, rank, mask, random_state=None, init='rand', **options):
     """
     Fits nonnegtaive CP Decomposition using the Hierarcial Alternating Least
-    Squares (HALS) Method.
+    Squares (HALS) Method. Supports missing data.
 
     Parameters
     ----------
@@ -27,6 +27,12 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
 
     rank : integer
         The `rank` sets the number of components to be computed.
+
+    mask : (I_1, ..., I_N) array_like
+        A binary tensor with the same shape as ``X``. All entries equal to zero
+        correspond to held out or missing data in ``X``. All entries equal to
+        one correspond to observed entries in ``X`` and the decomposition is
+        fit to these datapoints.
 
     random_state : integer, RandomState instance or None, optional (default ``None``)
         If integer, random_state is the seed used by the random number generator;
@@ -92,6 +98,10 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
     # Store problem dimensions.
     normX = linalg.norm(X)
 
+    # Mask missing elements.
+    X = np.copy(X)
+    X[~mask] = U.full()[~mask]
+
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the HALS algorithm until convergence or maxiter is reached
     # i)   compute the N gram matrices and multiply
@@ -101,8 +111,7 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
 
     while result.still_optimizing:
 
-        violation = 0.0
-
+        # First, HALS update.
         for n in range(X.ndim):
 
             # Select all components, but U_n
@@ -116,7 +125,11 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
             p = unfold(X, n).dot(kr)
 
             # iii) Update component U_n
-            violation += _hals_update(U[n], grams, p)
+            _ += _hals_update(U[n], grams, p)
+
+        # Then, update masked elements.
+        pred = U.full()
+        X[~mask] = pred[~mask]
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
@@ -124,7 +137,7 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
         # Compute objective function
         # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
         # obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
-        result.update(linalg.norm(X - U.full()) / normX)
+        result.update(linalg.norm(X - pred) / normX)
 
     # end optimization loop, return result.
     return result.finalize()
