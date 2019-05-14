@@ -88,6 +88,10 @@ def mncp_hals(X, rank, mask, random_state=None, init='rand', **options):
 
     """
 
+    # Mask missing elements.
+    X = np.copy(X)
+    X[~mask] = np.linalg.norm(X[mask])
+
     # Check inputs.
     optim_utils._check_cpd_inputs(X, rank)
 
@@ -96,11 +100,7 @@ def mncp_hals(X, rank, mask, random_state=None, init='rand', **options):
     result = FitResult(U, 'NCP_HALS', **options)
 
     # Store problem dimensions.
-    normX = linalg.norm(X)
-
-    # Mask missing elements.
-    X = np.copy(X)
-    X[~mask] = U.full()[~mask]
+    normX = linalg.norm(X[mask].ravel())
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the HALS algorithm until convergence or maxiter is reached
@@ -125,11 +125,11 @@ def mncp_hals(X, rank, mask, random_state=None, init='rand', **options):
             p = unfold(X, n).dot(kr)
 
             # iii) Update component U_n
-            _ += _hals_update(U[n], grams, p)
+            _hals_update(U[n], grams, p)
 
-        # Then, update masked elements.
-        pred = U.full()
-        X[~mask] = pred[~mask]
+            # Then, update masked elements.
+            pred = U.full()
+            X[~mask] = pred[~mask]
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
@@ -137,7 +137,8 @@ def mncp_hals(X, rank, mask, random_state=None, init='rand', **options):
         # Compute objective function
         # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
         # obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
-        result.update(linalg.norm(X - pred) / normX)
+        resid = X - pred
+        result.update(linalg.norm(resid.ravel()) / normX)
 
     # end optimization loop, return result.
     return result.finalize()

@@ -26,11 +26,12 @@ def test_deterministic(algname, shape):
 
     # Model options. Set to zero iterations.
     rank = 3
-    options = dict(rank=rank, verbose=False, max_iter=-1, random_state=alg_seed)
+    options = dict(
+        rank=rank, verbose=False, max_iter=-1, random_state=alg_seed)
 
     # Add special options for particular algorithms.
-    if algname == 'mcp_als':
-        options['mask'] = np.ones_like(X).astype(bool)
+    if algname in ("mcp_als", "mncp_hals"):
+        options["mask"] = np.ones_like(X).astype(bool)
 
     # Fit decomposition twice on the same data
     result_1 = getattr(tt, algname)(X, **options)
@@ -68,14 +69,18 @@ def test_objective_decreases(algname, shape, rank):
 
 
 @pytest.mark.parametrize(
-    "algname", ["mcp_als"]
+    "algname", ["mcp_als", "mncp_hals"]
 )
 def test_missingness(algname):
 
     # Random data tensor.
     shape = (15, 16, 17)
     rank = 3
-    X = tt.randn_ktensor(shape, rank=rank, random_state=data_seed).full()
+
+    if algname == "mcp_als":
+        X = tt.randn_ktensor(shape, rank=rank, random_state=data_seed).full()
+    elif algname == "mncp_hals":
+        X = tt.rand_ktensor(shape, rank=rank, random_state=data_seed).full()
 
     # Random missingness mask.
     mask = np.random.binomial(1, .5, size=X.shape).astype(bool)
