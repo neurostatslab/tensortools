@@ -90,7 +90,7 @@ def mncp_hals(X, rank, mask, random_state=None, init='rand', **options):
 
     # Mask missing elements.
     X = np.copy(X)
-    X[~mask] = np.linalg.norm(X[mask])
+    X[~mask] = np.mean(X[mask])
 
     # Check inputs.
     optim_utils._check_cpd_inputs(X, rank)
