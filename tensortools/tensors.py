@@ -73,6 +73,10 @@ class KTensor(object):
         self.factors = [f[:, idx] for f in self.factors]
         return self.factors
 
+    def factor_lams(self):
+        return sci.multiply.reduce(
+            [sci.linalg.norm(f, axis=0) for f in self.factors])
+
     def copy(self):
         return deepcopy(self)
 
