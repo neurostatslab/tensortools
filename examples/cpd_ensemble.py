@@ -9,11 +9,11 @@ X = tt.rand_ktensor((I, J, K), rank=R).full()
 # Add noise.
 Xn = np.maximum(0, X + .1*np.random.randn(I, J, K))
 
-# Fit ensemble of unconstrained tensor decompositions.
+# Fit ensembles of tensor decompositions.
 methods = (
-  'cp_als',
-  'ncp_bcd',
-  'ncp_hals',
+  'cp_als',    # fits unconstrained tensor decomposition.
+  'ncp_bcd',   # fits nonnegative tensor decomposition.
+  'ncp_hals',  # fits nonnegative tensor decomposition.
 )
 
 

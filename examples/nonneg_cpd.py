@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 
 # Make synthetic dataset.
 I, J, K, R = 25, 25, 25, 4  # dimensions and rank
-X = tt.randn_ktensor((I, J, K), rank=R).full()
-X += np.random.randn(I, J, K)
+X = tt.randexp_ktensor((I, J, K), rank=R).full()
+X += np.random.randn(I, J, K) * .5
+X = np.maximum(X, 0.0)
 
 # Fit CP tensor decomposition (two times).
-U = tt.cp_als(X, rank=R, verbose=True)
-V = tt.cp_als(X, rank=R, verbose=True)
+U = tt.ncp_bcd(X, rank=R, verbose=True)
+V = tt.ncp_bcd(X, rank=R, verbose=True)
 
 # Compare the low-dimensional factors from the two fits.
 fig, ax, po = tt.plot_factors(U.factors)

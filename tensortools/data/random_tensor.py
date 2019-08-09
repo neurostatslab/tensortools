@@ -46,8 +46,8 @@ def _rescale_tensor(factors, norm):
 
 def randn_ktensor(shape, rank, norm=None, random_state=None):
     """
-    Generates a random N-way tensor with rank R, where the entries are
-    drawn from the standard normal distribution.
+    Generates a random N-way tensor with rank R, where the factors are
+    generated from the standard normal distribution.
 
     Parameters
     ----------
@@ -90,8 +90,8 @@ def randn_ktensor(shape, rank, norm=None, random_state=None):
 
 def rand_ktensor(shape, rank, norm=None, random_state=None):
     """
-    Generates a random N-way tensor with rank R, where the entries are
-    drawn from the standard uniform distribution in the interval [0.0,1].
+    Generates a random N-way tensor with rank R, where the factors are
+    generated from the standard uniform distribution in the interval [0.0,1].
 
     Parameters
     ----------
@@ -124,7 +124,7 @@ def rand_ktensor(shape, rank, norm=None, random_state=None):
     -------
     >>> # Create a rank-2 tensor of dimension 5x5x5:
     >>> import tensortools as tt
-    >>> X = tt.randn_tensor((5,5,5), rank=2)
+    >>> X = tt.rand_tensor((5,5,5), rank=2)
 
     """
 
@@ -133,4 +133,56 @@ def rand_ktensor(shape, rank, norm=None, random_state=None):
 
     # Randomize low-rank factor matrices i.i.d. uniform random elements.
     factors = KTensor([rns.uniform(0.0, 1.0, size=(i, rank)) for i in shape])
+    return _rescale_tensor(factors, norm)
+
+
+def randexp_ktensor(shape, rank, scale=1.0, norm=None, random_state=None):
+    """
+    Generates a random N-way tensor with rank R, where the entries are
+    drawn from an exponential distribution
+
+    Parameters
+    ----------
+    shape : tuple
+        shape of the tensor
+
+    rank : integer
+        rank of the tensor
+
+    scale : float
+        Scale parameter for the exponential distribution.
+
+    norm : float or None, optional (defaults: None)
+        If not None, the factor matrices are rescaled so that the Frobenius
+        norm of the returned tensor is equal to ``norm``.
+
+    ktensor : bool
+        If true, a KTensor object is returned, i.e., the components are in factored
+        form ``[U_1, U_2, ... U_N]``; Otherwise an N-way array is returned.
+
+    random_state : integer, RandomState instance or None, optional (default ``None``)
+        If integer, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
+        If None, the random number generator is the RandomState instance used by np.random.
+
+
+    Returns
+    -------
+    X : (I_1, ..., I_N) array_like
+        N-way tensor with rank R.
+
+    Example
+    -------
+    >>> # Create a rank-2 tensor of dimension 5x5x5:
+    >>> import tensortools as tt
+    >>> X = tt.randexp_tensor((5,5,5), rank=2)
+
+    """
+
+    # Check input.
+    rns = _check_random_state(random_state)
+
+    # Randomize low-rank factor matrices i.i.d. uniform random elements.
+    factors = KTensor(
+        [rns.exponential(scale=scale, size=(i, rank)) for i in shape])
     return _rescale_tensor(factors, norm)
