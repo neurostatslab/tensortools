@@ -47,6 +47,11 @@ class KTensor(object):
         # Inverse unfolding along first mode
         return sci.reshape(unf, self.shape)
 
+    def norm(self):
+        """Efficiently computes Frobenius-like norm of the tensor."""
+        C = sci.multiply.reduce([F.T @ F for F in self.factors])
+        return np.sqrt(np.sum(C))
+
     def rebalance(self):
         """Rescales factors across modes so that all norms match.
         """

@@ -40,7 +40,7 @@ def _rescale_tensor(factors, norm):
         return factors.rebalance()
     else:
         # Compute rescaling factor for tensor
-        factors[0] *= norm / linalg.norm(factors.full())
+        factors[0] *= norm / factors.norm()
         return factors.rebalance()
 
 
