@@ -115,9 +115,6 @@ def mcp_als(X, rank, mask, random_state=None, init='randn', **options):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute objective function
-        # grams *= U[-1].T.dot(U[-1])
-        # obj = np.sqrt(np.sum(grams) - 2*sci.sum(p*U[-1]) + normX**2) / normX
         obj = linalg.norm(mask * (U.full() - X)) / normX
 
         # Update result
