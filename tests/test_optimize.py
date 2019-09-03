@@ -30,7 +30,7 @@ def test_deterministic(algname, shape):
         rank=rank, verbose=False, max_iter=-1, random_state=alg_seed)
 
     # Add special options for particular algorithms.
-    if algname in ("mcp_als", "mncp_hals"):
+    if algname in ("mcp_als",):
         options["mask"] = np.ones_like(X).astype(bool)
 
     # Fit decomposition twice on the same data
@@ -69,7 +69,7 @@ def test_objective_decreases(algname, shape, rank):
 
 
 @pytest.mark.parametrize(
-    "algname", ["mcp_als", "mncp_hals"]
+    "algname", ["mcp_als", "ncp_hals"]
 )
 def test_missingness(algname):
 
@@ -79,7 +79,7 @@ def test_missingness(algname):
 
     if algname == "mcp_als":
         X = tt.randn_ktensor(shape, rank=rank, random_state=data_seed).full()
-    elif algname == "mncp_hals":
+    elif algname == "ncp_hals":
         X = tt.rand_ktensor(shape, rank=rank, random_state=data_seed).full()
 
     # Random missingness mask.

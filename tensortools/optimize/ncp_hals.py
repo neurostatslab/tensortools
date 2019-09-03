@@ -6,16 +6,14 @@ Author: N. Benjamin Erichson <erichson@uw.edu>
 
 import numpy as np
 import scipy as sci
-from scipy import linalg
+import numba
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
-from .._hals_update import _hals_update
 
-
-def ncp_hals(X, rank, random_state=None, init='rand', **options):
+def ncp_hals(X, rank, mask=None, random_state=None, init='rand', **options):
     """
     Fits nonnegtaive CP Decomposition using the Hierarcial Alternating Least
     Squares (HALS) Method.
@@ -82,6 +80,11 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
 
     """
 
+    # Mask missing elements.
+    if mask is not None:
+        X = np.copy(X)
+        X[~mask] = np.mean(X[mask])
+
     # Check inputs.
     optim_utils._check_cpd_inputs(X, rank)
 
@@ -90,7 +93,7 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
     result = FitResult(U, 'NCP_HALS', **options)
 
     # Store problem dimensions.
-    normX = linalg.norm(X)
+    normX = np.linalg.norm(X)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate the HALS algorithm until convergence or maxiter is reached
@@ -101,30 +104,58 @@ def ncp_hals(X, rank, random_state=None, init='rand', **options):
 
     while result.still_optimizing:
 
-        violation = 0.0
-
         for n in range(X.ndim):
 
             # Select all components, but U_n
             components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = sci.multiply.reduce([arr.T.dot(arr) for arr in components])
+            grams = sci.multiply.reduce([arr.T @ arr for arr in components])
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
-            p = unfold(X, n).dot(kr)
+            Xmkr = unfold(X, n).dot(kr)
 
             # iii) Update component U_n
-            violation += _hals_update(U[n], grams, p)
+            _hals_update(U[n], grams, Xmkr)
+
+            # iv) Update masked elements.
+            if mask is not None:
+                pred = U.full()
+                X[~mask] = pred[~mask]
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute objective function
-        # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        # obj = np.sqrt( (sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2)) / normX
-        result.update(linalg.norm(X - U.full()) / normX)
+
+        if mask is None:
+            grams *= U[-1].T @ U[-1]
+            residsq = np.sum(grams) - 2 * np.sum(U[-1] * Xmkr) + (normX ** 2)
+            result.update(np.sqrt(residsq) / normX)
+
+        else:
+            result.update(np.linalg.norm(X - pred) / normX)
 
     # end optimization loop, return result.
     return result.finalize()
+
+
+@numba.jit(nopython=True, cache=True)
+def _hals_update(factors, grams, Xmkr):
+
+    dim = factors.shape[0]
+    rank = factors.shape[1]
+    indices = np.arange(rank)
+
+    # Handle special case of rank-1 model.
+    if rank == 1:
+        factors[:] = np.maximum(0.0, Xmkr / grams[0, 0])
+
+    # Do a few inner iterations.
+    else:
+        for itr in range(3):
+            for p in range(rank):
+                idx = (indices != p)
+                Cp = factors[:, idx] @ grams[idx][:, p]
+                r = (Xmkr[:, p] - Cp) / np.maximum(grams[p, p], 1e-6)
+                factors[:, p] = np.maximum(r, 0.0)
