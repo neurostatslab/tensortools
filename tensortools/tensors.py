@@ -53,8 +53,7 @@ class KTensor(object):
         return np.sqrt(np.sum(C))
 
     def rebalance(self):
-        """Rescales factors across modes so that all norms match.
-        """
+        """Rescales factors across modes so that all norms match."""
 
         # Compute norms along columns for each factor matrix
         norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
@@ -66,9 +65,22 @@ class KTensor(object):
         self.factors = [f * (lam / fn) for f, fn in zip(self.factors, norms)]
         return self
 
+    def prune_(self):
+        """Drops any factors with zero magnitude."""
+        idx = self.factor_lams() > 0
+        self.factors = [f[:, idx] for f in self.factors]
+        self.rank = np.sum(idx)
+
+    def pad_zeros_(self, n):
+        """Adds n more factors holding zeros."""
+        if n == 0:
+            return
+        self.factors = [np.column_stack((f, np.zeros((f.shape[0], n))))
+                        for f in self.factors]
+        self.rank += n
+
     def permute(self, idx):
-        """Permutes the columns of the factor matrices inplace
-        """
+        """Permutes the columns of the factor matrices inplace."""
 
         # Check that input is a true permutation
         if set(idx) != set(range(self.rank)):

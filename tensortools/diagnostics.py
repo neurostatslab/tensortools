@@ -33,6 +33,11 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
         Similarity score between zero and one.
     """
 
+    # Drop any factors with zero magnitude.
+    U_rank, V_rank = U.rank, V.rank
+    U.prune_()
+    V.prune_()
+
     # Compute similarity matrices.
     unrm = [f / np.linalg.norm(f, axis=0) for f in U.factors]
     vnrm = [f / np.linalg.norm(f, axis=0) for f in V.factors]
@@ -90,6 +95,10 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
     elif permute_V:
         for i, f in enumerate(flips):
             V.factors[i] *= f
+
+    # Pad zero factors to restore original ranks.
+    U.pad_zeros_(U_rank - U.rank)
+    U.pad_zeros_(V_rank - V.rank)
 
     # Return the similarity score
     return similarity
