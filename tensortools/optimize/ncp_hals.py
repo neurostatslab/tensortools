@@ -13,7 +13,7 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def ncp_hals(X, rank, mask=None, random_state=None, init='rand', **options):
+def ncp_hals(X, rank, mask=None, random_state=None, init='rand', skip_modes=[], **options):
     """
     Fits nonnegtaive CP Decomposition using the Hierarcial Alternating Least
     Squares (HALS) Method.
@@ -36,6 +36,11 @@ def ncp_hals(X, rank, mask=None, random_state=None, init='rand', **options):
         If ``'randn'``, Gaussian random numbers are used to initialize.
         If ``'rand'``, uniform random numbers are used to initialize.
         If KTensor instance, a copy is made to initialize the optimization.
+
+    skip_modes : iterable, optional (default ``[]``).
+        Specifies modes of the tensor that are not fit. This can be
+        used to fix certain factor matrices that have been previously
+        fit.
 
     options : dict, specifying fitting options.
 
@@ -105,6 +110,10 @@ def ncp_hals(X, rank, mask=None, random_state=None, init='rand', **options):
     while result.still_optimizing:
 
         for n in range(X.ndim):
+
+            # Skip modes that are specified as fixed.
+            if n in skip_modes:
+                continue
 
             # Select all components, but U_n
             components = [U[j] for j in range(X.ndim) if j != n]

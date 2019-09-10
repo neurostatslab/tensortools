@@ -13,7 +13,7 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def ncp_bcd(X, rank, random_state=None, init='rand', **options):
+def ncp_bcd(X, rank, random_state=None, init='rand', skip_modes=[], **options):
     """
     Fits nonnegative CP Decomposition using the Block Coordinate Descent (BCD)
     Method.
@@ -36,6 +36,11 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
         If ``'randn'``, Gaussian random numbers are used to initialize.
         If ``'rand'``, uniform random numbers are used to initialize.
         If KTensor instance, a copy is made to initialize the optimization.
+
+    skip_modes : iterable, optional (default ``[]``).
+        Specifies modes of the tensor that are not fit. This can be
+        used to fix certain factor matrices that have been previously
+        fit.
 
     options : dict, specifying fitting options.
 
@@ -107,6 +112,10 @@ def ncp_bcd(X, rank, random_state=None, init='rand', **options):
         extraw_old = extraw
 
         for n in range(N):
+
+            # Skip modes that are specified as fixed.
+            if n in skip_modes:
+                continue
 
             # Select all components, but U_n
             components = [U[j] for j in range(N) if j != n]

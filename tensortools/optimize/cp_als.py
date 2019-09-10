@@ -13,7 +13,7 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def cp_als(X, rank, random_state=None, init='randn', **options):
+def cp_als(X, rank, random_state=None, init='randn', skip_modes=[], **options):
     """Fits CP Decomposition using Alternating Least Squares (ALS).
 
     Parameters
@@ -34,6 +34,11 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
         If ``'randn'``, Gaussian random numbers are used to initialize.
         If ``'rand'``, uniform random numbers are used to initialize.
         If KTensor instance, a copy is made to initialize the optimization.
+
+    skip_modes : iterable, optional (default ``[]``).
+        Specifies modes of the tensor that are not fit. This can be
+        used to fix certain factor matrices that have been previously
+        fit.
 
     options : dict, specifying fitting options.
 
@@ -102,6 +107,10 @@ def cp_als(X, rank, random_state=None, init='randn', **options):
 
         # Iterate over each tensor mode.
         for n in range(X.ndim):
+
+            # Skip modes that are specified as fixed.
+            if n in skip_modes:
+                continue
 
             # i) Normalize factors to prevent singularities.
             U.rebalance()
