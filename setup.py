@@ -10,7 +10,6 @@ URL = 'https://github.com/ahwillia/tensortools'
 LICENSE = 'MIT'
 
 install_requires = [
-    'cython',
     'numpy',
     'scipy',
     'tqdm',
@@ -36,24 +35,13 @@ setup(
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-
-        # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Mathematics',
-
-        # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: MIT License',
-
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
 
-    # What does your project relate to?
     keywords='tensor decomposition, canonical decomposition, parallel factors',
-
     packages=find_packages(exclude=['tests*']),
-
-    # cythonize
-    cmdclass=cmdclass,
-    ext_modules=ext_modules
 )

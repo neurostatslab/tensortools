@@ -1,6 +1,5 @@
 import tensortools as tt
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Make synthetic dataset.
 I, J, K, R = 25, 25, 25, 4  # dimensions and rank
