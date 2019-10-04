@@ -44,3 +44,28 @@ def test_align():
             assert linalg.norm(fU - fV) < atol_float64
             assert linalg.norm(X - U.full()) < atol_float64
             assert linalg.norm(X - V.full()) < atol_float64
+
+
+def test_degenerate_align():
+
+    # Tests for alignment between factors with zeroed entries.
+
+    # Generate random KTensor.
+    I, J, K, R = 15, 16, 17, 4
+    U = tt.randn_ktensor((I, J, K), rank=R)
+    V = tt.randn_ktensor((I, J, K), rank=R)
+
+    V[0][:, -1] = 0.0
+    V[1][:, -1] = 0.0
+    V[2][:, -1] = 0.0
+
+    sim_uv = tt.kruskal_align(U, V)
+    sim_vu = tt.kruskal_align(V, U)
+    assert abs(sim_uv - sim_vu) < atol_float64
+
+    tt.kruskal_align(U.copy(), V.copy(), permute_U=True)
+    tt.kruskal_align(V.copy(), U.copy(), permute_U=True)
+    tt.kruskal_align(U.copy(), V.copy(), permute_V=True)
+    tt.kruskal_align(V.copy(), U.copy(), permute_V=True)
+    tt.kruskal_align(U.copy(), V.copy(), permute_U=True, permute_V=True)
+    tt.kruskal_align(V.copy(), U.copy(), permute_U=True, permute_V=True)

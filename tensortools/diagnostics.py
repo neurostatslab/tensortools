@@ -33,10 +33,19 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
         Similarity score between zero and one.
     """
 
+    # Initial model ranks.
+    U_init_rank, V_init_rank = U.rank, V.rank
+
     # Drop any factors with zero magnitude.
-    U_rank, V_rank = U.rank, V.rank
     U.prune_()
     V.prune_()
+
+    # Munkres expects V_rank <= U_rank.
+    if U.rank > V.rank:
+        U.pad_zeros_(U_init_rank - U.rank)
+        V.pad_zeros_(V_init_rank - V.rank)
+        return kruskal_align(
+            V, U, permute_U=permute_V, permute_V=permute_U)
 
     # Compute similarity matrices.
     unrm = [f / np.linalg.norm(f, axis=0) for f in U.factors]
@@ -80,9 +89,9 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
 
     # Permute the factors.
     if permute_U:
-        U.permute(prmU)
+        U.permute(prmU + unmatched_U)
     if permute_V:
-        V.permute(prmV)
+        V.permute(prmV + unmatched_V)
 
     # Flip the signs of factors.
     flips = np.sign([F[prmU, prmV] for F in sim_matrices])
@@ -90,15 +99,15 @@ def kruskal_align(U, V, permute_U=False, permute_V=False):
 
     if permute_U:
         for i, f in enumerate(flips):
-            U.factors[i] *= f
+            U.factors[i][:, :f.size] *= f
 
     elif permute_V:
         for i, f in enumerate(flips):
-            V.factors[i] *= f
+            V.factors[i][:, :f.size] *= f
 
     # Pad zero factors to restore original ranks.
-    U.pad_zeros_(U_rank - U.rank)
-    U.pad_zeros_(V_rank - V.rank)
+    U.pad_zeros_(U_init_rank - U.rank)
+    V.pad_zeros_(V_init_rank - V.rank)
 
     # Return the similarity score
     return similarity
