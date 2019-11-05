@@ -2,7 +2,7 @@ import numpy as np
 import numba
 
 
-# @numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def sym_bmat_mul(S, x, out):
     """
     Symmetric banded matrix times vector.
@@ -31,7 +31,7 @@ def sym_bmat_mul(S, x, out):
     return out
 
 
-# @numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def shift_gram(shift, T, out):
     """
     Creates symmetric banded matrix representation of
@@ -69,7 +69,7 @@ def shift_gram(shift, T, out):
     return out
 
 
-# @numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def apply_shift(x, shift, out):
     """
     Translates elements of `x` along axis=0 by `shift`, using linear
@@ -114,7 +114,7 @@ def apply_shift(x, shift, out):
     return out
 
 
-# @numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def trans_shift(x, shift, out):
     out.fill(0.0)
     T = len(out)

@@ -4,12 +4,6 @@ Diagnostic measures for CP decomposition fits.
 
 import numpy as np
 from munkres import Munkres
-
-from tensortools.cpwarp import padded_shifts
-
-from tensortools.cpwarp.shifted_cp import ShiftedCP
-from tensortools.cpwarp.multishift import MultiShiftModel
-
 from scipy.spatial.distance import cdist
 
 
@@ -18,14 +12,14 @@ def shifted_align(U, V, permute_U=False, permute_V=False):
 
     Parameters
     ----------
-    U : ShiftedCP
-        First kruskal tensor to align.
-    V : ShiftedCP
-        Second kruskal tensor to align.
+    U : ShiftedCP or MultiShiftModel
+        First shifted decomposition to align.
+    V : ShiftedCP or MultiShiftModel
+        Second shifed decomposition to align.
     permute_U : bool
-        If True, modifies 'U' to align the KTensors (default is False).
+        If True, modifies 'U' to align the models (default is False).
     permute_V : bool
-        If True, modifies 'V' to align the KTensors (default is False).
+        If True, modifies 'V' to align the models (default is False).
 
     Notes
     -----
@@ -40,19 +34,35 @@ def shifted_align(U, V, permute_U=False, permute_V=False):
         Similarity score between zero and one.
     """
 
-    K, T, N = U.shape
+    # Initial model ranks.
+    U_init_rank, V_init_rank = U.rank, V.rank
 
-    Uest = np.empty((U.rank, K * T * N))
-    Vest = np.empty((V.rank, K * T * N))
+    # Drop any factors with zero magnitude.
+    U.prune_()
+    V.prune_()
 
+    # Munkres expects V_rank <= U_rank.
+    if U.rank > V.rank:
+        U.pad_zeros_(U_init_rank - U.rank)
+        V.pad_zeros_(V_init_rank - V.rank)
+        return kruskal_align(
+            V, U, permute_U=permute_V, permute_V=permute_U)
+
+    # Compute per-component estimates for model U.
+    Uest = np.empty((U.rank, U.size))
     for r in range(U.rank):
-        pred = U.predict(skip_dims=np.setdiff1d(np.arange(U.rank), r))
+        sds = np.setdiff1d(np.arange(U.rank), r)
+        pred = U.predict(skip_dims=sds)
         Uest[r] = pred.ravel()
 
+    # Compute per-component estimates for model V.
+    Vest = np.empty((V.rank, V.size))
     for r in range(V.rank):
-        pred = V.predict(skip_dims=np.setdiff1d(np.arange(V.rank), r))
+        sds = np.setdiff1d(np.arange(V.rank), r)
+        pred = V.predict(skip_dims=sds)
         Vest[r] = pred.ravel()
 
+    # Compute distances between all model components.
     cost = cdist(Uest, Vest, metric="correlation")
     indices = Munkres().compute(cost.copy())
     prmU, prmV = zip(*indices)
@@ -87,12 +97,15 @@ def shifted_align(U, V, permute_U=False, permute_V=False):
     prmU = [prmU[i] for i in idx]
     prmV = [prmV[i] for i in idx]
 
-    # Permute the factors.
+    # Permute the factors and shifts.
     if permute_U:
-        print(prmU)
         U.permute(prmU)
     if permute_V:
         V.permute(prmV)
+
+    # Pad zero factors to restore original ranks.
+    U.pad_zeros_(U_init_rank - U.rank)
+    V.pad_zeros_(V_init_rank - V.rank)
 
     # Return the similarity score
     return similarity

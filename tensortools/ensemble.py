@@ -1,7 +1,7 @@
 from tensortools import optimize
 from tensortools.diagnostics import kruskal_align
 from tqdm import trange
-import collections
+from collections.abc import Iterable
 import numpy as np
 
 
@@ -71,7 +71,7 @@ class Ensemble(object):
         """
 
         # Make ranks iterable if necessary.
-        if not isinstance(ranks, collections.Iterable):
+        if not isinstance(ranks, Iterable):
             ranks = (ranks,)
 
         # Iterate over model ranks, optimize multiple replicates at each rank.

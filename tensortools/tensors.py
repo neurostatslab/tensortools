@@ -67,7 +67,7 @@ class KTensor(object):
 
     def prune_(self):
         """Drops any factors with zero magnitude."""
-        idx = self.factor_lams() > 0
+        idx = self.component_lams() > 0
         self.factors = [f[:, idx] for f in self.factors]
         self.rank = np.sum(idx)
 
@@ -90,9 +90,18 @@ class KTensor(object):
         self.factors = [f[:, idx] for f in self.factors]
         return self.factors
 
+    def component_lams(self):
+        fnrms = np.column_stack(
+            [np.linalg.norm(f, axis=0) for f in self.factors])
+        return np.prod(fnrms, axis=1)
+
     def factor_lams(self):
-        return sci.multiply.reduce(
-            [sci.linalg.norm(f, axis=0) for f in self.factors])
+        import warnings
+        warnings.warn(
+            "KTensor.factor_lams() has been deprecated. Use "
+            "KTensor.component_lams() instead.",
+            DeprecationWarning)
+        return self.component_lams()
 
     def copy(self):
         return deepcopy(self)

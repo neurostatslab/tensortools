@@ -18,26 +18,26 @@ from tensortools.cpwarp import periodic_shifts
 USE_PARALLEL = False
 
 
-@numba.jit(nopython=True, cache=True, parallel=USE_PARALLEL)
-def fit_shift_cp2(
-        X, Xnorm, rank, u, v, w, u_s, v_s, min_iter=10,
-        max_iter=1000, tol=1e-4, warp_iterations=50,
-        max_shift_axis0=.1, max_shift_axis1=.1,
+@numba.jit(nopython=True, parallel=USE_PARALLEL, cache=True)
+def fit_shift_cp1(
+        X, Xnorm, rank, u, v, w, u_s, min_iter=10,
+        max_iter=1000, tol=1e-4, warp_iterations=50, max_shift=.1,
         periodic=False, patience=5):
     """
     Fits shifted, semi-nonnegative CP-decomposition to a third-order tensor.
-    Shifting occurs along axis=-1, with per-dimension shift parameters
-    along axes 1 and 2. That is:
+    Shifting occurs along axis=2, with per-dimension shift parameters
+    along axis=1. That is:
 
-        X[i, j, t] \approx sum_r  u[r, i] * v[r, j] + w[r, t + s[r, i] + z[r, i]]
+        X[i, j, t] \approx sum_r  u[r, i] * v[r, j] + w[r, t + s[r, i]]
 
-    Where s[r, i] and z[r, j] are shift parameters.
+    Where s[r, i] are shift parameters.
 
     For example, suppose N-dimensional time series is collected over K
     trials. Then the input tensor could have shape (N x K x T) to implement
-    per-trial and per-feature time-shifting along the final axis.
+    per-feature time-shifting along axis=2. Or, the input tensor could be
+    (K x N x T) to implement per-trial shifting along axis=2.
 
-    The algorihm uses coordinate descent updates and a random search over
+    The algorithm uses coordinate descent updates and a random search over
     the shift parameters.
     """
 
@@ -53,6 +53,7 @@ def fit_shift_cp2(
     WtW = np.empty((2, T))
     _WtW = np.empty((2, T))
     Ww = np.empty(T)
+    v_num = np.empty(K)
     rhs = np.empty(T)
 
     # Set up progress bar.
@@ -64,49 +65,37 @@ def fit_shift_cp2(
     while (itercount < max_iter) and not converged:
 
         # Update groups of parameters in random order.
-        for z in npr.permutation(rank * 5):
+        for z in npr.permutation(rank * 4):
 
             # Update component r.
-            r = z // 5
+            r = z // 4
 
             # Update residual tensor.
             predict(
-                u, v, w, u_s, v_s, periodic, Xest, skip_dim=r)
+                u, v, w, u_s, periodic, Xest, skip_dim=r)
             Z = X - Xest
 
             # Update one of the low-rank factors or shifts.
-            q = z % 5
+            q = z % 4
 
             # === UPDATE FACTOR WEIGHTS FOR AXIS 0 === #
             if q == 0:
 
-                if periodic:
-                    for n in range(N):
+                vtv = v[r] @ v[r]
 
-                        num, denom = 0.0, 0.0
+                for n in range(N):
 
-                        for k in range(K):
-                            # shift w[r], store result in Ww.
-                            periodic_shifts.apply_shift(
-                                w[r], u_s[r, n] + v_s[r, k], Ww)
-                            num += v[r, k] * (Z[n, k] @ Ww)
-                            denom += v[r, k] * v[r, k] * (Ww @ Ww)
+                    # shift w[r], store result in Ww.
+                    if periodic:
+                        periodic_shifts.apply_shift(
+                            w[r], u_s[r, n], Ww)
+                    else:
+                        padded_shifts.apply_shift(
+                            w[r], u_s[r, n], Ww)
 
-                        u[r, n] = num / denom
-
-                else:
-                    for n in range(N):
-
-                        num, denom = 0.0, 0.0
-
-                        for k in range(K):
-                            # shift w[r], store result in Ww.
-                            padded_shifts.apply_shift(
-                                w[r], u_s[r, n] + v_s[r, k], Ww)
-                            num += v[r, k] * (Z[n, k] @ Ww)
-                            denom += v[r, k] * v[r, k] * (Ww @ Ww)
-
-                        u[r, n] = num / denom
+                    num = v[r] @ (Z[n] @ Ww)
+                    denom = vtv * (Ww @ Ww)
+                    u[r, n] = num / denom
 
                 # If u is all negative, flip sign of temporal factor.
                 if np.all(u[r] < 0):
@@ -119,33 +108,23 @@ def fit_shift_cp2(
             # === UPDATE FACTOR WEIGHTS FOR AXIS 1 === #
             elif q == 1:
 
-                if periodic:
-                    for k in range(K):
+                v_num.fill(0.0)
+                denom = 0.0
 
-                        num, denom = 0.0, 0.0
+                for n in range(N):
 
-                        for n in range(N):
-                            # shift w[r], store result in Ww.
-                            periodic_shifts.apply_shift(
-                                w[r], u_s[r, n] + v_s[r, k], Ww)
-                            num += u[r, n] * (Z[n, k] @ Ww)
-                            denom += u[r, n] * u[r, n] * (Ww @ Ww)
+                    # shift w[r], store result in Ww.
+                    if periodic:
+                        periodic_shifts.apply_shift(
+                            w[r], u_s[r, n], Ww)
+                    else:
+                        padded_shifts.apply_shift(
+                            w[r], u_s[r, n], Ww)
 
-                        v[r, k] = num / denom
+                    v_num += u[r, n] * (Z[n] @ Ww)
+                    denom += u[r, n] * u[r, n] * (Ww @ Ww)
 
-                else:
-                    for k in range(K):
-
-                        num, denom = 0.0, 0.0
-
-                        for n in range(N):
-                            # shift w[r], store result in Ww.
-                            padded_shifts.apply_shift(
-                                w[r], u_s[r, n] + v_s[r, k], Ww)
-                            num += u[r, n] * (Z[n, k] @ Ww)
-                            denom += u[r, n] * u[r, n] * (Ww @ Ww)
-
-                        v[r, k] = num / denom
+                v[r] = v_num / denom
 
                 # If v is all negative, flip sign of temporal factor.
                 if np.all(v[r] < 0):
@@ -171,7 +150,7 @@ def fit_shift_cp2(
                         for k in range(K):
 
                             # Shift and weighting factor.
-                            shift = u_s[r, n] + v_s[r, k]
+                            shift = u_s[r, n]
                             u_v = u[r, n] * v[r, k]
                             u_v2 = u_v * u_v
 
@@ -200,7 +179,7 @@ def fit_shift_cp2(
                     for n in range(N):
                         for k in range(K):
                             # Shift and weighting factor.
-                            shift = u_s[r, n] + v_s[r, k]
+                            shift = u_s[r, n]
                             u_v = u[r, n] * v[r, k]
                             u_v2 = u_v * u_v
 
@@ -235,21 +214,13 @@ def fit_shift_cp2(
             elif q == 3:
                 for n in numba.prange(N):
                     u_s[r, n] = _fit_shift(
-                        Z[n], u[r, n], v[r], v_s[r], w[r],
-                        max_shift_axis0 * T, periodic,
+                        Z[n], u[r, n], v[r], w[r],
+                        max_shift * T, periodic,
                         warp_iterations, u_s[r, n])
-
-            # === UPDATE SHIFT PARAMS FOR AXIS 1 === #
-            elif q == 4:
-                for k in numba.prange(K):
-                    v_s[r, k] = _fit_shift(
-                        Z[:, k], v[r, k], u[r], u_s[r], w[r],
-                        max_shift_axis1 * T, periodic,
-                        warp_iterations, v_s[r, k])
 
         # Update model estimate for convergence check.
         predict(
-            u, v, w, u_s, v_s, periodic, Xest)
+            u, v, w, u_s, periodic, Xest)
 
         # Test for convergence.
         itercount += 1
@@ -260,11 +231,11 @@ def fit_shift_cp2(
         if itercount > min_iter:
             converged = abs(loss_hist[-patience] - loss_hist[-1]) < tol
 
-    return u, v, w, u_s, v_s, loss_hist
+    return u, v, w, u_s, loss_hist
 
 
-@numba.jit(nopython=True, cache=True, parallel=USE_PARALLEL)
-def predict(u, v, w, u_s, v_s, periodic, result, skip_dim=-1):
+@numba.jit(nopython=True, parallel=USE_PARALLEL, cache=True)
+def predict(u, v, w, u_s, periodic, result, skip_dim=-1):
 
     N, K, T = result.shape
     rank = u.shape[0]
@@ -277,14 +248,12 @@ def predict(u, v, w, u_s, v_s, periodic, result, skip_dim=-1):
                 if r == skip_dim:
                     continue
 
-                shift = u_s[r, n] + v_s[r, k]
-
                 if periodic:
                     wshift = periodic_shifts.apply_shift(
-                        w[r], shift, np.empty(T))
+                        w[r], u_s[r, n], np.empty(T))
                 else:
                     wshift = padded_shifts.apply_shift(
-                        w[r], shift, np.empty(T))
+                        w[r], u_s[r, n], np.empty(T))
 
                 for t in range(T):
                     result[n, k, t] += wshift[t] * u[r, n] * v[r, k]
@@ -294,19 +263,21 @@ def predict(u, v, w, u_s, v_s, periodic, result, skip_dim=-1):
 
 @numba.jit(nopython=True, cache=True)
 def _fit_shift(
-        Z, y, f, f_s, w, max_shift, periodic, n_iter, init_shift):
+        Z, un, v, w, max_shift, periodic, n_iter, init_shift):
     """
-    Z   : matrix, M x T
-    y   : float
-    f   : vector, length M
-    f_s : vector, length M
+    Z   : matrix, K x T
+    un  : float
+    v   : vector, length K
     w   : vector, length T
     """
 
-    M, T = Z.shape
+    K, T = Z.shape
     ws = np.empty_like(w)
     best_loss = np.inf
     best_shift = 0.0
+
+    Ztv = Z.T @ v
+    vtv = v @ v
 
     for i in range(n_iter):
 
@@ -316,24 +287,14 @@ def _fit_shift(
         else:
             s = npr.uniform(-max_shift, max_shift)
 
-        # Apply shifts.
-        loss = 0.0
-        for m in range(M):
+        # Apply shift for m-th element.
+        if periodic:
+            periodic_shifts.apply_shift(w, s, ws)
+        else:
+            padded_shifts.apply_shift(w, s, ws)
 
-            # Apply shift for m-th element.
-            if periodic:
-                periodic_shifts.apply_shift(w, s + f_s[m], ws)
-            else:
-                padded_shifts.apply_shift(w, s + f_s[m], ws)
-
-            # Compute loss for m-th element.
-            for t in range(T):
-                resid = Z[m, t] - (y * f[m] * ws[t])
-                loss += resid * resid
-
-            # Can stop early due to nonnegative loss.
-            if loss > best_loss:
-                break
+        # Compute loss.
+        loss = vtv * (ws @ ws) - (ws @ Ztv)
 
         # Save best loss.
         if loss < best_loss:

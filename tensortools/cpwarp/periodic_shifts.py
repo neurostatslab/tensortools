@@ -2,7 +2,7 @@ import numpy as np
 import numba
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def tri_sym_circ_matvec(c, a, x, out):
     out[0] = (a * x[-1]) + (c * x[0]) + (a * x[1])
     for i in range(1, x.shape[0] - 1):
@@ -72,7 +72,7 @@ def rojo_solve(c, a, f, x, z):
     return x
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def shift_gram(shift):
     """
     Computes weighted sum over dot(W_k.T, W_k).
@@ -83,7 +83,7 @@ def shift_gram(shift):
     return d, off_d
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def apply_shift(x, shift, out):
 
     T = out.shape[0]
@@ -108,7 +108,7 @@ def apply_shift(x, shift, out):
     return out
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def trans_shift(x, shift, out):
 
     T = out.shape[0]
