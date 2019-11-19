@@ -7,6 +7,7 @@ the first mode.
 import numba
 import numpy as np
 import numpy.random as npr
+from time import time
 
 from scipy.linalg import solveh_banded
 
@@ -21,9 +22,9 @@ USE_PARALLEL = False
 @numba.jit(nopython=True, cache=True, parallel=USE_PARALLEL)
 def fit_shift_cp2(
         X, Xnorm, rank, u, v, w, u_s, v_s, min_iter=10,
-        max_iter=1000, tol=1e-4, warp_iterations=50,
+        max_iter=1000, tol=1e-4, warp_iterations=10,
         max_shift_axis0=.1, max_shift_axis1=.1,
-        periodic=False, patience=5):
+        periodic=False, patience=5, verbose=False):
     """
     Fits shifted, semi-nonnegative CP-decomposition to a third-order tensor.
     Shifting occurs along axis=-1, with per-dimension shift parameters
@@ -57,11 +58,17 @@ def fit_shift_cp2(
 
     # Set up progress bar.
     itercount = 0
+    loss = np.nan
 
     # === main loop === #
     converged = False
 
     while (itercount < max_iter) and not converged:
+
+        if verbose and itercount > 0:
+            print("Iteration ", itercount, ", Loss = ", loss)
+        elif verbose:
+            print("Starting iterations....")
 
         # Update groups of parameters in random order.
         for z in npr.permutation(rank * 5):
@@ -69,13 +76,13 @@ def fit_shift_cp2(
             # Update component r.
             r = z // 5
 
+            # Update one of the low-rank factors or shifts.
+            q = z % 5
+
             # Update residual tensor.
             predict(
                 u, v, w, u_s, v_s, periodic, Xest, skip_dim=r)
             Z = X - Xest
-
-            # Update one of the low-rank factors or shifts.
-            q = z % 5
 
             # === UPDATE FACTOR WEIGHTS FOR AXIS 0 === #
             if q == 0:
@@ -232,20 +239,20 @@ def fit_shift_cp2(
                             w[r, t] = w[r, t] - ss * grad[t]
 
             # === UPDATE SHIFT PARAMS FOR AXIS 0 === #
-            elif q == 3:
+            elif (q == 3) and (itercount > 0):
                 for n in numba.prange(N):
                     u_s[r, n] = _fit_shift(
                         Z[n], u[r, n], v[r], v_s[r], w[r],
                         max_shift_axis0 * T, periodic,
-                        warp_iterations, u_s[r, n])
+                        warp_iterations, u_s[r, n], Ww)
 
             # === UPDATE SHIFT PARAMS FOR AXIS 1 === #
-            elif q == 4:
+            elif (q == 4) and (itercount > 0):
                 for k in numba.prange(K):
                     v_s[r, k] = _fit_shift(
                         Z[:, k], v[r, k], u[r], u_s[r], w[r],
                         max_shift_axis1 * T, periodic,
-                        warp_iterations, v_s[r, k])
+                        warp_iterations, v_s[r, k], Ww)
 
         # Update model estimate for convergence check.
         predict(
@@ -294,7 +301,7 @@ def predict(u, v, w, u_s, v_s, periodic, result, skip_dim=-1):
 
 @numba.jit(nopython=True, cache=True)
 def _fit_shift(
-        Z, y, f, f_s, w, max_shift, periodic, n_iter, init_shift):
+        Z, y, f, f_s, w, max_shift, periodic, n_iter, init_shift, Ww):
     """
     Z   : matrix, M x T
     y   : float
@@ -304,7 +311,6 @@ def _fit_shift(
     """
 
     M, T = Z.shape
-    ws = np.empty_like(w)
     best_loss = np.inf
     best_shift = 0.0
 
@@ -322,13 +328,14 @@ def _fit_shift(
 
             # Apply shift for m-th element.
             if periodic:
-                periodic_shifts.apply_shift(w, s + f_s[m], ws)
+                periodic_shifts.apply_shift(w, s + f_s[m], Ww)
             else:
-                padded_shifts.apply_shift(w, s + f_s[m], ws)
+                padded_shifts.apply_shift(w, s + f_s[m], Ww)
 
             # Compute loss for m-th element.
+            yf = y * f[m]
             for t in range(T):
-                resid = Z[m, t] - (y * f[m] * ws[t])
+                resid = Z[m, t] - (yf * Ww[t])
                 loss += resid * resid
 
             # Can stop early due to nonnegative loss.

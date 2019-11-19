@@ -21,7 +21,7 @@ USE_PARALLEL = False
 @numba.jit(nopython=True, parallel=USE_PARALLEL, cache=True)
 def fit_shift_cp1(
         X, Xnorm, rank, u, v, w, u_s, min_iter=10,
-        max_iter=1000, tol=1e-4, warp_iterations=50, max_shift=.1,
+        max_iter=1000, tol=1e-4, warp_iterations=10, max_shift=.1,
         periodic=False, patience=5):
     """
     Fits shifted, semi-nonnegative CP-decomposition to a third-order tensor.

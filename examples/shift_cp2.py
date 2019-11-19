@@ -40,6 +40,7 @@ model = fit_shifted_cp(
     data, rank, boundary="edge",
     max_shift_axis0=max_shift,
     max_shift_axis1=max_shift,
+    warp_iterations=10,
     max_iter=40)
 
 print("time per iteration: {}".format(

@@ -15,9 +15,10 @@ def fit_shifted_cp(
         X, rank, init_u=None, init_v=None, init_w=None,
         max_shift_axis0=None, max_shift_axis1=None,
         boundary="edge", min_iter=10, max_iter=1000, tol=1e-4,
-        warp_iterations=50, patience=5):
+        warp_iterations=10, patience=5, verbose=False):
 
     # Check inputs.
+    X = np.ascontiguousarray(X)
     if X.ndim != 3:
         raise ValueError(
             "Only 3rd-order tensors are supported for "
@@ -52,16 +53,12 @@ def fit_shifted_cp(
     shifting_1 = (max_shift_axis1 is not None) and (max_shift_axis1 > 0)
 
     if shifting_0:
-        u_s = npr.uniform(
-            -max_shift_axis0 * T,
-            max_shift_axis0 * T, size=(rank, N))
+        u_s = npr.uniform(-.5, .5, size=(rank, N))
     else:
         u_s = np.zeros((rank, N))
 
     if shifting_1:
-        v_s = npr.uniform(
-            -max_shift_axis1 * T,
-            max_shift_axis1 * T, size=(rank, K))
+        v_s = npr.uniform(-.5, .5, size=(rank, K))
     else:
         v_s = np.zeros((rank, K))
 
@@ -88,7 +85,8 @@ def fit_shifted_cp(
                 max_shift_axis0=max_shift_axis0,
                 max_shift_axis1=max_shift_axis1,
                 periodic=periodic,
-                patience=patience
+                patience=patience,
+                verbose=verbose,
             )
 
     elif shifting_0:
@@ -109,7 +107,7 @@ def fit_shifted_cp(
         u_s = None
         v, u, w, v_s, loss_hist = \
             shift_cp1.fit_shift_cp1(
-                X.transpose((1, 0, 2)),
+                np.copy(X.transpose((1, 0, 2))),
                 X_norm, rank, v, u, w, v_s,
                 min_iter=min_iter,
                 max_iter=max_iter,
