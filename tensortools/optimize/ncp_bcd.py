@@ -13,7 +13,9 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def ncp_bcd(X, rank, random_state=None, init='rand', skip_modes=[], **options):
+def ncp_bcd(
+        X, rank, random_state=None, init='rand',
+        skip_modes=[], negative_modes=[], **options):
     """
     Fits nonnegative CP Decomposition using the Block Coordinate Descent (BCD)
     Method.
@@ -41,6 +43,10 @@ def ncp_bcd(X, rank, random_state=None, init='rand', skip_modes=[], **options):
         Specifies modes of the tensor that are not fit. This can be
         used to fix certain factor matrices that have been previously
         fit.
+
+    negative_modes : iterable, optional (default ``[]``).
+        Specifies modes of the tensor whose factors are not constrained
+        to be nonnegative.
 
     options : dict, specifying fitting options.
 
@@ -129,13 +135,15 @@ def ncp_bcd(X, rank, random_state=None, init='rand', skip_modes=[], **options):
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
-            p = unfold(X, n).dot( kr )
+            p = unfold(X, n).dot(kr)
 
             # Compute Gradient.
-            grad = Um[n] .dot(grams) - p
+            grad = Um[n].dot(grams) - p
 
             # Enforce nonnegativity (project onto nonnegative orthant).
-            U[n] = sci.maximum(0.0, Um[n] - grad / L[n])
+            U[n] = Um[n] - grad / L[n]
+            if n not in negative_modes:
+                U[n] = sci.maximum(0.0, U[n])
 
         # Compute objective function and update optimization result.
         # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])

@@ -13,7 +13,9 @@ from tensortools.tensors import KTensor
 from tensortools.optimize import FitResult, optim_utils
 
 
-def ncp_hals(X, rank, mask=None, random_state=None, init='rand', skip_modes=[], **options):
+def ncp_hals(
+        X, rank, mask=None, random_state=None, init='rand',
+        skip_modes=[], negative_modes=[], **options):
     """
     Fits nonnegtaive CP Decomposition using the Hierarcial Alternating Least
     Squares (HALS) Method.
@@ -41,6 +43,10 @@ def ncp_hals(X, rank, mask=None, random_state=None, init='rand', skip_modes=[], 
         Specifies modes of the tensor that are not fit. This can be
         used to fix certain factor matrices that have been previously
         fit.
+
+    negative_modes : iterable, optional (default ``[]``).
+        Specifies modes of the tensor whose factors are not constrained
+        to be nonnegative.
 
     options : dict, specifying fitting options.
 
@@ -126,7 +132,7 @@ def ncp_hals(X, rank, mask=None, random_state=None, init='rand', skip_modes=[], 
             Xmkr = unfold(X, n).dot(kr)
 
             # iii) Update component U_n
-            _hals_update(U[n], grams, Xmkr)
+            _hals_update(U[n], grams, Xmkr, n in negative_modes)
 
             # iv) Update masked elements.
             if mask is not None:
@@ -150,7 +156,7 @@ def ncp_hals(X, rank, mask=None, random_state=None, init='rand', skip_modes=[], 
 
 
 @numba.jit(nopython=True, cache=True)
-def _hals_update(factors, grams, Xmkr):
+def _hals_update(factors, grams, Xmkr, nonneg):
 
     dim = factors.shape[0]
     rank = factors.shape[1]
@@ -158,7 +164,10 @@ def _hals_update(factors, grams, Xmkr):
 
     # Handle special case of rank-1 model.
     if rank == 1:
-        factors[:] = np.maximum(0.0, Xmkr / grams[0, 0])
+        if nonneg:
+            factors[:] = np.maximum(0.0, Xmkr / grams[0, 0])
+        else:
+            factors[:] = Xmkr / grams[0, 0]
 
     # Do a few inner iterations.
     else:
@@ -167,4 +176,8 @@ def _hals_update(factors, grams, Xmkr):
                 idx = (indices != p)
                 Cp = factors[:, idx] @ grams[idx][:, p]
                 r = (Xmkr[:, p] - Cp) / np.maximum(grams[p, p], 1e-6)
-                factors[:, p] = np.maximum(r, 0.0)
+
+                if nonneg:
+                    factors[:, p] = np.maximum(r, 0.0)
+                else:
+                    factors[:, p] = r
