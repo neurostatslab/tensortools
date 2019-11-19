@@ -1,6 +1,6 @@
 """
 Shifted tensor decomposition with per-dimension shift
-parameters along only axis=0.
+parameters along only axis=1.
 """
 import numpy as np
 import numpy.random as npr
@@ -39,7 +39,7 @@ model = fit_shifted_cp(
     data, rank, boundary="edge",
     max_shift_axis0=None,
     max_shift_axis1=max_shift,
-    max_iter=40)
+    max_iter=60)
 
 print("time per iteration: {}".format(
     (time() - t0) / len(model.loss_hist)))
@@ -51,17 +51,24 @@ ax.set_ylabel("Normalized Error")
 ax.set_xlabel("Iteration")
 
 # Plot factors before alignment.
-fig, _, _ = plot_factors(model)
+fig, axes, _ = plot_factors(model)
 plot_factors(ground_truth, fig=fig)
+axes[-1, -1].legend(("estimate", "ground truth"))
+fig.suptitle("Factors before alignment")
+fig.tight_layout()
 
 # Permute and align components.
 shifted_align(model, ground_truth, permute_U=True)
 
 # Plot factors after alignment.
-fig, _, _ = plot_factors(model)
+fig, axes, _ = plot_factors(model)
 plot_factors(ground_truth, fig=fig)
+axes[-1, -1].legend(("estimate", "ground truth"))
+fig.suptitle("Factors after alignment")
+fig.tight_layout()
+fig.subplots_adjust(top=.92)
 
-# Plot shifts along axis=0.
+# Plot shifts along axis=1.
 fig, axes = plt.subplots(rank, rank, sharey=True, sharex=True)
 for r1, r2 in itertools.product(range(rank), range(rank)):
     axes[r1, r2].scatter(
@@ -74,3 +81,8 @@ for r in range(rank):
     axes[-1, r].set_xlabel("est shifts,\ncomponent {}".format(r))
 axes[0, 0].set_xlim(-max_shift * K, max_shift * K)
 axes[0, 0].set_ylim(-max_shift * K, max_shift * K)
+fig.suptitle("Recovery of ground truth shifts (axis=1)")
+fig.tight_layout()
+fig.subplots_adjust(top=.92)
+
+plt.show()
