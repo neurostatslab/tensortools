@@ -132,7 +132,7 @@ def ncp_hals(
             Xmkr = unfold(X, n).dot(kr)
 
             # iii) Update component U_n
-            _hals_update(U[n], grams, Xmkr, n in negative_modes)
+            _hals_update(U[n], grams, Xmkr, n not in negative_modes)
 
             # iv) Update masked elements.
             if mask is not None:

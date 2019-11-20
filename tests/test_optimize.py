@@ -108,3 +108,36 @@ def test_missingness(algname):
     # Test that final factors are identical.
     for uX, uY in zip(resultX.factors, resultY.factors):
         assert np.allclose(uX, uY)
+
+
+@pytest.mark.parametrize(
+    "algname", ["ncp_hals", "ncp_bcd"]
+)
+@pytest.mark.parametrize(
+    "neg_modes", [[], [0], [1], [2], [1, 2]]
+)
+def test_nonneg(algname, neg_modes):
+
+    # Random data tensor.
+    shape = (15, 16, 17)
+    rank = 3
+
+    X = tt.randn_ktensor(shape, rank=rank, random_state=data_seed).full()
+
+    # Algorithm fitting options.
+    options = dict(
+        rank=rank,
+        negative_modes=neg_modes,
+        verbose=False,
+        tol=1e-6,
+        random_state=alg_seed
+    )
+
+    # Fit decomposition.
+    result = getattr(tt, algname)(X, **options)
+
+    for mode, factor in enumerate(result.factors):
+        if mode in neg_modes:
+            assert factor.min() < 0  # this should be true for most datasets
+        else:
+            assert factor.min() >= 0
