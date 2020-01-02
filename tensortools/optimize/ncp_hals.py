@@ -144,8 +144,13 @@ def ncp_hals(
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         if mask is None:
-            grams *= U[-1].T @ U[-1]
-            residsq = np.sum(grams) - 2 * np.sum(U[-1] * Xmkr) + (normX ** 2)
+
+            # Determine mode that was fit last.
+            n = np.setdiff1d(np.arange(X.ndim), skip_modes).max()
+
+            # Add contribution of last fit factors to gram matrix.
+            grams *= U[n].T @ U[n]
+            residsq = np.sum(grams) - 2 * np.sum(U[n] * Xmkr) + (normX ** 2)
             result.update(np.sqrt(residsq) / normX)
 
         else:

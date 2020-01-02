@@ -152,21 +152,23 @@ def ncp_bcd(
         result.update(obj)
 
         # Correction and extrapolation.
-        grams *= U[N - 1].T.dot(U[N - 1])
-        obj_bcd = 0.5 * (sci.sum(grams) - 2 * sci.sum(U[N-1] * p) + normX**2 )
+        n = np.setdiff1d(np.arange(X.ndim), skip_modes).max()
+        grams *= U[n].T.dot(U[n])
+        obj_bcd = 0.5 * (sci.sum(grams) - 2 * sci.sum(U[n] * p) + normX**2)
 
         extraw = (1 + sci.sqrt(1 + 4 * extraw_old**2)) / 2.0
 
         if obj_bcd >= obj_bcd_old:
             # restore previous A to make the objective nonincreasing
-            Um = sci.copy(U_old)
+            Um = U_old
 
         else:
             # apply extrapolation
-            w = (extraw_old - 1.0) / extraw # Extrapolation weight
+            w = (extraw_old - 1.0) / extraw  # Extrapolation weight
             for n in range(N):
-                weights_U[n] = min(w, 1.0 * sci.sqrt( L0[n] / L[n] )) # choose smaller weights for convergence
-                Um[n] = U[n] + weights_U[n] * (U[n] - U_old[n]) # extrapolation
+                if n not in skip_modes:
+                    weights_U[n] = min(w, 1.0 * sci.sqrt(L0[n] / L[n]))  # choose smaller weights for convergence
+                    Um[n] = U[n] + weights_U[n] * (U[n] - U_old[n])  # extrapolation
 
     # Finalize and return the optimization result.
     return result.finalize()
