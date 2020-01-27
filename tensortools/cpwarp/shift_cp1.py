@@ -20,7 +20,7 @@ USE_PARALLEL = False
 
 @numba.jit(nopython=True, parallel=USE_PARALLEL, cache=True)
 def fit_shift_cp1(
-        X, Xnorm, rank, u, v, w, u_s, min_iter=10,
+        X, Xnorm, rank, u, v, w, u_s, mask, min_iter=10,
         max_iter=1000, tol=1e-4, warp_iterations=10, max_shift=.1,
         periodic=False, patience=5):
     """
@@ -44,6 +44,11 @@ def fit_shift_cp1(
     # Problem dimensions, norm of data.
     N, K, T = X.shape
     Xest = np.empty_like(X)
+
+    if mask.size == (N * K * T):
+        masked = True
+    else:
+        masked = False
 
     # Ensure at least two iterations for convergence check.
     min_iter = max(patience, min_iter)
@@ -104,6 +109,7 @@ def fit_shift_cp1(
 
                 # Project u onto nonnegative orthant.
                 u[r] = np.maximum(0, u[r])
+                _prevent_zeros(u[r])
 
             # === UPDATE FACTOR WEIGHTS FOR AXIS 1 === #
             elif q == 1:
@@ -133,6 +139,7 @@ def fit_shift_cp1(
 
                 # Project v onto nonnegative orthant.
                 v[r] = np.maximum(0, v[r])
+                _prevent_zeros(v[r])
 
             # === UPDATE AXIS WEIGHTS FOR AXIS 2 (temporal factors) === #
             elif q == 2:
@@ -208,7 +215,10 @@ def fit_shift_cp1(
 
                         # Gradient descent step.
                         for t in range(T):
-                            w[r, t] = w[r, t] - ss * grad[t]
+                            w[r, t] = max(0.0, w[r, t] - ss * grad[t])
+
+                # Prevent divide by zero.
+                _prevent_zeros(w[r])
 
             # === UPDATE SHIFT PARAMS FOR AXIS 0 === #
             elif q == 3:
@@ -221,6 +231,14 @@ def fit_shift_cp1(
         # Update model estimate for convergence check.
         predict(
             u, v, w, u_s, periodic, Xest)
+
+        # Update masked entries, if applicable.
+        if masked:
+            for n in range(N):
+                for k in range(K):
+                    for t in range(T):
+                        if not mask[n, k, t]:
+                            X[n, k, t] = Xest[n, k, t]
 
         # Test for convergence.
         itercount += 1
@@ -302,3 +320,11 @@ def _fit_shift(
             best_loss = loss
 
     return best_shift
+
+
+@numba.jit(nopython=True, cache=True)
+def _prevent_zeros(x):
+    for xi in x:
+        if abs(xi) > 1e-9:
+            return None
+    x[:] = np.random.rand(x.size)

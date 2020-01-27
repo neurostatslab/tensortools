@@ -3,7 +3,6 @@ Implements warping and basic tensor functions.
 """
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.random as npr
 import numba
 import scipy as sci
 
@@ -15,7 +14,11 @@ def fit_shifted_cp(
         X, rank, init_u=None, init_v=None, init_w=None,
         max_shift_axis0=None, max_shift_axis1=None,
         boundary="edge", min_iter=10, max_iter=1000, tol=1e-4,
-        warp_iterations=10, patience=5, verbose=False):
+        warp_iterations=10, patience=5, mask=None,
+        verbose=False, seed=None):
+
+    # Seed random initialization
+    rs = np.random.RandomState(seed)
 
     # Check inputs.
     X = np.ascontiguousarray(X)
@@ -34,17 +37,17 @@ def fit_shifted_cp(
 
     # Initialize model parameters.
     if init_u is None:
-        u = npr.rand(rank, N)
+        u = rs.rand(rank, N)
     else:
         u = np.copy(init_u)
 
     if init_v is None:
-        v = npr.rand(rank, K)
+        v = rs.rand(rank, K)
     else:
         v = np.copy(init_v)
 
     if init_u is None:
-        w = npr.rand(rank, T)
+        w = rs.rand(rank, T)
     else:
         w = np.copy(init_w)
 
@@ -53,12 +56,12 @@ def fit_shifted_cp(
     shifting_1 = (max_shift_axis1 is not None) and (max_shift_axis1 > 0)
 
     if shifting_0:
-        u_s = npr.uniform(-.5, .5, size=(rank, N))
+        u_s = rs.uniform(-.5, .5, size=(rank, N))
     else:
         u_s = np.zeros((rank, N))
 
     if shifting_1:
-        v_s = npr.uniform(-.5, .5, size=(rank, K))
+        v_s = rs.uniform(-.5, .5, size=(rank, K))
     else:
         v_s = np.zeros((rank, K))
 
@@ -73,11 +76,20 @@ def fit_shifted_cp(
     v *= alph
     w *= alph
 
+    # Encode mask as 3D tensor
+    if mask is None:
+        mask = np.array([[[0]]]).astype(bool)
+    else:
+        X = np.copy(X)
+        mask = mask.astype(bool)
+        assert mask.shape == X.shape
+
     # Fit model.
     if shifting_0 and shifting_1:
         u, v, w, u_s, v_s, loss_hist = \
             shift_cp2.fit_shift_cp2(
-                X, X_norm, rank, u, v, w, u_s, v_s,
+                X, X_norm, rank, u, v, w,
+                u_s, v_s, mask,
                 min_iter=min_iter,
                 max_iter=max_iter,
                 tol=tol,
@@ -93,7 +105,8 @@ def fit_shifted_cp(
         v_s = None
         u, v, w, u_s, loss_hist = \
             shift_cp1.fit_shift_cp1(
-                X, X_norm, rank, u, v, w, u_s,
+                X, X_norm, rank, u, v, w,
+                u_s, mask,
                 min_iter=min_iter,
                 max_iter=max_iter,
                 tol=tol,
@@ -108,7 +121,8 @@ def fit_shifted_cp(
         v, u, w, v_s, loss_hist = \
             shift_cp1.fit_shift_cp1(
                 np.copy(X.transpose((1, 0, 2))),
-                X_norm, rank, v, u, w, v_s,
+                X_norm, rank, v, u, w,
+                v_s, mask,
                 min_iter=min_iter,
                 max_iter=max_iter,
                 tol=tol,
@@ -117,6 +131,9 @@ def fit_shifted_cp(
                 periodic=periodic,
                 patience=patience
             )
+
+    else:
+        raise AssertionError
 
     return ShiftedCP(u, v, w, u_s, v_s, boundary, loss_hist=loss_hist)
 

@@ -236,7 +236,7 @@ def fit_shift_cp2(
 
                         # Gradient descent step.
                         for t in range(T):
-                            w[r, t] = w[r, t] - ss * grad[t]
+                            w[r, t] = max(0.0, w[r, t] - ss * grad[t])
 
             # === UPDATE SHIFT PARAMS FOR AXIS 0 === #
             elif (q == 3) and (itercount > 0):
