@@ -5,8 +5,6 @@ Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 """
 
 import numpy as np
-import scipy as sci
-from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
@@ -131,7 +129,7 @@ def ncp_bcd(
 
             # Update gradient Lipschnitz constant
             L0 = L  # Lipschitz constants
-            L[n] = linalg.norm(grams, 2)
+            L[n] = np.linalg.norm(grams, 2)
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
@@ -143,20 +141,20 @@ def ncp_bcd(
             # Enforce nonnegativity (project onto nonnegative orthant).
             U[n] = Um[n] - grad / L[n]
             if n not in negative_modes:
-                U[n] = sci.maximum(0.0, U[n])
+                U[n] = np.maximum(0.0, U[n])
 
         # Compute objective function and update optimization result.
         # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
-        # obj = np.sqrt(sci.sum(grams) - 2 * sci.sum(U[X.ndim - 1] * p) + normX**2) / normX
-        obj = linalg.norm(X - U.full()) / normX
+        # obj = np.sqrt(np.sum(grams) - 2 * np.sum(U[X.ndim - 1] * p) + normX**2) / normX
+        obj = np.linalg.norm(X - U.full()) / normX
         result.update(obj)
 
         # Correction and extrapolation.
         n = np.setdiff1d(np.arange(X.ndim), skip_modes).max()
         grams *= U[n].T.dot(U[n])
-        obj_bcd = 0.5 * (sci.sum(grams) - 2 * sci.sum(U[n] * p) + normX**2)
+        obj_bcd = 0.5 * (np.sum(grams) - 2 * np.sum(U[n] * p) + normX**2)
 
-        extraw = (1 + sci.sqrt(1 + 4 * extraw_old**2)) / 2.0
+        extraw = (1 + np.sqrt(1 + 4 * extraw_old**2)) / 2.0
 
         if obj_bcd >= obj_bcd_old:
             # restore previous A to make the objective nonincreasing
@@ -167,7 +165,7 @@ def ncp_bcd(
             w = (extraw_old - 1.0) / extraw  # Extrapolation weight
             for n in range(N):
                 if n not in skip_modes:
-                    weights_U[n] = min(w, 1.0 * sci.sqrt(L0[n] / L[n]))  # choose smaller weights for convergence
+                    weights_U[n] = min(w, 1.0 * np.sqrt(L0[n] / L[n]))  # choose smaller weights for convergence
                     Um[n] = U[n] + weights_U[n] * (U[n] - U_old[n])  # extrapolation
 
     # Finalize and return the optimization result.

@@ -5,8 +5,7 @@ Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 """
 
 import numpy as np
-import scipy as sci
-from scipy import linalg
+import scipy.linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
@@ -123,18 +122,18 @@ def cp_als(X, rank, random_state=None, init='randn', skip_modes=[], **options):
             kr = khatri_rao(components)
 
             # iv) Form normal equations and solve via Cholesky
-            c = linalg.cho_factor(grams, overwrite_a=False)
+            c = scipy.linalg.cho_factor(grams, overwrite_a=False)
             p = unfold(X, n).dot(kr)
-            U[n] = linalg.cho_solve(c, p.T, overwrite_b=False).T
-            # U[n] = linalg.solve(grams, unfold(X, n).dot(kr).T).T
+            U[n] = scipy.linalg.cho_solve(c, p.T, overwrite_b=False).T
+            # U[n] = np.linalg.solve(grams, unfold(X, n).dot(kr).T).T
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Update the optimization result, checks for convergence.
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Compute objective function
         # grams *= U[-1].T.dot(U[-1])
-        # obj = np.sqrt(np.sum(grams) - 2*sci.sum(p*U[-1]) + normX**2) / normX
-        obj = linalg.norm(U.full() - X) / normX
+        # obj = np.sqrt(np.sum(grams) - 2*np.sum(p*U[-1]) + normX**2) / normX
+        obj = np.linalg.norm(U.full() - X) / normX
 
         # Update result
         result.update(obj)

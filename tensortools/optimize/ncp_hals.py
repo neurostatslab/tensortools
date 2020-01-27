@@ -5,7 +5,6 @@ Author: N. Benjamin Erichson <erichson@uw.edu>
 """
 
 import numpy as np
-import scipy as sci
 import numba
 
 from tensortools.operations import unfold, khatri_rao

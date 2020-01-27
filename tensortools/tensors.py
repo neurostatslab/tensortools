@@ -1,6 +1,5 @@
 from tensortools.operations import khatri_rao
 import numpy as np
-import scipy as sci
 from copy import deepcopy
 
 
@@ -42,10 +41,10 @@ class KTensor(object):
         """Converts KTensor to a dense ndarray."""
 
         # Compute tensor unfolding along first mode
-        unf = sci.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
+        unf = self.factors[0] @ khatri_rao(self.factors[1:]).T
 
         # Inverse unfolding along first mode
-        return sci.reshape(unf, self.shape)
+        return np.reshape(unf, self.shape)
 
     def norm(self):
         """Efficiently computes Frobenius-like norm of the tensor."""
@@ -56,7 +55,7 @@ class KTensor(object):
         """Rescales factors across modes so that all norms match."""
 
         # Compute norms along columns for each factor matrix
-        norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
+        norms = [np.linalg.norm(f, axis=0) for f in self.factors]
 
         # Multiply norms across all modes
         lam = np.prod(norms, axis=0) ** (1/self.ndim)
@@ -92,7 +91,7 @@ class KTensor(object):
 
     def factor_lams(self):
         return np.prod(
-            [sci.linalg.norm(f, axis=0) for f in self.factors], axis=0)
+            [np.linalg.norm(f, axis=0) for f in self.factors], axis=0)
 
     def copy(self):
         return deepcopy(self)
@@ -101,7 +100,7 @@ class KTensor(object):
         return self.factors[i]
 
     def __setitem__(self, i, factor):
-        factor = sci.array(factor)
+        factor = np.array(factor)
         if factor.shape != (self.shape[i], self.rank):
             raise ValueError('Dimension mismatch in KTensor assignment.')
         self.factors[i] = factor
