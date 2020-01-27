@@ -127,7 +127,7 @@ def ncp_bcd(
             components = [U[j] for j in range(N) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = sci.multiply.reduce([arr.T.dot(arr) for arr in components])
+            grams = np.prod([arr.T.dot(arr) for arr in components], axis=0)
 
             # Update gradient Lipschnitz constant
             L0 = L  # Lipschitz constants

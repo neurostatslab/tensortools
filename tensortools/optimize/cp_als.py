@@ -117,7 +117,7 @@ def cp_als(X, rank, random_state=None, init='randn', skip_modes=[], **options):
 
             # ii) Compute the N-1 gram matrices.
             components = [U[j] for j in range(X.ndim) if j != n]
-            grams = sci.multiply.reduce([sci.dot(u.T, u) for u in components])
+            grams = np.prod([u.T @ u for u in components], axis=0)
 
             # iii)  Compute Khatri-Rao product.
             kr = khatri_rao(components)

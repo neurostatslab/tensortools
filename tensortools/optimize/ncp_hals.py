@@ -125,7 +125,7 @@ def ncp_hals(
             components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = sci.multiply.reduce([arr.T @ arr for arr in components])
+            grams = np.prod([arr.T @ arr for arr in components], axis=0)
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)

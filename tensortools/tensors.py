@@ -49,7 +49,7 @@ class KTensor(object):
 
     def norm(self):
         """Efficiently computes Frobenius-like norm of the tensor."""
-        C = sci.multiply.reduce([F.T @ F for F in self.factors])
+        C = np.prod([F.T @ F for F in self.factors], axis=0)
         return np.sqrt(np.sum(C))
 
     def rebalance(self):
@@ -59,7 +59,7 @@ class KTensor(object):
         norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
 
         # Multiply norms across all modes
-        lam = sci.multiply.reduce(norms) ** (1/self.ndim)
+        lam = np.prod(norms, axis=0) ** (1/self.ndim)
 
         # Update factors
         self.factors = [f * (lam / fn) for f, fn in zip(self.factors, norms)]
@@ -91,8 +91,8 @@ class KTensor(object):
         return self.factors
 
     def factor_lams(self):
-        return sci.multiply.reduce(
-            [sci.linalg.norm(f, axis=0) for f in self.factors])
+        return np.prod(
+            [sci.linalg.norm(f, axis=0) for f in self.factors], axis=0)
 
     def copy(self):
         return deepcopy(self)
