@@ -141,3 +141,26 @@ def test_nonneg(algname, neg_modes):
             assert factor.min() < 0  # this should be true for most datasets
         else:
             assert factor.min() >= 0
+
+
+
+@pytest.mark.parametrize(
+    "algname,shape,rank",
+    itertools.product(algnames, shapes, ranks)
+)
+def test_predict(algname, shape, rank):
+    X = tt.randn_ktensor(shape, rank=rank).full()
+
+    options = dict(
+        rank=rank,
+        verbose=False,
+        tol=1e-6,
+        random_state=alg_seed)
+
+    if algname in ("mcp_als",):
+        options["mask"] = np.ones_like(X).astype(bool)
+
+    result = getattr(tt, algname)(X, **options)
+    pred = result.predict()
+    rmse = np.sqrt(np.mean(np.power(pred - X, 2)))
+    assert rmse < 10e-3
