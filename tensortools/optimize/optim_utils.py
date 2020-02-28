@@ -167,3 +167,18 @@ class FitResult(object):
             print(s.format(self.iterations, self.total_time, self.obj))
 
         return self
+
+    def predict(self):
+        factors = self.factors.factors
+        max_rank = factors[0].shape[-1]
+        prediction = np.zeros([ff.shape[0] for ff in factors])
+        for rank in range(max_rank):
+            for idx, dim in enumerate(factors):
+                if idx == 0:
+                    outer_prod = dim[:, rank][None]
+                elif idx == 1:
+                    outer_prod = outer_prod.T @ dim[:, rank][None]
+                else:
+                    outer_prod = outer_prod[..., None] @ dim[:, rank][None]
+            prediction += outer_prod
+        return prediction
