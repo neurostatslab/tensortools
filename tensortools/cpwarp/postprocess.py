@@ -63,12 +63,16 @@ def shifted_align(U, V, permute_U=False, permute_V=False):
         Vest[r] = pred.ravel()
 
     # Compute distances between all model components.
-    cost = cdist(Uest, Vest, metric="correlation")
+    cost = cdist(Uest, Vest, metric="euclidean") / np.maximum(
+        np.linalg.norm(Uest, axis=1)[:, None],
+        np.linalg.norm(Vest, axis=1)[None, :]
+    )
+
     indices = Munkres().compute(cost.copy())
     prmU, prmV = zip(*indices)
 
     # Compute mean factor similarity given the optimal matching.
-    similarity = np.mean(-cost[prmU, prmV])
+    similarity = np.mean(1 - cost[prmU, prmV])
 
     # If U and V are of different ranks, identify unmatched factors.
     unmatched_U = list(set(range(U.rank)) - set(prmU))

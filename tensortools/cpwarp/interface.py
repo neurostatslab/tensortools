@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numba
 import scipy as sci
+from copy import deepcopy
 
 from tensortools.cpwarp import shift_cp2  # shift params for axis=(0, 1).
 from tensortools.cpwarp import shift_cp1  # shift params for axis=0.
