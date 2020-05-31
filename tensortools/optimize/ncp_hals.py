@@ -27,6 +27,10 @@ def ncp_hals(
     rank : integer
         The `rank` sets the number of components to be computed.
 
+    mask : (I_1, ..., I_N) array_like
+        Binary tensor, same shape as X, specifying censored or missing data values
+        at locations where (mask == 0) and observed data where (mask == 1).
+
     random_state : integer, RandomState instance or None, optional (default ``None``)
         If integer, random_state is the seed used by the random number generator;
         If RandomState instance, random_state is the random number generator;
