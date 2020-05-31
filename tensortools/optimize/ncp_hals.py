@@ -163,7 +163,7 @@ def ncp_hals(
     return result.finalize()
 
 
-@numba.jit(nopython=True, cache=True)
+@numba.jit(nopython=True)
 def _hals_update(factors, grams, Xmkr, nonneg):
 
     dim = factors.shape[0]
