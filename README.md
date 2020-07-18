@@ -23,3 +23,26 @@ pip install git+https://github.com/ahwillia/tensortools
 ```
 
 (You will need to have `git` installed for this command to work.)
+
+
+Citation
+--------
+
+If you found this resource useful, please consider citing [this paper](https://doi.org/10.1016/j.neuron.2018.05.015).
+
+```
+@ARTICLE{Williams2018,
+  title    = "Unsupervised Discovery of Demixed, {Low-Dimensional} Neural
+              Dynamics across Multiple Timescales through Tensor Component
+              Analysis",
+  author   = "Williams, Alex H and Kim, Tony Hyun and Wang, Forea and Vyas,
+              Saurabh and Ryu, Stephen I and Shenoy, Krishna V and Schnitzer,
+              Mark and Kolda, Tamara G and Ganguli, Surya",
+  journal  = "Neuron",
+  volume   =  98,
+  number   =  6,
+  pages    = "1099--1115.e8",
+  month    =  jun,
+  year     =  2018,
+}
+```
