@@ -24,6 +24,14 @@ pip install git+https://github.com/ahwillia/tensortools
 
 (You will need to have `git` installed for this command to work.)
 
+Alternatively you can download the source code and install locally by running:
+
+```
+git clone https://github.com/ahwillia/tensortools
+cd tensortools
+pip install -e .
+```
+
 
 Citation
 --------
