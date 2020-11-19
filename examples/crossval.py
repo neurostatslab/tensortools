@@ -21,8 +21,8 @@ train_error = np.linalg.norm(Xhat[mask] - X[mask]) / np.linalg.norm(X[mask])
 test_error = np.linalg.norm(Xhat[~mask] - X[~mask]) / np.linalg.norm(X[~mask])
 
 # Print result.
-print("TRAINING ERROR:", train_error / np.linalg.norm(X[mask]))
-print("TESTING ERROR: ", test_error / np.linalg.norm(X[~mask]))
+print("TRAINING ERROR:", train_error)
+print("TESTING ERROR: ", test_error)
 
 
 ### NOTES ###
