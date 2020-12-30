@@ -21,14 +21,14 @@ USE_PARALLEL = False
 @numba.jit(nopython=True, parallel=USE_PARALLEL, cache=True)
 def fit_shift_cp1(
         X, Xnorm, rank, u, v, w, u_s, mask, min_iter=10,
-        max_iter=1000, tol=1e-4, warp_iterations=10, max_shift=.1,
-        periodic=False, patience=5):
+        max_iter=1000, tol=1e-4, warp_iterations=10, max_shift_axis0=.1,
+        u_nonneg=True, v_nonneg=True, periodic=False, patience=5):
     """
     Fits shifted, semi-nonnegative CP-decomposition to a third-order tensor.
     Shifting occurs along axis=2, with per-dimension shift parameters
     along axis=1. That is:
 
-        X[i, j, t] \approx sum_r  u[r, i] * v[r, j] + w[r, t + s[r, i]]
+        X[i, j, t] \approx sum_r  u[r, i] * v[r, j] * w[r, t + s[r, i]]
 
     Where s[r, i] are shift parameters.
 
@@ -108,7 +108,8 @@ def fit_shift_cp1(
                     w[r] = -w[r]
 
                 # Project u onto nonnegative orthant.
-                u[r] = np.maximum(0, u[r])
+                if u_nonneg:
+                    u[r] = np.maximum(0, u[r])
                 _prevent_zeros(u[r])
 
             # === UPDATE FACTOR WEIGHTS FOR AXIS 1 === #
@@ -138,7 +139,8 @@ def fit_shift_cp1(
                     w[r] = -w[r]
 
                 # Project v onto nonnegative orthant.
-                v[r] = np.maximum(0, v[r])
+                if v_nonneg:
+                    v[r] = np.maximum(0, v[r])
                 _prevent_zeros(v[r])
 
             # === UPDATE AXIS WEIGHTS FOR AXIS 2 (temporal factors) === #
@@ -225,7 +227,7 @@ def fit_shift_cp1(
                 for n in numba.prange(N):
                     u_s[r, n] = _fit_shift(
                         Z[n], u[r, n], v[r], w[r],
-                        max_shift * T, periodic,
+                        max_shift_axis0 * T, periodic,
                         warp_iterations, u_s[r, n])
 
         # Update model estimate for convergence check.

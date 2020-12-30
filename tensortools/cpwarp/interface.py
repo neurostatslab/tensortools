@@ -3,23 +3,69 @@ Implements warping and basic tensor functions.
 """
 import matplotlib.pyplot as plt
 import numpy as np
-import numba
-import scipy as sci
+import numbers
 from copy import deepcopy
 
 from tensortools.cpwarp import shift_cp2  # shift params for axis=(0, 1).
 from tensortools.cpwarp import shift_cp1  # shift params for axis=0.
 
 
-def fit_shifted_cp(
-        X, rank, init_u=None, init_v=None, init_w=None,
-        max_shift_axis0=None, max_shift_axis1=None,
-        boundary="edge", min_iter=10, max_iter=1000, tol=1e-4,
-        warp_iterations=10, patience=5, mask=None,
-        verbose=False, seed=None):
 
-    # Seed random initialization
-    rs = np.random.RandomState(seed)
+def fit_shifted_cp(X, rank, n_restarts=1, **kwargs):
+    """
+    Fits a time-shifted tensor decomposition.
+    """
+
+    # Check that `n_restarts` is at least one.
+    if (n_restarts < 1) or not isinstance(n_restarts, numbers.Integral):
+        raise ValueError(
+            "Expected `n_restarts` to be a nonnegative integer, but " + 
+            f"saw n_restarts={n_restarts}."
+        )
+
+    # Handle multiple restarts with recursive calls.
+    elif n_restarts > 1:
+        best_loss = np.inf
+        for i in range(n_restarts):
+            m = fit_shifted_cp(X, rank, n_restarts=1, **kwargs)
+            if m.loss_hist[-1] < best_loss:
+                best_model = m
+        return best_model
+
+    # === 
+    # Fit a single model.
+
+    DEFAULTS = {
+        "init_u": None,
+        "init_v": None,
+        "init_w": None,
+        "max_shift_axis0": None,
+        "max_shift_axis1": None,
+        "u_nonneg": True,
+        "v_nonneg": True,
+        "boundary": "edge",
+        "min_iter": 10,
+        "max_iter": 10000,
+        "tol": 1e-4,
+        "warp_iterations": 10,
+        "patience": 5,
+        "mask": None,
+    }
+
+    # Set default keyword args.
+    for k, v in DEFAULTS.items():
+        if k not in kwargs:
+            kwargs[k] = v
+
+    # Keyword args to `fit_shift_cp1` or `fit_shift_cp2` 
+    fit_args = {
+        "periodic": True if kwargs["boundary"] == "wrap" else False,
+    }
+    for k in (
+            "u_nonneg", "v_nonneg", "min_iter", "max_iter", "tol",
+            "warp_iterations", "max_shift_axis0", "max_shift_axis1",
+            "patience"):
+        fit_args[k] = kwargs[k]
 
     # Check inputs.
     X = np.ascontiguousarray(X)
@@ -28,48 +74,48 @@ def fit_shifted_cp(
             "Only 3rd-order tensors are supported for "
             "shifted decompositions.")
 
-    if (max_shift_axis0 is None) and (max_shift_axis1 is None):
+    if (kwargs["max_shift_axis0"] is None) and (kwargs["max_shift_axis1"] is None):
         raise ValueError(
             "Either `max_shift_axis0` or `max_shift_axis1` "
             "should be specified.")
 
+    # Get tensor dimensions.
     N, K, T = X.shape
-    periodic = True if boundary == "wrap" else False
 
     # Initialize model parameters.
-    if init_u is None:
-        u = rs.rand(rank, N)
+    if kwargs["init_u"] is None:
+        u = np.random.rand(rank, N)
     else:
-        u = np.copy(init_u)
+        u = np.copy(kwargs["init_u"])
 
-    if init_v is None:
-        v = rs.rand(rank, K)
+    if kwargs["init_v"] is None:
+        v = np.random.rand(rank, K)
     else:
-        v = np.copy(init_v)
+        v = np.copy(kwargs["init_v"])
 
-    if init_u is None:
-        w = rs.rand(rank, T)
+    if kwargs["init_w"] is None:
+        w = np.random.rand(rank, T)
     else:
-        w = np.copy(init_w)
+        w = np.copy(kwargs["init_w"])
 
     # Shifts per-unit and per-trial.
-    shifting_0 = (max_shift_axis0 is not None) and (max_shift_axis0 > 0)
-    shifting_1 = (max_shift_axis1 is not None) and (max_shift_axis1 > 0)
+    shifting_0 = (kwargs["max_shift_axis0"] is not None) and (kwargs["max_shift_axis0"] > 0)
+    shifting_1 = (kwargs["max_shift_axis1"] is not None) and (kwargs["max_shift_axis1"] > 0)
 
     if shifting_0:
-        u_s = rs.uniform(-.5, .5, size=(rank, N))
+        u_s = np.random.uniform(-.5, .5, size=(rank, N))
     else:
         u_s = np.zeros((rank, N))
 
     if shifting_1:
-        v_s = rs.uniform(-.5, .5, size=(rank, K))
+        v_s = np.random.uniform(-.5, .5, size=(rank, K))
     else:
         v_s = np.zeros((rank, K))
 
     # Compute model prediction.
     X_norm = np.linalg.norm(X)
     Xest_norm = np.linalg.norm(shift_cp2.predict(
-        u, v, w, u_s, v_s, periodic, np.empty_like(X)))
+        u, v, w, u_s, v_s, fit_args["periodic"], np.empty_like(X)))
 
     # Rescale initialization.
     alph = (X_norm / Xest_norm) ** (1. / 3.)
@@ -78,71 +124,98 @@ def fit_shifted_cp(
     w *= alph
 
     # Encode mask as 3D tensor
-    if mask is None:
+    if kwargs["mask"] is None:
         mask = np.array([[[0]]]).astype(bool)
     else:
         X = np.copy(X)
-        mask = mask.astype(bool)
+        mask = kwargs["mask"].astype(bool)
         assert mask.shape == X.shape
 
     # Fit model.
     if shifting_0 and shifting_1:
+        # Shift both axis=0 and axis=1.
         u, v, w, u_s, v_s, loss_hist = \
             shift_cp2.fit_shift_cp2(
                 X, X_norm, rank, u, v, w,
                 u_s, v_s, mask,
-                min_iter=min_iter,
-                max_iter=max_iter,
-                tol=tol,
-                warp_iterations=warp_iterations,
-                max_shift_axis0=max_shift_axis0,
-                max_shift_axis1=max_shift_axis1,
-                periodic=periodic,
-                patience=patience,
-                verbose=verbose,
+                **fit_args
+                # u_nonneg=u_nonneg,
+                # v_nonneg=v_nonneg,
+                # min_iter=min_iter,
+                # max_iter=max_iter,
+                # tol=tol,
+                # warp_iterations=warp_iterations,
+                # max_shift_axis0=max_shift_axis0,
+                # max_shift_axis1=max_shift_axis1,
+                # periodic=periodic,
+                # patience=patience,
+                # verbose=verbose,
             )
 
     elif shifting_0:
+        # Shift only axis=0.
         v_s = None
+        fit_args.pop("max_shift_axis1")
         u, v, w, u_s, loss_hist = \
             shift_cp1.fit_shift_cp1(
                 X, X_norm, rank, u, v, w,
-                u_s, mask,
-                min_iter=min_iter,
-                max_iter=max_iter,
-                tol=tol,
-                warp_iterations=warp_iterations,
-                max_shift=max_shift_axis0,
-                periodic=periodic,
-                patience=patience
+                u_s, mask, **fit_args
+                # u_nonneg=u_nonneg,
+                # v_nonneg=v_nonneg,
+                # min_iter=min_iter,
+                # max_iter=max_iter,
+                # tol=tol,
+                # warp_iterations=warp_iterations,
+                # max_shift=max_shift_axis0,
+                # periodic=periodic,
+                # patience=patience
             )
 
     elif shifting_1:
+        # Shift only axis=1.
+        # 
+        # Since `fit_shift_cp1` assumes that axis=0 is shifted
+        # we need to transpose the arguments into `fit_shift_cp1`
+        # and the un-transpose them on the other side.
         u_s = None
+        transposed_args = deepcopy(fit_args)
+        transposed_args["u_nonneg"] = fit_args["v_nonneg"]
+        transposed_args["v_nonneg"] = fit_args["u_nonneg"]
+        transposed_args["max_shift_axis0"] = transposed_args.pop("max_shift_axis1")
         v, u, w, v_s, loss_hist = \
             shift_cp1.fit_shift_cp1(
                 np.copy(X.transpose((1, 0, 2))),
-                X_norm, rank, v, u, w,
+                X_norm, rank,
+                v, u, w, # transposed.
                 v_s, mask,
-                min_iter=min_iter,
-                max_iter=max_iter,
-                tol=tol,
-                warp_iterations=warp_iterations,
-                max_shift=max_shift_axis1,
-                periodic=periodic,
-                patience=patience
+                **transposed_args
+                # u_nonneg=v_nonneg, # transposed
+                # v_nonneg=u_nonneg, # transposed
+                # min_iter=min_iter,
+                # max_iter=max_iter,
+                # tol=tol,
+                # warp_iterations=warp_iterations,
+                # max_shift=max_shift_axis1, # transposed
+                # periodic=periodic,
+                # patience=patience
             )
 
-    else:
-        raise AssertionError
-
-    return ShiftedCP(u, v, w, u_s, v_s, boundary, loss_hist=loss_hist)
+    return ShiftedCP(
+        u, v, w, u_s, v_s, kwargs["boundary"], loss_hist=loss_hist
+    )
 
 
 class ShiftedCP(object):
     """
     Represents third-order shifted tensor decomposition, with
-    shifted components along axis=-1.
+    shifts added to axis=-1.
+
+    Given a tensor X[i, j, t], the model estimate is:
+
+        X_hat[i, j, t] = sum_r ( u[r, i] * v[r, j] * w[r, t + u_s[r, i] + v_s[r, i]] )
+
+    Here, u_s[r, i] and v_s[r, i] are the shift parameters, and 
+    the low-dimensional factors are { u[r, i], v[r, j], w[r, t] }.
     """
 
     def __init__(

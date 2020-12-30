@@ -36,7 +36,8 @@ data = np.maximum(
 # Fit model.
 t0 = time()
 model = fit_shifted_cp(
-    data, rank, boundary="edge",
+    data, rank, n_restarts=3,
+    boundary="edge",
     max_shift_axis0=None,
     max_shift_axis1=max_shift,
     max_iter=60)

@@ -21,16 +21,17 @@ USE_PARALLEL = False
 
 @numba.jit(nopython=True, cache=True, parallel=USE_PARALLEL)
 def fit_shift_cp2(
-        X, Xnorm, rank, u, v, w, u_s, v_s, min_iter=10,
+        X, Xnorm, rank, u, v, w, u_s, v_s, mask, min_iter=10,
         max_iter=1000, tol=1e-4, warp_iterations=10,
         max_shift_axis0=.1, max_shift_axis1=.1,
-        periodic=False, patience=5, verbose=False):
+        u_nonneg=True, v_nonneg=True, periodic=False,
+        patience=5):
     """
     Fits shifted, semi-nonnegative CP-decomposition to a third-order tensor.
     Shifting occurs along axis=-1, with per-dimension shift parameters
     along axes 1 and 2. That is:
 
-        X[i, j, t] \approx sum_r  u[r, i] * v[r, j] + w[r, t + s[r, i] + z[r, i]]
+        X[i, j, t] \approx sum_r  u[r, i] * v[r, j] * w[r, t + s[r, i] + z[r, i]]
 
     Where s[r, i] and z[r, j] are shift parameters.
 
@@ -45,6 +46,11 @@ def fit_shift_cp2(
     # Problem dimensions, norm of data.
     N, K, T = X.shape
     Xest = np.empty_like(X)
+
+    if mask.size == (N * K * T):
+        masked = True
+    else:
+        masked = False
 
     # Ensure at least two iterations for convergence check.
     min_iter = max(patience, min_iter)
@@ -65,10 +71,10 @@ def fit_shift_cp2(
 
     while (itercount < max_iter) and not converged:
 
-        if verbose and itercount > 0:
-            print("Iteration ", itercount, ", Loss = ", loss)
-        elif verbose:
-            print("Starting iterations....")
+        # if verbose and itercount > 0:
+        #     print("Iteration ", itercount, ", Loss = ", loss)
+        # elif verbose:
+        #     print("Starting iterations....")
 
         # Update groups of parameters in random order.
         for z in npr.permutation(rank * 5):
@@ -121,7 +127,9 @@ def fit_shift_cp2(
                     w[r] = -w[r]
 
                 # Project u onto nonnegative orthant.
-                u[r] = np.maximum(0, u[r])
+                if u_nonneg:
+                    u[r] = np.maximum(0, u[r])
+                _prevent_zeros(u[r])
 
             # === UPDATE FACTOR WEIGHTS FOR AXIS 1 === #
             elif q == 1:
@@ -160,7 +168,9 @@ def fit_shift_cp2(
                     w[r] = -w[r]
 
                 # Project v onto nonnegative orthant.
-                v[r] = np.maximum(0, v[r])
+                if v_nonneg:
+                    v[r] = np.maximum(0, v[r])
+                _prevent_zeros(v[r])
 
             # === UPDATE AXIS WEIGHTS FOR AXIS 2 (temporal factors) === #
             elif q == 2:
@@ -258,6 +268,14 @@ def fit_shift_cp2(
         predict(
             u, v, w, u_s, v_s, periodic, Xest)
 
+        # Update masked entries, if applicable.
+        if masked:
+            for n in range(N):
+                for k in range(K):
+                    for t in range(T):
+                        if not mask[n, k, t]:
+                            X[n, k, t] = Xest[n, k, t]
+
         # Test for convergence.
         itercount += 1
         loss = np.linalg.norm((X - Xest).ravel()) / Xnorm
@@ -348,3 +366,10 @@ def _fit_shift(
             best_loss = loss
 
     return best_shift
+
+@numba.jit(nopython=True, cache=True)
+def _prevent_zeros(x):
+    for xi in x:
+        if abs(xi) > 1e-9:
+            return None
+    x[:] = np.random.rand(x.size)

@@ -42,14 +42,14 @@ class KTensor(object):
         """Converts KTensor to a dense ndarray."""
 
         # Compute tensor unfolding along first mode
-        unf = sci.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
+        unf = np.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
 
         # Inverse unfolding along first mode
-        return sci.reshape(unf, self.shape)
+        return np.reshape(unf, self.shape)
 
     def norm(self):
         """Efficiently computes Frobenius-like norm of the tensor."""
-        C = sci.multiply.reduce([F.T @ F for F in self.factors])
+        C = np.multiply.reduce([F.T @ F for F in self.factors])
         return np.sqrt(np.sum(C))
 
     def rebalance(self):
@@ -59,7 +59,7 @@ class KTensor(object):
         norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
 
         # Multiply norms across all modes
-        lam = sci.multiply.reduce(norms) ** (1/self.ndim)
+        lam = np.multiply.reduce(norms) ** (1/self.ndim)
 
         # Update factors
         self.factors = [f * (lam / fn) for f, fn in zip(self.factors, norms)]
@@ -110,7 +110,7 @@ class KTensor(object):
         return self.factors[i]
 
     def __setitem__(self, i, factor):
-        factor = sci.array(factor)
+        factor = np.array(factor)
         if factor.shape != (self.shape[i], self.rank):
             raise ValueError('Dimension mismatch in KTensor assignment.')
         self.factors[i] = factor

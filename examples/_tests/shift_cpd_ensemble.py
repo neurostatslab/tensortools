@@ -13,6 +13,7 @@ from scipy.ndimage import gaussian_filter1d
 from collections import defaultdict
 import itertools
 from time import time
+from tqdm import tqdm
 
 # Generate random low-rank factors and shifts.
 I, J, K = 30, 31, 102  # 100, 101, 102
@@ -20,8 +21,8 @@ max_shift = 0.1
 rank = 3
 npr.seed(1234)
 
-u = npr.randn(1.0, size=(rank, I))
-v = npr.randn(1.0, size=(rank, J))
+u = npr.rand(rank, I)
+v = npr.rand(rank, J)
 w = gaussian_filter1d(
     npr.exponential(1.0, size=(rank, K)), 3, axis=-1)
 
@@ -45,8 +46,7 @@ model_errors = [[[] for s in shifts] for r in ranks]
 prod_iter = itertools.product(
     range(len(ranks)), range(len(shifts)), repeats)
 
-for i, j, k in prod_iter:
-    print(".", end="", flush=True)
+for i, j, k in tqdm(list(prod_iter)):
     model = fit_shifted_cp(
         data, ranks[i], boundary="edge",
         max_shift_axis0=shifts[j],
@@ -68,6 +68,6 @@ for i in range(len(ranks)):
 
 plt.ylabel("Normalized RMSE")
 plt.xlabel("maximal shift (fraction of trial duration)")
-plt.legend(bbox_to_anchor=[1, 0, 0, 1])
+plt.legend(bbox_to_anchor=[1, 0, 0, 1], title="rank")
 plt.tight_layout()
 plt.show()
