@@ -2,11 +2,11 @@ Tensortools
 -----------
 [![][license-img]][license-url]
 
-TensorTools is a bare bones Python package for fitting and visualizing [canonical polyadic (CP) tensor decompositions](https://en.wikipedia.org/wiki/Tensor_rank_decomposition) of higher-order data arrays.
-
 [license-img]: https://img.shields.io/github/license/mashape/apistatus.svg
 [license-url]: https://github.com/ahwillia/tensortools/blob/master/LICENSE.md
 
+
+TensorTools is a bare bones Python package for fitting and visualizing [canonical polyadic (CP) tensor decompositions](https://en.wikipedia.org/wiki/Tensor_rank_decomposition) of higher-order data arrays. I originally developed this library for applications in neuroscience ([Williams et al., 2018](https://doi.org/10.1016/j.neuron.2018.05.015)), but the code could be helpful in other domains.
 
 Installation
 ------------
@@ -59,6 +59,16 @@ plt.show()
 
 Check out the scripts in the [`examples/`](/examples) folder for other short demos.
 
+Time-Shifted Tensor Decompositions
+----------------------------------
+
+This repo contains a module `tensortools.cpwarp` which allows for *time-shifted tensor decompositions* of 3d-arrays. The motivation behind this model and some of its implementaional details are laid out in the following set of notes.
+
+>  Alex H. Williams (2020). [Combining tensor decomposition and time warping models for multi-neuronal spike train analysis](https://doi.org/10.1101/2020.03.02.974014). *bioRxiv*. 2020.03.02.974014
+
+A very similar model was previously proposed by [Mørup et al. (2008)](https://doi.org/10.1016/j.neuroimage.2008.05.062). Also see [Sorokin et al. (2020)](https://doi.org/10.1101/2020.03.04.976688) for an application of this model to neural data.
+
+To fit this model, check out the script in [`examples/shift_cpd.py`](./examples/shift_cpd.py), which should reproduce Figure 4 from the [Williams (2020)](https://doi.org/10.1101/2020.03.02.974014) paper. I hope to upload a more detailed tutorial soon; until then, please refer to the papers cited above and reach out to me by email if you are interested in further details.
 
 Citation
 --------
