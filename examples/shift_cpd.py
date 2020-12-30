@@ -1,3 +1,7 @@
+"""
+This script generates Fig. 4 in Williams (2020). bioRxiv. 2020.03.02.974014
+"""
+
 from tensortools.cpwarp import ShiftedCP, fit_shifted_cp
 from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
@@ -48,7 +52,7 @@ _m = ShiftedCP(
     u_s=rand_shifts  # shifts for axis=0
 )
 
-# Create (trials x neurons x timebins)
+# Create (trials x neurons x timebins) tensor of firing rates.
 spike_prob = _m.predict() + BACKGROUND_RATE
 
 # Sample spikes from a Poisson distribution
