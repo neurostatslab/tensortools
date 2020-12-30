@@ -1,6 +1,5 @@
 from tensortools.operations import khatri_rao
 import numpy as np
-import scipy as sci
 from copy import deepcopy
 
 
@@ -42,24 +41,24 @@ class KTensor(object):
         """Converts KTensor to a dense ndarray."""
 
         # Compute tensor unfolding along first mode
-        unf = np.dot(self.factors[0], khatri_rao(self.factors[1:]).T)
+        unf = self.factors[0] @ khatri_rao(self.factors[1:]).T
 
         # Inverse unfolding along first mode
         return np.reshape(unf, self.shape)
 
     def norm(self):
         """Efficiently computes Frobenius-like norm of the tensor."""
-        C = np.multiply.reduce([F.T @ F for F in self.factors])
+        C = np.prod([F.T @ F for F in self.factors], axis=0)
         return np.sqrt(np.sum(C))
 
     def rebalance(self):
         """Rescales factors across modes so that all norms match."""
 
         # Compute norms along columns for each factor matrix
-        norms = [sci.linalg.norm(f, axis=0) for f in self.factors]
+        norms = [np.linalg.norm(f, axis=0) for f in self.factors]
 
         # Multiply norms across all modes
-        lam = np.multiply.reduce(norms) ** (1/self.ndim)
+        lam = np.prod(norms, axis=0) ** (1/self.ndim)
 
         # Update factors
         self.factors = [f * (lam / fn) for f, fn in zip(self.factors, norms)]

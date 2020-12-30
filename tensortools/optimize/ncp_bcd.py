@@ -5,8 +5,6 @@ Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 """
 
 import numpy as np
-import scipy as sci
-from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao
 from tensortools.tensors import KTensor
@@ -127,11 +125,11 @@ def ncp_bcd(
             components = [U[j] for j in range(N) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = np.multiply.reduce([arr.T.dot(arr) for arr in components])
+            grams = np.prod([arr.T.dot(arr) for arr in components], axis=0)
 
             # Update gradient Lipschnitz constant
             L0 = L  # Lipschitz constants
-            L[n] = linalg.norm(grams, 2)
+            L[n] = np.linalg.norm(grams, 2)
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
@@ -148,7 +146,7 @@ def ncp_bcd(
         # Compute objective function and update optimization result.
         # grams *= U[X.ndim - 1].T.dot(U[X.ndim - 1])
         # obj = np.sqrt(np.sum(grams) - 2 * np.sum(U[X.ndim - 1] * p) + normX**2) / normX
-        obj = linalg.norm(X - U.full()) / normX
+        obj = np.linalg.norm(X - U.full()) / normX
         result.update(obj)
 
         # Correction and extrapolation.

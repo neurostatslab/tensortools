@@ -5,7 +5,6 @@ Author: N. Benjamin Erichson <erichson@uw.edu> and Alex H. Williams
 """
 
 import numpy as np
-import scipy as sci
 from scipy import linalg
 
 from tensortools.operations import unfold, khatri_rao

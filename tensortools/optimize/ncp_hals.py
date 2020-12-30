@@ -5,7 +5,6 @@ Author: N. Benjamin Erichson <erichson@uw.edu>
 """
 
 import numpy as np
-import scipy as sci
 import numba
 
 from tensortools.operations import unfold, khatri_rao
@@ -27,6 +26,10 @@ def ncp_hals(
 
     rank : integer
         The `rank` sets the number of components to be computed.
+
+    mask : (I_1, ..., I_N) array_like
+        Binary tensor, same shape as X, specifying censored or missing data values
+        at locations where (mask == 0) and observed data where (mask == 1).
 
     random_state : integer, RandomState instance or None, optional (default ``None``)
         If integer, random_state is the seed used by the random number generator;
@@ -125,7 +128,7 @@ def ncp_hals(
             components = [U[j] for j in range(X.ndim) if j != n]
 
             # i) compute the N-1 gram matrices
-            grams = np.multiply.reduce([arr.T @ arr for arr in components])
+            grams = np.prod([arr.T @ arr for arr in components], axis=0)
 
             # ii)  Compute Khatri-Rao product
             kr = khatri_rao(components)
@@ -160,7 +163,7 @@ def ncp_hals(
     return result.finalize()
 
 
-@numba.jit(nopython=True, cache=True)
+@numba.jit(nopython=True)
 def _hals_update(factors, grams, Xmkr, nonneg):
 
     dim = factors.shape[0]
