@@ -1,7 +1,6 @@
 from tensortools.cpwarp import ShiftedCP, fit_shifted_cp
 from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
-import matplotlib
 import numpy as np
 np.random.seed(1234)
 
