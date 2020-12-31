@@ -67,8 +67,91 @@ This repo contains a module `tensortools.cpwarp` which allows for *time-shifted 
 >  Alex H. Williams (2020). [Combining tensor decomposition and time warping models for multi-neuronal spike train analysis](https://doi.org/10.1101/2020.03.02.974014). *bioRxiv*. 2020.03.02.974014
 
 A very similar model was previously proposed by [Mørup et al. (2008)](https://doi.org/10.1016/j.neuroimage.2008.05.062). Also see [Sorokin et al. (2020)](https://doi.org/10.1101/2020.03.04.976688) for an application of this model to neural data.
+To fit this model, check out the script in [`examples/shift_cpd.py`](./examples/shift_cpd.py), which should reproduce Figure 4 from the [Williams (2020)](https://doi.org/10.1101/2020.03.02.974014) paper.
 
-To fit this model, check out the script in [`examples/shift_cpd.py`](./examples/shift_cpd.py), which should reproduce Figure 4 from the [Williams (2020)](https://doi.org/10.1101/2020.03.02.974014) paper. I hope to upload a more detailed tutorial soon; until then, please refer to the papers cited above and reach out to me by email if you are interested in further details.
+The important function to call is `fit_shifted_cp()`, like below:
+
+```python
+fit_shifted_cp(
+    data,
+    rank,
+    boundary="wrap",
+    n_restarts=5,
+    max_shift_axis0=0.1,
+    max_shift_axis1=None,
+    min_iter=10,
+    max_iter=100,
+    u_nonneg=True,
+    v_nonneg=True,
+    tol=1e-4,
+    patience=5,
+    mask=None,
+)
+
+"""
+Fits a time-shifted CP decomposition to 3d-array `data`. The model parameters
+are three factor matrices {u, v, w} and two sets of shift parameters {u_s, v_s}.
+
+u.shape == (rank, data.shape[0])
+v.shape == (rank, data.shape[1])
+w.shape == (rank, data.shape[2])
+u_s.shape == (rank, data.shape[0])
+v_s.shape == (rank, data.shape[1])
+
+The element `data[i, j, k]` is approximated by:
+
+  sum_r ( u[r, i] * v[r, j] * w[r, t + u_s[r, i] + v_s[r, i]] )
+
+Note that if the shift parameters are zero (u_s == v_s == 0), this is the typical
+CP tensor decomposition.
+
+Parameters
+----------
+data : ndarray
+  Data tensor.
+rank : int
+  Number of components.
+init_u : ndarray or None
+  Initial guess for factor matrix `u`.
+init_v : ndarray or None
+  Initial guess for factor matrix `v`.
+init_w : ndarray or None
+  Initial guess for factor matrix `w`.
+max_shift_axis0 : float or None
+  Maximum absolute value for u_s, expressed
+  as a fraction on the interval (0, 0.5].
+  If None, then all u_s shifts are set to zero.
+max_shift_axis1 : float
+  Maximum absolute value for v_s, expressed
+  as a fraction on the interval (0, 0.5].
+  If None, then all v_s shifts are set to zero.
+u_nonneg : bool
+  If True, the factor matrix u is constrained
+  to be nonnegative.
+v_nonneg : bool
+  If True, the factor matrix v is constrained
+  to be nonnegative.
+boundary : str
+  If equal to "wrap" the shifting along axis=2
+  has a periodic boundary condition. Otherwise
+  the behavior is similar to "edge" mode in the
+  numpy.pad() function.
+min_iter : int
+  Minimum number of iterations before stopping.
+max_iter : int
+  Maximum number of iterations before giving up.
+tol : float
+  Convergence tolerance
+patience : int
+  Number of iterations to wait between convergence
+  checks.
+mask : ndarray of booleans or None
+  Specifies missing data, and can be used for
+  cross-validation.
+"""
+```
+
+I hope to upload a more detailed tutorial soon; until then, please refer to the papers cited above and reach out to me by email if you are interested in further details.
 
 Citation
 --------
