@@ -96,7 +96,8 @@ model1 = fit_shifted_cp(
     max_shift_axis0=None,
     max_shift_axis1=1e-10, # essentially zero shift
     max_iter=100,
-    seed=1234,
+    u_nonneg=True,
+    v_nonneg=True,
 )
 
 # Rank-2 decomposition with per-trial shifts.
@@ -106,7 +107,8 @@ model2 = fit_shifted_cp(
     max_shift_axis0=MAX_SHIFT,
     max_shift_axis1=None,
     max_iter=100,
-    seed=1234,
+    u_nonneg=True,
+    v_nonneg=True,
 )
 
 # Re-order the model factors to align with the ground truth.

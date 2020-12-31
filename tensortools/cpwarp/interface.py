@@ -52,6 +52,12 @@ def fit_shifted_cp(X, rank, n_restarts=1, **kwargs):
         "mask": None,
     }
 
+    # Check for unexpected keywords.
+    for k in kwargs:
+        if k not in DEFAULTS:
+            raise TypeError(
+                f"fit_shifted_cp() got an unexpected keyword argument '{k}'")
+
     # Set default keyword args.
     for k, v in DEFAULTS.items():
         if k not in kwargs:
