@@ -4,9 +4,6 @@ Miscellaneous functions for interpreting low-dimensional models and data.
 
 import numpy as np
 import scipy.spatial
-import math
-import scipy as sci
-from .tensor_utils import unfold
 
 
 def soft_cluster_factor(factor):
