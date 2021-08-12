@@ -24,7 +24,7 @@ Alternatively you can download the source code and install locally by running:
 ```
 git clone https://github.com/ahwillia/tensortools
 cd tensortools
-pip install -e .
+pip3 install -e .
 ```
 
 Quick Start
