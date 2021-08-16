@@ -161,10 +161,10 @@ def multishift_hals(
                 for k in range(K):
 
                     if periodic_boundaries:
-                        periodic_shifts.shift_one_trial(
+                        periodic_shifts.apply_shift(
                             templates[r], shifts[r, k], w_template)
                     else:
-                        padded_shifts.shift_one_trial(
+                        padded_shifts.apply_shift(
                             templates[r], shifts[r, k], w_template)
 
                     num = 0.0
@@ -187,14 +187,14 @@ def multishift_hals(
                 if periodic_boundaries:
 
                     # Compute gram matrices.
-                    c, a = periodic_shifts.sum_shift_grams(
+                    c, a = periodic_shifts.shift_gram(
                         trial_factors[r], shifts[r])
 
                     WtX.fill(0.0)
                     for k in range(K):
                         WtX += (
                             trial_factors[r, k] *
-                            periodic_shifts.transpose_shift_one_trial(
+                            periodic_shifts.trans_shift(
                                 R[k], shifts[r, k], w_template))
 
                     # Bound Lipshitz constant by Gersgorin Circle Theorem
@@ -224,14 +224,14 @@ def multishift_hals(
                 else:
 
                     # Compute gram matrices.
-                    padded_shifts.sum_shift_grams(
+                    padded_shifts.shift_gram(
                         trial_factors[r], shifts[r], WtW)
 
                     WtX.fill(0.0)
                     for k in range(K):
                         WtX += (
                             trial_factors[r, k] *
-                            padded_shifts.transpose_shift_one_trial(
+                            padded_shifts.trans_shift(
                                 R[k], shifts[r, k], w_template))
 
                     # Bound Lipshitz constant by Gersgorin Circle Theorem
@@ -314,9 +314,9 @@ def _fit_one_shift(
             s = npr.uniform(-max_shift, max_shift)
 
         if periodic:
-            periodic_shifts.shift_one_trial(template, s, w_template)
+            periodic_shifts.apply_shift(template, s, w_template)
         else:
-            padded_shifts.shift_one_trial(template, s, w_template)
+            padded_shifts.apply_shift(template, s, w_template)
 
         resid = (w_template - Rk).ravel()
         loss = np.dot(resid, resid)
@@ -346,10 +346,10 @@ def _multishift_predict(
                 continue
 
             if periodic:
-                periodic_shifts.shift_one_trial(
+                periodic_shifts.apply_shift(
                     templates[r], shifts[r, k], w_template)
             else:
-                padded_shifts.shift_one_trial(
+                padded_shifts.apply_shift(
                     templates[r], shifts[r, k], w_template)
 
             for t in range(T):
