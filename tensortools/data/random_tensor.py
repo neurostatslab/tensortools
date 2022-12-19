@@ -1,5 +1,3 @@
-import scipy as sci
-from scipy import linalg
 import numpy as np
 
 from tensortools.tensors import KTensor
@@ -19,7 +17,7 @@ def _check_random_state(random_state):
 
     Returns
     -------
-    scipy.random.RandomState instance
+    numpy.random.RandomState instance
 
     Raises
     ------
@@ -27,8 +25,8 @@ def _check_random_state(random_state):
         If ``random_state`` is not appropriately set.
     """
     if random_state is None or isinstance(random_state, int):
-        return sci.random.RandomState(random_state)
-    elif isinstance(random_state, sci.random.RandomState):
+        return np.random.RandomState(random_state)
+    elif isinstance(random_state, np.random.RandomState):
         return random_state
     else:
         raise TypeError('Seed should be None, int or np.random.RandomState')
