@@ -24,6 +24,8 @@ setup(
     name=NAME,
     version=VERSION,
     description=DESCRIPTION,
+    long_description=open('README.md', 'r').read(),
+    long_description_content_type='text/markdown',
     url=URL,
     author=AUTHOR,
     author_email=EMAIL,
