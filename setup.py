@@ -32,7 +32,7 @@ setup(
     python_requires='>=3',
     project_urls={
         'Documentation': 'https://tensortools-docs.readthedocs.io/',
-    }
+    },
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
