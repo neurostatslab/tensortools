@@ -1,0 +1,39 @@
+name: build
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: 0 0 * * 0     # weekly
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9, '3.10']
+      # this makes sure we run all tests, even if some fail
+      fail-fast: false
+    name: Run tests
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Python 3
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Install dependencies
+      run: |
+        # using the --upgrade and --upgrade-strategy eager flags ensures that
+        # pip will always install the latest allowed version of all
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager .
+        pip install pytest
+    - name: Run tests
+      run: |
+        pytest tests/

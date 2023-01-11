@@ -14,24 +14,25 @@ install_requires = [
     'scipy',
     'tqdm',
     'munkres',
-    'numba'
+    'numba',
+    'matplotlib',
 ]
-
-tests_require = ['pytest', 'numpy', 'scipy', 'numba']
-setup_requires = ['pytest-runner']
 
 setup(
     name=NAME,
     version=VERSION,
     description=DESCRIPTION,
+    long_description=open('README.md', 'r').read(),
+    long_description_content_type='text/markdown',
     url=URL,
     author=AUTHOR,
     author_email=EMAIL,
     license=LICENSE,
     install_requires=install_requires,
-    tests_require=tests_require,
-    setup_requires=setup_requires,
     python_requires='>=3',
+    project_urls={
+        'Documentation': 'https://tensortools-docs.readthedocs.io/',
+    },
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
