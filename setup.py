@@ -5,7 +5,7 @@ NAME = 'tensortools'
 DESCRIPTION = 'Tools for Tensor Decomposition.'
 AUTHOR = 'Alex Williams and N. Benjamin Erichson'
 EMAIL = 'alex.h.willia@gmail.com'
-VERSION = "0.3"
+VERSION = "0.4"
 URL = 'https://github.com/ahwillia/tensortools'
 LICENSE = 'MIT'
 
