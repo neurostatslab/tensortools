@@ -179,13 +179,16 @@ def _hals_update(factors, grams, Xmkr, nonneg):
 
     # Do a few inner iterations.
     else:
+        factors = factors.T # make numba matrix mult faster using contiguous arrays
         for itr in range(3):
             for p in range(rank):
                 idx = (indices != p)
-                Cp = factors[:, idx] @ grams[idx][:, p]
+                other_grams = grams[:,idx]
+                Cp = other_grams[p] @ factors[idx]
                 r = (Xmkr[:, p] - Cp) / np.maximum(grams[p, p], 1e-6)
 
                 if nonneg:
-                    factors[:, p] = np.maximum(r, 0.0)
+                    factors[p] = np.maximum(r, 0.0)
                 else:
-                    factors[:, p] = r
+                    factors[p] = r
+        factors = factors.T # revert to original representation
