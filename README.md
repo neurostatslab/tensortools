@@ -14,7 +14,7 @@ Installation
 From the command line run:
 
 ```
-pip install git+https://github.com/ahwillia/tensortools
+pip install git+https://github.com/neurostatslab/tensortools
 ```
 
 (You will need to have `git` installed for this command to work.)
@@ -22,7 +22,7 @@ pip install git+https://github.com/ahwillia/tensortools
 Alternatively you can download the source code and install locally by running:
 
 ```
-git clone https://github.com/ahwillia/tensortools
+git clone https://github.com/neurostatslab/tensortools
 cd tensortools
 pip3 install -e .
 ```
